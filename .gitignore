@@ -1,0 +1,15 @@
+# dependencies and build output
+node_modules/
+dist/
+
+# secrets
+.env
+.env.*
+*.pem
+*.key
+
+# recorded agent sessions and anything derived from them stay on the machine
+local/
+
+# editor and OS
+.DS_Store
