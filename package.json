@@ -1,0 +1,22 @@
+{
+  "name": "jev-lossless-compaction",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Claude Code plugin: context compaction that moves old tool output to local files instead of deleting it, ordered by Jev.",
+  "license": "MIT OR Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json",
+    "typecheck:hooks": "tsc -p tsconfig.hooks.json",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "test:hooks": "claude plugin test hooks",
+    "validate": "claude plugin validate .claude-plugin/plugin.json"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "typescript": "^7.0.2"
+  }
+}

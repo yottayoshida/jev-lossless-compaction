@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["es2023"],
+    "paths": {
+      "claude-code": ["./.claude-plugin/types/claude-code/index.d.ts"]
+    }
+  },
+  "include": ["src", "hooks/move-out.ts", ".claude-plugin/types/claude-code/index.d.ts"]
+}

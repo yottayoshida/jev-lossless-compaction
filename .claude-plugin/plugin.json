@@ -1,0 +1,64 @@
+{
+  "name": "jev-lossless-compaction",
+  "version": "0.1.0",
+  "description": "Context compaction that moves old tool output to local files instead of deleting it.",
+  "license": "MIT OR Apache-2.0",
+  "author": {
+    "name": "Iori Yoshida",
+    "url": "https://github.com/yottayoshida"
+  },
+  "userConfig": {
+    "provider": {
+      "type": "string",
+      "title": "Jev provider",
+      "description": "Where Jev is asked: typesafe or cloudflare. Leave the key unset to order by rules only and send nothing.",
+      "default": "typesafe"
+    },
+    "apiKey": {
+      "type": "string",
+      "title": "API key",
+      "description": "The key for the chosen provider. Unset, TYPESAFE_API_KEY or CLOUDFLARE_API_TOKEN is read from the environment.",
+      "sensitive": true
+    },
+    "cloudflareAccountId": {
+      "type": "string",
+      "title": "Cloudflare account id",
+      "description": "32 hexadecimal characters; only for the cloudflare provider. Unset, CLOUDFLARE_ACCOUNT_ID is read, but only when the key comes from the environment too."
+    },
+    "model": {
+      "type": "string",
+      "title": "Jev model",
+      "description": "Model name for the typesafe provider.",
+      "default": "jev-latest"
+    },
+    "storeDir": {
+      "type": "string",
+      "title": "Where moved-out results are kept",
+      "description": "An absolute directory. Unset, jev-lossless-compaction under CLAUDE_CONFIG_DIR when that is set, else under ~/.claude."
+    },
+    "targetPercent": {
+      "type": "number",
+      "title": "Target size",
+      "description": "Results are moved out until the context is estimated to be under this share, in percent, of the size at which Claude Code compacts on its own (the model's window when auto-compaction is off).",
+      "default": 40
+    },
+    "keepNewest": {
+      "type": "number",
+      "title": "Newest messages to leave alone",
+      "description": "Tool results in this many of the newest messages are never moved out.",
+      "default": 6
+    },
+    "minChars": {
+      "type": "number",
+      "title": "Smallest result to move out",
+      "description": "Tool results shorter than this many characters stay in the conversation.",
+      "default": 2000
+    },
+    "maxAfterPercent": {
+      "type": "number",
+      "title": "Largest size to go on with",
+      "description": "When the context is still over this share, in percent, of the size at which Claude Code compacts on its own (the model's window when auto-compaction is off), the built-in compaction runs on what is left.",
+      "default": 75
+    }
+  }
+}

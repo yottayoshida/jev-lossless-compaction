@@ -1,0 +1,16 @@
+{
+  "name": "jev-lossless-compaction",
+  "owner": {
+    "name": "Iori Yoshida",
+    "url": "https://github.com/yottayoshida"
+  },
+  "plugins": [
+    {
+      "name": "jev-lossless-compaction",
+      "source": "./",
+      "description": "Context compaction that moves old tool output to local files instead of deleting it.",
+      "version": "0.1.0",
+      "license": "MIT OR Apache-2.0"
+    }
+  ]
+}

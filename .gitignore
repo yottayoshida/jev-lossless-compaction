@@ -13,3 +13,7 @@ local/
 
 # editor and OS
 .DS_Store
+
+# type declarations Claude Code writes; each version writes its own
+.claude/types/
+.claude-plugin/types/
