@@ -107,9 +107,15 @@ lossless-compaction: moved 6 of 21 tool results out (844544 -> 548237 chars, abo
 [moved out] Read result, 83261 bytes; recall with mcp__lossless-compaction__recall id ed8701f23087852c07ee8eb0b91b9335cc94cc8b21e42826c6b684299e8008e3
 ```
 
-Six left because six reached the target. They were written to the old
-directory, whose index grew from 153 to 157 entries (two of the six repeated
-a text already written), and no `~/.claude/lossless-compaction/` was made.
+Six left because six reached the target. A compaction had already run on
+its own while the files were being read (`moved 2 of 16 tool results out
+(708754 -> 612172 chars, about 23251 of 167000 tokens in use) in 23 ms`),
+so eight results in all left this conversation: 83,261 bytes (contract.zig),
+77,743 (boundary.zig), 65,420 (oracle.zig), 50,064, 47,963, 42,670, 13,974
+and 13,896. Four of the eight had the text of results that earlier sessions
+had stored, so the old directory's index grew from 153 to 157 entries, and
+no `~/.claude/lossless-compaction/` was made. The README's header image
+draws the three largest.
 In the same setting, a conversation compacted by 0.3.0 was compacted again:
 its thirteen old tickets were rewritten to the current wording, none left
 out, and three more results left; `find`, asked about one of the thirteen in
