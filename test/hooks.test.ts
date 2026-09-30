@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import { FIND_TOOL, RECALL_TOOL } from '../src/store.ts';
+import { KEY_VARIABLES, PLACE_VARIABLES, ROUTE_VARIABLES } from '../src/trust.ts';
 
 const hooks = readFileSync(new URL('../hooks/move-out.ts', import.meta.url), 'utf8');
 const compaction = readFileSync(new URL('../src/compact.ts', import.meta.url), 'utf8');
@@ -25,6 +26,25 @@ test("the find hook hands find the host's clock, answers a broken provider setti
   assert.ok(handler.includes('wait: (ms, signal) => $.clock.sleep(ms, { signal })'), 'clock');
   assert.ok(handler.includes('find cannot ask Jev: ${provider.error}'), 'provider error');
   assert.ok(handler.includes('} catch (error) {'), 'catch');
+});
+
+test("every variable trust.ts judges is read by the hook, so none of them is silently never the repository's", () => {
+  const env = hooks.slice(hooks.indexOf('async function envOf('), hooks.indexOf('async function taintsOf('));
+  for (const name of [...PLACE_VARIABLES, ...KEY_VARIABLES, ...ROUTE_VARIABLES]) {
+    assert.ok(env.includes(`${name}: await $.env.get('${name}')`), name);
+  }
+});
+
+test("where results are kept and where find sends both go through the repository's settings first", () => {
+  assert.ok(hooks.includes("$.settings.read({ source: 'project' })") && hooks.includes("$.settings.read({ source: 'local' })"), 'both files');
+  // The user file only tells the home directory apart: failing to read it must not stop anything.
+  const taints = hooks.slice(hooks.indexOf('async function taintsOf('), hooks.indexOf('async function storeOf('));
+  const [both, user] = taints.split("repo.user = await $.settings.read({ source: 'user' })");
+  assert.ok(user !== undefined && both?.includes('repo = null;') && !user.includes('repo = null'), 'the user file is read on its own');
+  assert.ok(hooks.includes('placeTaints(taints, options)'), 'the place');
+  assert.ok(hooks.includes('sendTaints(taints, options)'), 'the sending');
+  // Each of recall, find and the compaction takes the place from storeOf and gives up on its reason.
+  assert.equal(hooks.split("if (typeof store === 'string')").length - 1, 3, 'three callers');
 });
 
 test('a compaction imports nothing that sends: compact.ts does not reach ask.ts', () => {
