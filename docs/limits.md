@@ -58,11 +58,45 @@ change back.
 
 ## What a repository can change
 
-A repository you open can put a key into the environment through its own
-`.claude/settings.json`. Then what `find` sends goes to the account that key
-belongs to. A key in the plugin's settings is read first and rules this out.
-The same file can change `HOME` and `CLAUDE_CONFIG_DIR`, and with them where
-moved-out results are written; the `storeDir` setting rules that out.
+A repository you open brings `.claude/settings.json` and can bring
+`.claude/settings.local.json`, and Claude Code puts the `env` of both into
+the process. Neither decides where moved-out results are written or where
+`find` sends. Before either is used, the plugin reads both files, and a
+value it would use that one of them holds stops it:
+
+- `HOME`, `USERPROFILE` or `CLAUDE_CONFIG_DIR`, when no `storeDir` of yours
+  is set, or a `storeDir` under this plugin's `pluginConfigs`: nothing is
+  moved out and the built-in compaction runs; `recall` and `find` read
+  nothing.
+- `TYPESAFE_API_KEY`, `CLOUDFLARE_API_TOKEN` or `CLOUDFLARE_ACCOUNT_ID`,
+  when the plugin's settings hold no key; `apiKey`, `provider`,
+  `cloudflareAccountId` or `model` under its `pluginConfigs`; or a proxy or
+  certificate variable (`HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY` in either
+  case, `NODE_TLS_REJECT_UNAUTHORIZED`, `NODE_EXTRA_CA_CERTS`,
+  `SSL_CERT_FILE`, `SSL_CERT_DIR`): there is no `find`.
+
+Each time, the line the plugin prints names the value and the file. Set the
+key and `storeDir` in your user settings (`/plugin configure` without
+`--scope`). If the files cannot be read — a Claude Code without
+`$.settings.read` among them — the plugin does neither. A session started in
+your home directory reads `~/.claude/settings.json` as its project file too;
+while the two are the same, it counts as yours.
+
+What is compared is the file as it is now and the environment as the plugin
+sees it. If a value taken out of the file during a session stayed in the
+environment, it would not be seen as the repository's (whether Claude Code
+keeps it was not measured); start the session again.
+
+Measured on Claude Code 2.1.286: `HOME`, `USERPROFILE`, `CLAUDE_CONFIG_DIR`
+and `pluginConfigs` from those files did not reach the plugin, and a key
+variable and `HTTPS_PROXY` did, the latter for the plugin's requests and
+Claude Code's own. The checks above stay for a version that hands the rest
+over.
+
+This covers what a repository's settings change quietly, not what a
+repository you trust can run: its settings hooks, MCP servers, and the
+plugins or function hooks it enables run code of their own, which can read
+the files directly or change the environment without a settings file.
 
 ## `find`
 
