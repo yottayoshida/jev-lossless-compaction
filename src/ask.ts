@@ -1,23 +1,25 @@
-// Asking Jev how much each tool result is still needed.
+// Asking Jev which of several tool results a question is about.
 //
-// One `score` question per result, many questions per request. What Jev is
-// shown of a result is a digest cut from the text after secrets' shapes have
-// been blanked. Jev's answers decide an order and nothing else.
+// One `choice` question per request, its options the results moved out of a
+// conversation, each shown as a digest cut from the text after secrets' shapes
+// have been blanked. Jev's answer is a distribution over the options; what is
+// made of it is decided in find.ts. Nothing is asked at a compaction.
 
-import type { Candidate } from './select.ts';
 import type { Http } from './types.ts';
 
-/** The levels of the one scale every question uses, lowest need first. */
-export const LEVELS = ['not needed again', 'probably not needed', 'probably needed', 'needed'] as const;
-
 const JUDGING =
-  'Each question shows one tool result from this coding session: the call, the size of its output, and a digest of ' +
-  'the output. Score how much the rest of the task still needs that output to be in the conversation. An output ' +
-  'whose content has been acted on, or that only showed the way to something read later, is not needed again. ' +
-  'Every output stays available on disk whatever the score.';
+  'Each option is one tool result that was moved out of this coding session: the call that made it, the size of ' +
+  'its output, and a digest of the output. Choose the result the question is about.';
 
-const BATCH_CHARS = 80_000;
+/** At most this many options, and this many characters, per request, before the one put into every request. Measured: 95 options of 750 characters went through. */
+export const OPTIONS_PER_REQUEST = 80;
+export const CHARS_PER_REQUEST = 60_000;
+/** When a round took several requests, this many of each go on to the next round. */
+export const FINALISTS = 3;
+/** How long one request is waited for. Jev answers in well under two seconds when it answers. */
+export const REQUEST_WITHIN_MS = 20_000;
 const MAX_REQUESTS = 24;
+const MAX_ROUNDS = 4;
 const IN_FLIGHT = 8;
 const SPLITS = 3;
 
@@ -74,10 +76,6 @@ export function digest(text: string, limit = 700): string {
     .slice(0, limit);
 }
 
-export type Question = { type: 'score'; instructions: string; criteria: readonly string[] };
-
-const keyOf = (candidate: Candidate) => `r${candidate.position}`;
-
 /** A value with every string in it blanked. */
 function redactIn(value: unknown, depth = 0): unknown {
   if (typeof value === 'string') return redact(value);
@@ -95,41 +93,34 @@ export function inputLine(input: Record<string, unknown>): string {
   return redact(JSON.stringify(redactIn(input))).slice(0, 300);
 }
 
-function questionFor(candidate: Candidate): Question {
-  const input = inputLine(candidate.input);
-  return {
-    type: 'score',
-    instructions:
-      `Still needed? Result #${candidate.position} of ${candidate.tool}, called with ${input}. ` +
-      `${candidate.text.length} characters. It reads:\n${digest(candidate.text)}`,
-    criteria: LEVELS,
-  };
-}
+export type Question = { type: 'choice'; instructions: string; criteria: Record<string, string> };
 
 export type State = { task: string; judging: string };
 
-export function stateFor(goal: string): State {
-  return { task: redact(goal).slice(0, 2000), judging: JUDGING };
+/** What Jev is told: the question, blanked, and what the options are. Nothing of the conversation. */
+export function stateFor(question: string): State {
+  return { task: redact(question).slice(0, 2000), judging: JUDGING };
 }
 
-/** Questions grouped so that each request, state included, stays under the size a request may have. */
-export function batchesFor(state: State, candidates: readonly Candidate[]): Record<string, Question>[] {
-  const room = BATCH_CHARS - JSON.stringify(state).length;
-  const batches: Record<string, Question>[] = [];
-  let current: Record<string, Question> = {};
+/** One option of a choice: a key Jev answers by, and the text it is shown. */
+export type Option = { key: string; text: string };
+
+/** Options grouped so that each request stays within the size a request may have. */
+export function batchesFor(options: readonly Option[]): Option[][] {
+  const batches: Option[][] = [];
+  let current: Option[] = [];
   let used = 0;
-  for (const candidate of candidates) {
-    const question = questionFor(candidate);
-    const size = JSON.stringify(question).length + keyOf(candidate).length + 4;
-    if (used > 0 && used + size > room) {
+  for (const option of options) {
+    const size = option.text.length + option.key.length + 8;
+    if (current.length > 0 && (current.length >= OPTIONS_PER_REQUEST || used + size > CHARS_PER_REQUEST)) {
       batches.push(current);
-      current = {};
+      current = [];
       used = 0;
     }
-    current[keyOf(candidate)] = question;
+    current.push(option);
     used += size;
   }
-  if (used > 0) batches.push(current);
+  if (current.length > 0) batches.push(current);
   return batches;
 }
 
@@ -196,102 +187,144 @@ function answersIn(payload: unknown): Record<string, unknown> | null {
   return null;
 }
 
-/** The scores for the keys that were asked. Anything that is not a number on the scale is left out. */
-export function readScores(body: string, keys: readonly string[]): Map<string, number> {
-  const scores = new Map<string, number>();
+/** The probability of each key that was asked. Anything that is not a number from 0 to 1 is left out. */
+export function readProbabilities(body: string, keys: readonly string[]): Map<string, number> {
+  const probabilities = new Map<string, number>();
   let payload: unknown;
   try {
     payload = JSON.parse(body);
   } catch {
-    return scores;
+    return probabilities;
   }
-  const answers = answersIn(payload);
-  if (!answers) return scores;
+  const answer = answersIn(payload)?.['q'];
+  const given = typeof answer === 'object' && answer !== null ? (answer as { probabilities?: unknown }).probabilities : undefined;
+  if (typeof given !== 'object' || given === null || Array.isArray(given)) return probabilities;
   for (const key of keys) {
-    if (!Object.hasOwn(answers, key)) continue;
-    const answer = answers[key];
-    const score = typeof answer === 'object' && answer !== null ? (answer as { score?: unknown }).score : undefined;
-    if (typeof score === 'number' && score >= 0 && score <= LEVELS.length - 1) scores.set(key, score);
+    if (!Object.hasOwn(given, key)) continue;
+    const p = (given as Record<string, unknown>)[key];
+    if (typeof p === 'number' && p >= 0 && p <= 1) probabilities.set(key, p);
   }
-  return scores;
+  return probabilities;
 }
 
-export type Asked = {
-  /** Score by tool_use_id. A result Jev gave no usable score for is absent. */
-  scores: Map<string, number>;
-  requests: number;
-  sentChars: number;
-  failed: number;
+/** The options of one request, and the probability Jev gave each of them. */
+type Answered = { options: Option[]; probabilities: Map<string, number> };
+
+export type Chosen = { ranked: [string, number][]; requests: number } | { error: string };
+
+export type Asking = {
+  /** An option put into every request, such as "none of these"; it is ranked with the rest. */
+  always?: Option | undefined;
+  withinMs?: number | undefined;
+  /** Resolves after `ms`, rejects when `signal` aborts: the host's clock. Without it, a request is waited for without end. */
+  wait?: ((ms: number, signal: AbortSignal) => Promise<void>) | undefined;
 };
 
-export const nothingAsked = (): Asked => ({ scores: new Map(), requests: 0, sentChars: 0, failed: 0 });
-
 /**
- * Asks about every candidate. A request that fails is not sent again, except
- * that one refused for its size is split in two. `expired` ends the asking: no
- * request starts after it turns true. No part of a response is ever thrown or
- * logged, since an endpoint may echo the key it was sent.
- *
- * `asked` is counted into as the asking goes, so a caller that stops waiting
- * can still say what had been sent by then.
+ * Asks which option the question is about. Options that do not fit one
+ * request are asked in rounds: the likeliest few of each request meet in the
+ * next round, until one request holds them all, and its distribution is the
+ * answer. A request refused for its size is split in two. A request that
+ * fails otherwise, is not answered in time, or is answered without a readable
+ * probability for any option, ends the asking: a distribution over some of
+ * the options would name the wrong one with confidence. No part of a
+ * response is ever thrown or logged, since an endpoint may echo the key it
+ * was sent.
  */
-export async function ask(
-  http: Http,
-  provider: Provider,
-  goal: string,
-  candidates: readonly Candidate[],
-  expired: () => boolean,
-  asked: Asked = nothingAsked(),
-): Promise<Asked> {
-  const state = stateFor(goal);
-  const idByKey = new Map(candidates.map((candidate) => [keyOf(candidate), candidate.id]));
-  const queue = batchesFor(state, candidates).map((questions) => ({ questions, splits: SPLITS }));
+export async function choose(http: Http, provider: Provider, question: string, options: readonly Option[], asking: Asking = {}): Promise<Chosen> {
+  const state = stateFor(question);
+  const always = asking.always;
+  const withinMs = asking.withinMs ?? REQUEST_WITHIN_MS;
+  let requests = 0;
+  let pool = options.filter((option) => option.key !== always?.key);
+  for (let round = 0; round < MAX_ROUNDS; round += 1) {
+    const queue = batchesFor(pool).map((batch) => ({ options: always ? [always, ...batch] : batch, splits: SPLITS }));
+    const answered: Answered[] = [];
+    let failure: string | null = null;
 
-  const work = async () => {
-    for (;;) {
-      const job = queue.shift();
-      if (!job) return;
-      if (expired() || asked.requests >= MAX_REQUESTS) {
-        asked.failed += 1;
-        continue;
-      }
-      const keys = Object.keys(job.questions);
-      const request = requestFor(provider, state, job.questions);
-      asked.requests += 1;
-      asked.sentChars += request.body.length;
-      let response;
-      try {
-        response = await http(request.url, { method: 'POST', headers: request.headers, body: request.body });
-      } catch {
-        asked.failed += 1;
-        continue;
-      }
-      if (expired()) {
-        asked.failed += 1;
-        continue;
-      }
-      if (!response.ok) {
-        const tooLarge = response.status === 400 && response.text.includes('max_tokens_exceeded');
-        if (tooLarge && job.splits > 0 && keys.length > 1) {
-          const half = Math.ceil(keys.length / 2);
-          for (const part of [keys.slice(0, half), keys.slice(half)]) {
-            queue.push({
-              questions: Object.fromEntries(part.map((key) => [key, job.questions[key] as Question])),
-              splits: job.splits - 1,
-            });
-          }
-        } else {
-          asked.failed += 1;
+    const work = async () => {
+      for (;;) {
+        const job = queue.shift();
+        if (!job || failure !== null) return;
+        if (requests >= MAX_REQUESTS) {
+          failure = 'too many requests';
+          return;
         }
-        continue;
+        requests += 1;
+        const criteria = Object.fromEntries(job.options.map((option) => [option.key, option.text]));
+        const request = requestFor(provider, state, { q: { type: 'choice', instructions: state.task, criteria } });
+        let response;
+        const timer = new AbortController();
+        const late = asking.wait
+          ? asking.wait(withinMs, timer.signal).then(
+              () => 'late' as const,
+              () => 'late' as const,
+            )
+          : new Promise<never>(() => {});
+        try {
+          response = await Promise.race([http(request.url, { method: 'POST', headers: request.headers, body: request.body }), late]);
+        } catch {
+          failure = 'the endpoint could not be reached';
+          return;
+        } finally {
+          // The clock is stopped once the answer is in: a wait that ran on would be paid for.
+          timer.abort();
+        }
+        if (response === 'late') {
+          failure = 'Jev did not answer in time';
+          return;
+        }
+        if (!response.ok) {
+          const tooLarge = response.status === 400 && response.text.includes('max_tokens_exceeded');
+          const own = job.options.filter((option) => option.key !== always?.key);
+          if (tooLarge && job.splits > 0 && own.length > 1) {
+            // Each half gets the option put into every request again.
+            const half = Math.ceil(own.length / 2);
+            for (const part of [own.slice(0, half), own.slice(half)]) {
+              queue.push({ options: always ? [always, ...part] : part, splits: job.splits - 1 });
+            }
+            continue;
+          }
+          failure = `HTTP ${response.status}`;
+          return;
+        }
+        const keys = job.options.map((option) => option.key);
+        const probabilities = readProbabilities(response.text, keys);
+        // Every option asked about has to have been answered: a missing one ranked as 0 would be a wrong answer.
+        if (probabilities.size !== keys.length) {
+          failure = 'the answer could not be read';
+          return;
+        }
+        answered.push({ options: job.options, probabilities });
       }
-      for (const [key, score] of readScores(response.text, keys)) {
-        const id = idByKey.get(key);
-        if (id !== undefined) asked.scores.set(id, score);
-      }
-    }
-  };
+    };
+    await Promise.all(Array.from({ length: IN_FLIGHT }, work));
+    if (failure !== null) return { error: failure };
 
-  await Promise.all(Array.from({ length: IN_FLIGHT }, work));
-  return asked;
+    const rankedOf = (answer: Answered): [Option, number][] =>
+      answer.options.map((option): [Option, number] => [option, answer.probabilities.get(option.key) ?? 0]).sort((a, b) => b[1] - a[1]);
+    if (answered.length === 1) {
+      const [only] = answered;
+      return { ranked: rankedOf(only as Answered).map(([option, p]) => [option.key, p]), requests };
+    }
+    // The option put into every request is put into the next round's requests again, not carried as a
+    // finalist: it is left out before the likeliest are counted, or a request it won would send none of its own.
+    const finalists = (count: number) => {
+      const seen = new Set<string>();
+      return answered
+        .flatMap((answer) =>
+          rankedOf(answer)
+            .filter(([option]) => option.key !== always?.key)
+            .slice(0, count)
+            .map(([option]) => option),
+        )
+        .filter((option) => !seen.has(option.key) && seen.add(option.key));
+    };
+    let next = finalists(FINALISTS);
+    // Requests split for their size hold too few options for the finalists to narrow anything: the winners alone go on.
+    if (next.length >= pool.length) next = finalists(1);
+    if (next.length >= pool.length) return { error: 'the options could not be narrowed down' };
+    pool = next;
+  }
+  return { error: 'too many rounds' };
 }

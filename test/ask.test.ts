@@ -1,9 +1,21 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { LEVELS, ask, batchesFor, digest, inputLine, providerFrom, readScores, redact, requestFor, stateFor } from '../src/ask.ts';
-import type { Candidate } from '../src/select.ts';
-import { ok, output, questionsOf, recordingHttp } from './helpers.ts';
+import {
+  CHARS_PER_REQUEST,
+  OPTIONS_PER_REQUEST,
+  batchesFor,
+  choose,
+  digest,
+  inputLine,
+  providerFrom,
+  readProbabilities,
+  redact,
+  requestFor,
+  stateFor,
+  type Option,
+} from '../src/ask.ts';
+import { ok, output, questionsOf, recordingHttp, type Sent } from './helpers.ts';
 
 // Put together here so that no line of this file has the shape of a real credential.
 const FAKE = {
@@ -14,18 +26,22 @@ const FAKE = {
   password: ['hunter2', 'swordfish'].join('-'),
 };
 
-const candidate = (position: number, text: string, extra: Partial<Candidate> = {}): Candidate => ({
-  id: `toolu_${position}`,
-  position,
-  tool: 'Bash',
-  input: { command: `step ${position}` },
-  text,
-  superseded: false,
-  ...extra,
-});
-
 const TYPESAFE = { kind: 'typesafe', key: 'test-key-for-typesafe', model: 'jev-latest' } as const;
-const never = () => false;
+
+const options = (count: number, chars = 100): Option[] =>
+  Array.from({ length: count }, (_, i) => ({ key: `t${i + 1}`, text: `option ${i + 1} ${'x'.repeat(chars)}` }));
+
+/** The keys of the one choice question a request carries. */
+function keysOf(sent: Sent): string[] {
+  const question = questionsOf(sent)['q'] as { criteria?: Record<string, string> } | undefined;
+  return Object.keys(question?.criteria ?? {});
+}
+
+/** An answer that gives every key the same probability but `winner`, which gets `p`. */
+function peaked(keys: readonly string[], winner: string | null, p = 0.9) {
+  const rest = keys.length > 1 ? (winner === null ? 1 : 1 - p) / (winner === null ? keys.length : keys.length - 1) : 1;
+  return ok({ answers: { q: { type: 'choice', choice: winner ?? keys[0], probabilities: Object.fromEntries(keys.map((key) => [key, key === winner ? p : rest])) } } });
+}
 
 test('the shapes of secrets are blanked, and ordinary text is left as it is', () => {
   const lines = [
@@ -77,29 +93,29 @@ test('a digest keeps the head, the tail and the lines between them that look lik
   assert.ok(shown.length <= 700);
 });
 
-test('the goal is blanked too, and what is asked is the result, not the conversation', () => {
-  const state = stateFor(`Deploy with token=${FAKE.password} and fix the parser`);
-  const [batch] = batchesFor(state, [candidate(7, output('parser', 80))]);
+test('the question is blanked before it is sent, and the state holds nothing else', () => {
+  const state = stateFor(`The result of the deploy with token=${FAKE.password}`);
 
   assert.ok(!JSON.stringify(state).includes(FAKE.password));
   assert.deepEqual(Object.keys(state), ['task', 'judging']);
-  assert.deepEqual(Object.keys(batch ?? {}), ['r7']);
-  assert.equal(batch?.['r7']?.type, 'score');
-  assert.deepEqual(batch?.['r7']?.criteria, LEVELS);
-  assert.ok(batch?.['r7']?.instructions.includes('parser line 1:'));
+  assert.ok(state.task.includes('The result of the deploy'));
 });
 
-test('questions are grouped so that no request is larger than one may be', () => {
-  const state = stateFor('Fix the parser');
-  const candidates = Array.from({ length: 300 }, (_, i) => candidate(i + 1, output(`step ${i + 1}`, 80)));
+test('options are grouped so that no request holds more than it may, by count or by size', () => {
+  const byCount = batchesFor(options(200));
+  assert.deepEqual(
+    byCount.map((batch) => batch.length),
+    [OPTIONS_PER_REQUEST, OPTIONS_PER_REQUEST, 200 - 2 * OPTIONS_PER_REQUEST],
+  );
 
-  const batches = batchesFor(state, candidates);
-
-  assert.ok(batches.length > 1);
-  assert.equal(batches.reduce((sum, batch) => sum + Object.keys(batch).length, 0), 300);
-  for (const batch of batches) {
-    assert.ok(JSON.stringify({ state, questions: batch }).length <= 80_000);
+  const bySize = batchesFor(options(20, 10_000));
+  assert.ok(bySize.length > 1);
+  assert.equal(bySize.flat().length, 20);
+  for (const batch of bySize) {
+    assert.ok(batch.reduce((sum, option) => sum + option.text.length, 0) <= CHARS_PER_REQUEST);
   }
+  // One option larger than a request may be still goes, on its own.
+  assert.equal(batchesFor(options(1, CHARS_PER_REQUEST + 1)).length, 1);
 });
 
 test('a setting is read before the environment, and each key goes to its own provider only', () => {
@@ -165,131 +181,200 @@ test('a provider that is not one of the two, a key that cannot be a key, a bad a
 });
 
 test('the address is fixed per provider, and Workers AI gets its input wrapped', () => {
-  const state = stateFor('goal');
-  const questions = batchesFor(state, [candidate(1, output('a', 40))])[0] ?? {};
+  const state = stateFor('Which result is the build script?');
+  const questions = { q: { type: 'choice' as const, instructions: state.task, criteria: { t1: 'a', t2: 'b' } } };
 
   const direct = requestFor(TYPESAFE, state, questions);
   const wrapped = requestFor({ kind: 'cloudflare', key: 'cf-key', accountId: 'b'.repeat(32) }, state, questions);
 
   assert.equal(direct.url, 'https://api.typesafe.ai/v1/systemone');
-  assert.deepEqual(JSON.parse(direct.body), { model: 'jev-latest', state, questions: JSON.parse(JSON.stringify(questions)) });
+  assert.deepEqual(JSON.parse(direct.body), { model: 'jev-latest', state, questions });
   assert.equal(wrapped.url, `https://api.cloudflare.com/client/v4/accounts/${'b'.repeat(32)}/ai/run`);
   assert.deepEqual(Object.keys(JSON.parse(wrapped.body)), ['model', 'input']);
   assert.equal(wrapped.headers.authorization, 'Bearer cf-key');
 });
 
-test('only a number on the scale, for a key that was asked, counts as a score', () => {
+test('only a probability from 0 to 1, for a key that was asked, counts', () => {
   const body = JSON.stringify({
     result: {
       state: 'Completed',
       result: {
         answers: {
-          r1: { type: 'score', score: 0.4 },
-          r2: { type: 'score', score: 3 },
-          r3: { type: 'score', score: 3.5 },
-          r4: { type: 'score', score: -1 },
-          r5: { type: 'score', score: '0' },
-          r6: { type: 'score', score: Number.NaN },
-          r7: 'not needed again',
-          r99: { type: 'score', score: 0 },
+          q: {
+            type: 'choice',
+            choice: 't1',
+            probabilities: { t1: 0.6, t2: 0.4, t3: 1.5, t4: -0.1, t5: '0.2', t6: Number.NaN, t99: 1 },
+          },
         },
       },
     },
   });
 
-  const scores = readScores(body, ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8', 'constructor']);
+  const probabilities = readProbabilities(body, ['t1', 't2', 't3', 't4', 't5', 't6', 't7', 'constructor']);
 
-  assert.deepEqual([...scores], [['r1', 0.4], ['r2', 3]]);
-  assert.equal(readScores('<html>502</html>', ['r1']).size, 0);
-  assert.equal(readScores('{"answers":[]}', ['r1']).size, 0);
+  assert.deepEqual([...probabilities], [['t1', 0.6], ['t2', 0.4]]);
+  assert.equal(readProbabilities('<html>502</html>', ['t1']).size, 0);
+  assert.equal(readProbabilities('{"answers":{"q":{"probabilities":[0.5]}}}', ['t1']).size, 0);
 });
 
-test('every candidate is asked about once, with the key in the header and nowhere else', async () => {
-  const candidates = [candidate(1, output('a', 80)), candidate(2, output('b', 80)), candidate(3, output('c', 80))];
-  const { http, sent } = recordingHttp((request) =>
-    ok({ answers: Object.fromEntries(Object.keys(questionsOf(request)).map((key, i) => [key, { score: i }])) }),
-  );
+test('one request: every option is offered once, the key is in the header and nowhere else, and the answer is the distribution', async () => {
+  const { http, sent } = recordingHttp((request) => peaked(keysOf(request), 't2', 0.7));
 
-  const asked = await ask(http, TYPESAFE, 'Fix the parser', candidates, never);
+  const chosen = await choose(http, TYPESAFE, 'Which result is the build script?', options(3));
 
   assert.equal(sent.length, 1);
   assert.equal(sent[0]?.url, 'https://api.typesafe.ai/v1/systemone');
   assert.equal(sent[0]?.headers['authorization'], `Bearer ${TYPESAFE.key}`);
   assert.ok(!JSON.stringify(sent[0]?.body).includes(TYPESAFE.key));
-  assert.deepEqual(Object.keys(questionsOf(sent[0] as never)), ['r1', 'r2', 'r3']);
-  assert.deepEqual([...asked.scores], [['toolu_1', 0], ['toolu_2', 1], ['toolu_3', 2]]);
-  assert.deepEqual([asked.requests, asked.failed], [1, 0]);
+  assert.deepEqual(keysOf(sent[0] as Sent), ['t1', 't2', 't3']);
+  assert.ok('ranked' in chosen);
+  assert.deepEqual(chosen.ranked.map(([key]) => key), ['t2', 't1', 't3']);
+  assert.equal(chosen.ranked[0]?.[1], 0.7);
+  assert.equal(chosen.requests, 1);
 });
 
-test('a request that fails is not sent again', async () => {
-  const { http, sent } = recordingHttp(() => ({ status: 503, ok: false, text: 'unavailable' }));
-
-  const asked = await ask(http, TYPESAFE, 'goal', [candidate(1, output('a', 80))], never);
-
-  assert.equal(sent.length, 1);
-  assert.equal(asked.scores.size, 0);
-  assert.equal(asked.failed, 1);
-});
-
-test('a request refused for its size is split in two', async () => {
-  const candidates = Array.from({ length: 4 }, (_, i) => candidate(i + 1, output(`step ${i + 1}`, 80)));
+test('more options than one request takes are asked in rounds, and the winner of a later request wins the last', async () => {
   const { http, sent } = recordingHttp((request) => {
-    const keys = Object.keys(questionsOf(request));
-    return keys.length > 2
-      ? { status: 400, ok: false, text: '{"error_type":"max_tokens_exceeded"}' }
-      : ok({ answers: Object.fromEntries(keys.map((key) => [key, { score: 1 }])) });
+    const keys = keysOf(request);
+    return peaked(keys, keys.includes('t150') ? 't150' : null);
   });
 
-  const asked = await ask(http, TYPESAFE, 'goal', candidates, never);
+  const chosen = await choose(http, TYPESAFE, 'Which one?', options(200));
 
-  assert.deepEqual(sent.map((request) => Object.keys(questionsOf(request)).length), [4, 2, 2]);
-  assert.equal(asked.scores.size, 4);
-  assert.equal(asked.failed, 0);
+  // Three requests of the first round, then one holding three of each.
+  assert.deepEqual(sent.map((request) => keysOf(request).length), [80, 80, 40, 9]);
+  assert.ok('ranked' in chosen);
+  assert.equal(chosen.ranked[0]?.[0], 't150');
+  assert.equal(chosen.ranked.length, 9);
+  assert.equal(chosen.requests, 4);
 });
 
-test('once the asking has expired, nothing more is sent and a late answer is not used', async () => {
-  let expired = false;
-  // The asking expires when the first answer arrives, not when the first request leaves.
-  const { http, sent } = recordingHttp(async (request) => {
-    await new Promise((resolve) => setTimeout(resolve, 5));
-    expired = true;
-    return ok({ answers: Object.fromEntries(Object.keys(questionsOf(request)).map((key) => [key, { score: 0 }])) });
+test('a request refused for its size is split in two, and when that does not narrow the choice, the winners alone go on', async () => {
+  const { http, sent } = recordingHttp((request) => {
+    const keys = keysOf(request);
+    return keys.length > 2 ? { status: 400, ok: false, text: '{"error_type":"max_tokens_exceeded"}' } : peaked(keys, keys[0] ?? null, 0.8);
   });
-  const candidates = Array.from({ length: 2000 }, (_, i) => candidate(i + 1, output(`step ${i + 1}`, 80)));
-  const requests = batchesFor(stateFor('goal'), candidates).length;
 
-  const asked = await ask(http, TYPESAFE, 'goal', candidates, () => expired);
+  const chosen = await choose(http, TYPESAFE, 'Which one?', options(4));
 
-  // More requests than may be in flight at once, or stopping would not show.
-  assert.ok(requests > 8, `${requests} requests to send`);
-  // Eight are in flight when the first answer comes back; none starts after it.
-  assert.equal(sent.length, 8);
-  assert.equal(asked.scores.size, 0);
+  assert.deepEqual(sent.map((request) => keysOf(request).length), [4, 2, 2, 2]);
+  assert.ok('ranked' in chosen);
+  assert.equal(chosen.ranked.length, 2);
 });
 
-test('an endpoint that echoes the key back gets it into nothing the caller sees', async () => {
+test('a request that fails ends the asking with its status, and what the endpoint said goes nowhere', async () => {
   const echo = `bad request: authorization Bearer ${TYPESAFE.key}`;
-  const { http } = recordingHttp((_, count) =>
-    count === 1 ? { status: 500, ok: false, text: echo } : { status: 200, ok: true, text: echo },
-  );
-  const candidates = Array.from({ length: 300 }, (_, i) => candidate(i + 1, output(`step ${i + 1}`, 80)));
+  const { http, sent } = recordingHttp(() => ({ status: 503, ok: false, text: echo }));
 
-  const asked = await ask(http, TYPESAFE, 'goal', candidates, never);
+  const chosen = await choose(http, TYPESAFE, 'Which one?', options(200));
 
-  assert.ok(!JSON.stringify({ ...asked, scores: [...asked.scores] }).includes(TYPESAFE.key));
-  assert.equal(asked.scores.size, 0);
+  assert.ok('error' in chosen);
+  assert.equal(chosen.error, 'HTTP 503');
+  assert.ok(!JSON.stringify(chosen).includes(TYPESAFE.key));
+  // The asking stops with the round in flight: no later round is sent.
+  assert.ok(sent.length <= 3, `${sent.length} requests`);
 });
 
-test('an endpoint that cannot be reached is a failed request, not an exception', async () => {
-  const asked = await ask(
+test('an endpoint that cannot be reached is an error, not an exception, and the key stays out of it', async () => {
+  const chosen = await choose(
     async () => {
       throw new Error(`connect failed with header Bearer ${TYPESAFE.key}`);
     },
     TYPESAFE,
-    'goal',
-    [candidate(1, output('a', 80))],
-    never,
+    'Which one?',
+    options(3),
   );
 
-  assert.deepEqual([asked.requests, asked.failed, asked.scores.size], [1, 1, 0]);
+  assert.deepEqual(chosen, { error: 'the endpoint could not be reached' });
+});
+
+test('more requests than may be sent for one question end the asking', async () => {
+  const { http, sent } = recordingHttp((request) => peaked(keysOf(request), null));
+
+  const chosen = await choose(http, TYPESAFE, 'Which one?', options(2000));
+
+  assert.deepEqual(chosen, { error: 'too many requests' });
+  assert.ok(sent.length <= 24);
+});
+
+test('an answer without a readable probability for any option ends the asking, rather than ranking by nothing', async () => {
+  const { http } = recordingHttp(() => ok({ answers: { q: { type: 'choice', choice: 't1' } } }));
+
+  const chosen = await choose(http, TYPESAFE, 'Which one?', options(3));
+
+  assert.deepEqual(chosen, { error: 'the answer could not be read' });
+});
+
+test('an answer that does not come in time ends the asking, and the clock is stopped once an answer is in', async () => {
+  const waits: { ms: number; aborted: boolean }[] = [];
+  const wait = (ms: number, signal: AbortSignal) =>
+    new Promise<void>((resolve, reject) => {
+      const entry = { ms, aborted: false };
+      waits.push(entry);
+      signal.addEventListener('abort', () => {
+        entry.aborted = true;
+        reject(new Error('aborted'));
+      });
+      setTimeout(resolve, ms);
+    });
+
+  const late = await choose(() => new Promise(() => {}), TYPESAFE, 'Which one?', options(3), { withinMs: 5, wait });
+  assert.deepEqual(late, { error: 'Jev did not answer in time' });
+
+  const { http } = recordingHttp((request) => peaked(keysOf(request), 't1'));
+  const inTime = await choose(http, TYPESAFE, 'Which one?', options(3), { withinMs: 5000, wait });
+  assert.ok('ranked' in inTime);
+  assert.deepEqual(waits.map((entry) => entry.aborted), [true, true]);
+});
+
+test('an option put into every request is ranked with the rest in each, and once in the last', async () => {
+  const none = { key: 'none', text: 'None of these' };
+  const { http, sent } = recordingHttp((request) => {
+    const keys = keysOf(request);
+    return peaked(keys, keys.includes('t150') ? 't150' : 'none');
+  });
+
+  const chosen = await choose(http, TYPESAFE, 'Which one?', options(200), { always: none });
+
+  for (const request of sent) assert.equal(keysOf(request)[0], 'none');
+  assert.deepEqual(sent.map((request) => keysOf(request).length).slice(0, 3), [81, 81, 41]);
+  const last = keysOf(sent[3] as Sent);
+  assert.equal(last.filter((key) => key === 'none').length, 1);
+  assert.ok(last.includes('t150'));
+  assert.ok('ranked' in chosen);
+  assert.equal(chosen.ranked[0]?.[0], 't150');
+});
+
+test('a request split for its size that "none of these" wins still sends its own likeliest on', async () => {
+  const none = { key: 'none', text: 'None of these' };
+  const { http, sent } = recordingHttp((request) => {
+    const keys = keysOf(request);
+    if (keys.length > 3) return { status: 400, ok: false, text: '{"error_type":"max_tokens_exceeded"}' };
+    // In the half that holds t1, none wins; t1 is the likeliest of the rest. In the other half, t3 wins.
+    return peaked(keys, keys.includes('t1') ? 'none' : 't3', 0.6);
+  });
+
+  const chosen = await choose(http, TYPESAFE, 'Which one?', options(4), { always: none });
+
+  // [none,t1..t4] refused; [none,t1,t2] and [none,t3,t4] answered; the winners t1 and t3 meet none in the last.
+  assert.deepEqual(sent.map((request) => keysOf(request).length), [5, 3, 3, 3]);
+  const last = keysOf(sent[3] as Sent);
+  assert.deepEqual(last, ['none', 't1', 't3']);
+  assert.ok('ranked' in chosen);
+});
+
+test('a key Jev was not asked about changes nothing, and an option it left out or put off the scale makes the answer unreadable', async () => {
+  const extra = recordingHttp(() =>
+    ok({ answers: { q: { type: 'choice', choice: 't9', probabilities: { t9: 1, t1: 0.6, t2: 0.3, t3: 0.1 } } } }),
+  );
+  const offScale = recordingHttp(() =>
+    ok({ answers: { q: { type: 'choice', choice: 't1', probabilities: { t1: 5, t2: 0.3, t3: 0.1 } } } }),
+  );
+  const leftOut = recordingHttp(() => ok({ answers: { q: { type: 'choice', choice: 't2', probabilities: { t2: 0.7, t3: 0.3 } } } }));
+
+  const withExtra = await choose(extra.http, TYPESAFE, 'Which one?', options(3));
+  assert.ok('ranked' in withExtra);
+  assert.deepEqual(withExtra.ranked, [['t1', 0.6], ['t2', 0.3], ['t3', 0.1]]);
+  assert.deepEqual(await choose(offScale.http, TYPESAFE, 'Which one?', options(3)), { error: 'the answer could not be read' });
+  assert.deepEqual(await choose(leftOut.http, TYPESAFE, 'Which one?', options(3)), { error: 'the answer could not be read' });
 });

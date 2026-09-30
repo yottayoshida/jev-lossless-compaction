@@ -1,9 +1,8 @@
 // One compaction: choose what leaves, move it out, hand the conversation back.
 
-import { ask, nothingAsked, type Provider } from './ask.ts';
 import { ruleOrder, select, type Candidate } from './select.ts';
 import { isStored, moveOut, readTicket, type Moved, type NotMoved } from './store.ts';
-import type { Files, Http, Message, ToolResult, ToolUse } from './types.ts';
+import type { Files, Message, ToolResult, ToolUse } from './types.ts';
 
 export type Config = {
   storeDir: string;
@@ -20,17 +19,11 @@ export type Config = {
    * in use to go on with and the built-in compaction takes over.
    */
   maxAfterPercent: number;
-  /** Null: nothing is sent anywhere and rules decide the order. */
-  provider: Provider | null;
-  /** How long Jev is waited for before rules decide the order, in milliseconds. */
-  askWithinMs: number;
 };
 
+/** What a compaction needs of the host: files, and a clock. Nothing is sent anywhere. */
 export type Host = {
   files: Files;
-  http: Http;
-  /** Resolves after `ms`, rejects when `signal` aborts. */
-  wait(ms: number, signal: AbortSignal): Promise<void>;
   now(): number;
 };
 
@@ -53,10 +46,6 @@ export type Report = {
   /** Estimated from characters: the context after, in tokens, and the size it was measured against. */
   tokensAfter: number;
   window: number;
-  order: 'jev' | 'rules';
-  requests: number;
-  sentChars: number;
-  failedRequests: number;
   /** Why results stayed: by what the store said, and `call-differs` for a call whose own text was another. */
   notMoved: Partial<Record<NotMoved['reason'] | 'call-differs', number>>;
   ms: number;
@@ -80,7 +69,6 @@ export type Outcome = {
 // The host counts no text for a plugin, and the `Messages` row of its breakdown takes
 // up what its other rows got wrong, so neither removes the guess.
 export const CHARS_PER_TOKEN = 3;
-const UNSCORED = 1.5;
 const WRITES_IN_FLIGHT = 16;
 
 /** What Claude Code says of the context, cut down to what a compaction measures against. */
@@ -152,47 +140,6 @@ function rebuild(messages: readonly Message[], moved: ReadonlyMap<string, Moved>
   return out;
 }
 
-type Ordered = { order: Candidate[]; by: 'jev' | 'rules'; requests: number; sentChars: number; failed: number };
-
-/**
- * The order results leave in. Those a later call made obsolete go first and
- * are never asked about. Jev orders the rest; a result it gave no score for
- * sits in the middle of the scale, and rules break every tie.
- */
-async function orderOf(candidates: readonly Candidate[], input: Input, config: Config, host: Host, need: number): Promise<Ordered> {
-  const byRules = ruleOrder(candidates, input.goal);
-  const obsolete = byRules.filter((candidate) => candidate.superseded);
-  const open = byRules.filter((candidate) => !candidate.superseded);
-  const rules: Ordered = { order: byRules, by: 'rules', requests: 0, sentChars: 0, failed: 0 };
-
-  const freed = obsolete.reduce((sum, candidate) => sum + candidate.text.length, 0) / CHARS_PER_TOKEN;
-  if (config.provider === null || open.length === 0 || freed >= need) return rules;
-
-  // Counted into from here, so that what was sent is reported even when the answer is not waited for.
-  const asked = nothingAsked();
-  let late = false;
-  const timer = new AbortController();
-  const answered = await Promise.race([
-    ask(host.http, config.provider, input.goal, open, () => late, asked).then(() => true),
-    host.wait(config.askWithinMs, timer.signal).then(
-      () => false,
-      () => false,
-    ),
-  ]);
-  late = true;
-  timer.abort();
-  const sent = { requests: asked.requests, sentChars: asked.sentChars, failed: asked.failed };
-  if (!answered || asked.scores.size === 0) return { ...rules, ...sent };
-
-  const rank = new Map(open.map((candidate, index) => [candidate.id, index]));
-  const scored = [...open].sort(
-    (a, b) =>
-      (asked.scores.get(a.id) ?? UNSCORED) - (asked.scores.get(b.id) ?? UNSCORED) ||
-      (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0),
-  );
-  return { order: [...obsolete, ...scored], by: 'jev', ...sent };
-}
-
 export async function compact(input: Input, config: Config, host: Host): Promise<Outcome> {
   const started = host.now();
   const { files } = host;
@@ -207,13 +154,15 @@ export async function compact(input: Input, config: Config, host: Host): Promise
   // compaction that was asked for should leave room to work in.
   const target = Math.min((input.window * config.targetPercent) / 100, input.tokens / 2);
   const need = input.tokens - target;
-  const ordered = await orderOf(candidates, input, config, host, need);
+  // The order results leave in is decided by rules alone: those a later call made
+  // obsolete first, then those sharing the least with the goal, then the oldest.
+  const order = ruleOrder(candidates, input.goal);
 
   const moved = new Map<string, Moved>();
   const notMoved: Report['notMoved'] = {};
   if (stayed.unlike > 0) notMoved['call-differs'] = stayed.unlike;
   let saved = 0;
-  const left = [...ordered.order];
+  const left = [...order];
   while (saved / CHARS_PER_TOKEN < need && left.length > 0) {
     // As many as the estimate says are still needed, written side by side. Each
     // round takes at least one, so the loop ends when the candidates do.
@@ -257,10 +206,6 @@ export async function compact(input: Input, config: Config, host: Host): Promise
       charsAfter,
       tokensAfter,
       window: input.window,
-      order: ordered.by,
-      requests: ordered.requests,
-      sentChars: ordered.sentChars,
-      failedRequests: ordered.failed,
       notMoved,
       ms: host.now() - started,
     },
