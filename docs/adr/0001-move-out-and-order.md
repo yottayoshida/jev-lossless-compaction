@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-09-29
 
+> Written when the plugin was named `jev-lossless-compaction`. The rename is ADR 0004; what this record says of names and paths is of its time.
+
 ## Context
 
 A coding agent's conversation fills with tool output. Claude Code compacts it

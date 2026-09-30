@@ -1,4 +1,4 @@
-# jev-lossless-compaction
+# lossless-compaction
 
 A Claude Code plugin that compacts a conversation by moving old tool output to
 local files instead of summarizing or deleting it. One line stays behind for
@@ -22,12 +22,12 @@ what it is about with `find`, which asks [Jev](https://typesafe.ai) to choose.
 ## Demo
 
 What a compaction reports, and the line that stands in a result's place,
-from a real session of sixteen `Read` results:
+from a real session of `Read` results:
 
 ```text
-jev-lossless-compaction: moved 14 of 16 tool results out (408174 -> 30293 chars, about 51909 of 167000 tokens in use) in 44 ms
+lossless-compaction: moved 6 of 21 tool results out (844544 -> 548237 chars, about 52357 of 167000 tokens in use) in 61 ms
 
-[moved out] Read result, 36925 bytes; recall with mcp__jev-lossless-compaction__recall id a55c9850d2e336adcaf429cc720b2d070c2452bce2023e886c648b546ff96944
+[moved out] Read result, 83261 bytes; recall with mcp__lossless-compaction__recall id ed8701f23087852c07ee8eb0b91b9335cc94cc8b21e42826c6b684299e8008e3
 ```
 
 Asked in other words which of thirteen moved-out results reported a refusal
@@ -53,21 +53,33 @@ export CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1
 
 # Where results will be kept, made before the first compaction so that only
 # you can read them. The plugin cannot set the mode of what it creates.
-mkdir -p -m 700 ~/.claude/jev-lossless-compaction
+mkdir -p -m 700 ~/.claude/lossless-compaction
 
-claude plugin marketplace add yottayoshida/jev-lossless-compaction
-claude plugin install jev-lossless-compaction@jev-lossless-compaction
+claude plugin marketplace add yottayoshida/lossless-compaction
+claude plugin install lossless-compaction@lossless-compaction
 ```
 
 Then give it a key with
-`/plugin configure jev-lossless-compaction@jev-lossless-compaction` inside
-Claude Code. For Jev on Cloudflare Workers AI, set `provider` to `cloudflare`
-there, and the account id next to the key. With nothing set there, the key is
-read from the environment: `TYPESAFE_API_KEY`, or `CLOUDFLARE_API_TOKEN` and
-`CLOUDFLARE_ACCOUNT_ID`. To use it in one repository only, add
-`--scope local` to both commands and run them in that repository.
+`/plugin configure lossless-compaction@lossless-compaction` inside Claude
+Code. For Jev on Cloudflare Workers AI, set `provider` to `cloudflare` there,
+and the account id next to the key. With nothing set there, the key is read
+from the environment: `TYPESAFE_API_KEY`, or `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID`. To use it in one repository only, add `--scope local`
+to both commands and run them in that repository.
 
 From then on `/compact` and automatic compaction go through the plugin.
+
+**Coming from `jev-lossless-compaction` (0.3.0 and before):** the plugin was
+renamed, and an installed copy does not follow: `claude plugin update` under
+the old id fails with "Plugin not found" and changes nothing. Uninstall it,
+remove the marketplace `jev-lossless-compaction`, then add and install as above, and set
+the key — and `storeDir`, if you had set it — again under the new id. Until
+then there is no hook, and Claude Code's own compaction runs; do not keep both
+installed. Your results stay where they are: `~/.claude/jev-lossless-compaction/`
+goes on being read and written to while it exists, so `chmod 700` it if the
+plugin made it rather than you. Tickets in old conversations name the old
+tool; call `recall` with the same id, or compact once more and they are
+rewritten.
 
 ## What it does
 
@@ -97,9 +109,13 @@ From then on `/compact` and automatic compaction go through the plugin.
   image or a document, has 4096 messages or more, belongs to a subagent, or
   is still too full after moving out. Earlier tickets may then be gone from
   the conversation; the files remain.
-- Files are plain text under `~/.claude/jev-lossless-compaction/`, readable
-  by other users of the machine unless the `mkdir` above ran first, and never
-  cleaned up.
+- Files are plain text under `~/.claude/lossless-compaction/` — or under
+  `~/.claude/jev-lossless-compaction/` while that exists — readable by other
+  users of the machine unless the directory written to was made with the
+  `mkdir` above or closed with `chmod 700`, and never cleaned up. A result
+  moved out by an earlier version is read back after the rename, by the same
+  id, from where it was written; a `storeDir` set under the old id has to be
+  set again under the new.
 - `find` offers the tickets it sees in the conversation, shows Jev the first
   lines of each result, answers a subagent with nothing to find, and gives a
   request to Jev up after twenty seconds.
@@ -115,6 +131,8 @@ The full list: [docs/limits.md](docs/limits.md).
   why the newest results are kept by size.
   [ADR 0003](docs/adr/0003-jev-picks-what-comes-back.md): why Jev chooses
   what comes back, not what leaves.
+  [ADR 0004](docs/adr/0004-the-plugin-is-named-lossless-compaction.md): the
+  rename, and how what the old name wrote is still read.
 - [Measurements](docs/measurements.md), [Limits](docs/limits.md),
   [Development](docs/development.md), [CHANGELOG](CHANGELOG.md), and the
   settings with their defaults in

@@ -1,7 +1,10 @@
 # Measurements
 
-Every figure the README quotes, with how it was taken. One run each unless
-said otherwise, all on 2026-09-30, Claude Code 2.1.285 with Claude Haiku 4.5.
+Every figure the README quotes, with how it was taken. Except for the last
+section, they were recorded when the plugin was named
+`jev-lossless-compaction`, and the lines quoted are as they appeared then.
+One run each unless said otherwise, all on 2026-09-30, Claude Code 2.1.285
+with Claude Haiku 4.5.
 The plugin was run on 2.1.284 and 2.1.285; function hooks are early access,
 and another version may have changed them.
 
@@ -89,3 +92,28 @@ written before Jev is asked.
 With a hundred stored results of 60 KB and three of 4 MB, `find`'s own work
 took 96 ms. A `choice` with 95 options of 750 characters, 71,219 characters
 in all, went through the Cloudflare route in 1.5 seconds.
+
+## The README's demo, after the rename
+
+A fresh conversation under 0.4.0, on a machine holding
+`~/.claude/jev-lossless-compaction/` with 153 results from earlier
+versions: the agent made thirty-seven `Read` calls over sixteen Zig source
+files and was then asked to `/compact`. What the compaction reported, and
+the line that stands in a result's place:
+
+```text
+lossless-compaction: moved 6 of 21 tool results out (844544 -> 548237 chars, about 52357 of 167000 tokens in use) in 61 ms
+
+[moved out] Read result, 83261 bytes; recall with mcp__lossless-compaction__recall id ed8701f23087852c07ee8eb0b91b9335cc94cc8b21e42826c6b684299e8008e3
+```
+
+Six left because six reached the target. They were written to the old
+directory, whose index grew from 153 to 157 entries (two of the six repeated
+a text already written), and no `~/.claude/lossless-compaction/` was made.
+In the same setting, a conversation compacted by 0.3.0 was compacted again:
+its thirteen old tickets were rewritten to the current wording, none left
+out, and three more results left; `find`, asked about one of the thirteen in
+a copy of that conversation not compacted again, returned it at probability
+0.99; and with an empty `~/.claude/lossless-compaction/` made by hand,
+`recall` of an old ticket's id returned the result, and the new directory
+stayed empty.

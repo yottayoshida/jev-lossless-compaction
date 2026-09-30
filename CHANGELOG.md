@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-30
+
+### Changed
+
+- The plugin is named `lossless-compaction`: the repository (`yottayoshida/lossless-compaction`, the old address redirects), the marketplace and plugin id (`lossless-compaction@lossless-compaction`), the tools (`mcp__lossless-compaction__recall` and `__find`), the default directory (`~/.claude/lossless-compaction/`) and the ticket. Jev no longer names the plugin: a compaction does not use it, and it is one provider behind `find`. An installed copy does not follow the rename (`claude plugin update` under the old id fails with "Plugin not found" and changes nothing): uninstall it, remove the old marketplace, add and install the new one, and set the key and any `storeDir` again under the new id; until then there is no hook and Claude Code's own compaction runs. Do not keep both installed.
+- What the old name wrote is still read. Tickets in every wording so far are recognised, offered by `find` and read back by `recall` with the same id. Results are read from `~/.claude/jev-lossless-compaction/` as well, and while that directory exists new results are written there too, so that results stay where they are and a directory made readable to its owner alone stays the one written to. A compaction that moves something out rewrites the old tickets in the conversation to the current wording, same id and size, so that they name the tool that exists.
+
 ## [0.3.0] - 2026-09-30
 
 ### Added
