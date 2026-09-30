@@ -1,11 +1,12 @@
 // One compaction: choose what leaves, move it out, hand the conversation back.
 
 import { ruleOrder, select, type Candidate } from './select.ts';
-import { isStored, moveOut, readTicket, type Moved, type NotMoved } from './store.ts';
+import { isStored, moveOut, readTicket, ticketText, type Moved, type NotMoved, type StoreDirs, type Ticket } from './store.ts';
 import type { Files, Message, ToolResult, ToolUse } from './types.ts';
 
 export type Config = {
-  storeDir: string;
+  /** Where results are written, and every place they are read from. */
+  store: StoreDirs;
   /**
    * The newest result that could leave stays whatever its size; the ones before
    * it stay while they and the newest add up to this many tokens.
@@ -107,30 +108,36 @@ async function inParallel<T, R>(items: readonly T[], limit: number, run: (item: 
   return out;
 }
 
-/** The ids of the results that already are tickets of this store. */
-async function storedTickets(files: Files, dir: string, messages: readonly Message[]): Promise<Set<string>> {
+/** The results that already are tickets of this store, by the id of their call, with what the ticket says. */
+async function storedTickets(files: Files, dirs: readonly string[], messages: readonly Message[]): Promise<Map<string, Ticket>> {
   const shaped = messages.flatMap((message) => message.toolResults ?? []).filter((result) => readTicket(result.text));
-  const kept = await inParallel(shaped, WRITES_IN_FLIGHT, (result) => isStored(files, dir, result.text));
-  return new Set(shaped.filter((_, index) => kept[index]).map((result) => result.tool_use_id));
+  const kept = await inParallel(shaped, WRITES_IN_FLIGHT, (result) => isStored(files, dirs, result.text));
+  return new Map(shaped.filter((_, index) => kept[index]).map((result) => [result.tool_use_id, readTicket(result.text) as Ticket]));
 }
 
 /**
  * Every message without its handle, moved-out results replaced by their tickets
- * on both sides of the call. A message handed back with its handle makes Claude
- * Code restore the whole history when the session is resumed.
+ * on both sides of the call. A ticket an earlier compaction left is written in
+ * the current wording, same id and size, so that a conversation compacted again
+ * names the tool that exists now (ADR 0004). A message handed back with its
+ * handle makes Claude Code restore the whole history when the session is resumed.
  */
-function rebuild(messages: readonly Message[], moved: ReadonlyMap<string, Moved>): Message[] {
+function rebuild(messages: readonly Message[], moved: ReadonlyMap<string, Moved>, stored: ReadonlyMap<string, Ticket>): Message[] {
+  const lineFor = (id: string): string | undefined => {
+    const ticket = moved.get(id) ?? stored.get(id);
+    return ticket && ticketText(ticket);
+  };
   const out: Message[] = [];
   for (const message of messages) {
     const toolUses = message.toolUses.map((use): ToolUse => {
-      const ticket = moved.get(use.tool_use_id);
-      if (!ticket) return { ...use };
+      const line = lineFor(use.tool_use_id);
+      if (line === undefined) return { ...use };
       const { result: _result, ...rest } = use;
-      return { ...rest, text: ticket.text };
+      return { ...rest, text: line };
     });
     const toolResults = (message.toolResults ?? []).map((result): ToolResult => {
-      const ticket = moved.get(result.tool_use_id);
-      return ticket ? { tool_use_id: result.tool_use_id, text: ticket.text, isError: false } : { ...result };
+      const line = lineFor(result.tool_use_id);
+      return line === undefined ? { ...result } : { tool_use_id: result.tool_use_id, text: line, isError: false };
     });
     if (message.text === '' && toolUses.length === 0 && toolResults.length === 0) continue;
     const rebuilt: Message = { role: message.role, text: message.text, toolUses };
@@ -143,11 +150,11 @@ function rebuild(messages: readonly Message[], moved: ReadonlyMap<string, Moved>
 export async function compact(input: Input, config: Config, host: Host): Promise<Outcome> {
   const started = host.now();
   const { files } = host;
-  const stored = await storedTickets(files, config.storeDir, input.messages);
+  const stored = await storedTickets(files, config.store.read, input.messages);
   const { candidates, left: stayed } = select(
     input.messages,
     { keepChars: config.keepTokens * CHARS_PER_TOKEN, minChars: config.minChars },
-    stored,
+    new Set(stored.keys()),
   );
 
   // At most the target, and never more than half of what is there now: a
@@ -174,7 +181,7 @@ export async function compact(input: Input, config: Config, host: Host): Promise
       expected += candidate.text.length;
     } while (left.length > 0 && expected / CHARS_PER_TOKEN < need);
     const written = await inParallel(wave, WRITES_IN_FLIGHT, (candidate) =>
-      moveOut(files, config.storeDir, candidate.tool, candidate.text),
+      moveOut(files, config.store.write, candidate.tool, candidate.text),
     );
     wave.forEach((candidate, at) => {
       const result = written[at] as Moved | NotMoved;
@@ -187,7 +194,7 @@ export async function compact(input: Input, config: Config, host: Host): Promise
     });
   }
 
-  const messages = rebuild(input.messages, moved);
+  const messages = rebuild(input.messages, moved, stored);
   // What is measured against the window is everything in it: the system prompt and the
   // tools' definitions too, which no compaction makes smaller.
   const tokensAfter = Math.round(input.tokens - saved / CHARS_PER_TOKEN);

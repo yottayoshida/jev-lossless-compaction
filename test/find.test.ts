@@ -7,7 +7,7 @@ import { FIND_TOOL, RECALL_TOOL, moveOut, ticketText } from '../src/store.ts';
 import type { Http, Message } from '../src/types.ts';
 import { MemoryFiles, conversation, ok, output, questionsOf, recordingHttp, type Call, type Sent } from './helpers.ts';
 
-const DIR = '/home/u/.claude/jev-lossless-compaction';
+const DIR = '/home/u/.claude/lossless-compaction';
 const TYPESAFE = { kind: 'typesafe', key: 'test-key-for-typesafe', model: 'jev-latest' } as const;
 
 const refuse: Http = async () => {
@@ -56,7 +56,7 @@ function answer(keys: readonly string[], winner: string | null, p = 0.95) {
 
 const input = (files: MemoryFiles, messages: Message[], question: unknown, http: Http = refuse, extra: Partial<FindInput> = {}): FindInput => ({
   files,
-  dir: DIR,
+  dirs: [DIR],
   messages,
   provider: TYPESAFE,
   http,
@@ -220,6 +220,9 @@ test("tickets that stand for this plugin's own tools' results, and repeated ids,
     ticketText({ tool: FIND_TOOL, bytes: own.bytes, id: own.id }),
     `[moved out] recall result, ${own.bytes} bytes; recall with ${RECALL_TOOL} id ${own.id}`,
     `[moved out] find result, ${own.bytes} bytes; recall with ${RECALL_TOOL} id ${own.id}`,
+    // What 0.1.0 wrote for its own recall tool, and what 0.2.0 wrote, under the old name.
+    `[jev-lossless-compaction] This mcp__jev-lossless-compaction__recall result (${own.bytes} bytes) was moved out of the conversation and is kept unchanged on disk. To read it, call the tool mcp__jev-lossless-compaction__recall with id ${own.id}.`,
+    `[moved out] recall result, ${own.bytes} bytes; recall with mcp__jev-lossless-compaction__recall id ${own.id}`,
     // A result of another tool that happens to be the same text as a's: the id again.
     ticketText({ tool: 'Bash', bytes: first.bytes, id: first.id }),
   ];
@@ -232,6 +235,34 @@ test("tickets that stand for this plugin's own tools' results, and repeated ids,
   assert.equal(ticketsIn(messages).length, 3);
   await find(input(files, messages, 'Which?', http));
   assert.deepEqual(keysOf(sent[0] as Sent), ['none', 't1', 't2', 't3']);
+});
+
+test('tickets written under the old name, in either wording, are offered and read back from where they were written', async () => {
+  const OLD = '/home/u/.claude/jev-lossless-compaction';
+  const NEW = '/home/u/.claude/lossless-compaction';
+  const files = new MemoryFiles();
+  const messages = conversation([call('a'), call('b'), call('c')]);
+  const wordings = [
+    (t: { tool: string; bytes: number; id: string }) => `[moved out] ${t.tool} result, ${t.bytes} bytes; recall with mcp__jev-lossless-compaction__recall id ${t.id}`,
+    (t: { tool: string; bytes: number; id: string }) =>
+      `[jev-lossless-compaction] This ${t.tool} result (${t.bytes} bytes) was moved out of the conversation and is kept unchanged on disk. To read it, call the tool mcp__jev-lossless-compaction__recall with id ${t.id}.`,
+  ];
+  for (const [index, label] of ['a', 'b'].entries()) {
+    const stored = await moveOut(files, OLD, 'Bash', output(label, 30));
+    assert.ok(!('reason' in stored));
+    const line = (wordings[index] as (typeof wordings)[number])(stored);
+    for (const message of messages) {
+      for (const use of message.toolUses) if (use.tool_use_id === `toolu_${index + 1}`) use.text = line;
+      for (const result of message.toolResults ?? []) if (result.tool_use_id === `toolu_${index + 1}`) result.text = line;
+    }
+  }
+  const { http, sent } = recordingHttp((request) => answer(keysOf(request), 't2'));
+
+  const text = await find(input(files, messages, 'Which result shows b?', http, { dirs: [NEW, OLD] }));
+
+  assert.deepEqual(keysOf(sent[0] as Sent), ['none', 't1', 't2']);
+  assert.ok(text.startsWith('[found] Bash result'), text);
+  assert.ok(text.endsWith(output('b', 30)));
 });
 
 test('with more results than one request takes, one that wins a later request is found', async () => {
@@ -266,7 +297,7 @@ test('when Jev cannot be asked, the answer says so by status alone', async () =>
 
   const text = await find(input(files, messages, 'Which?', http));
 
-  assert.equal(text, '[jev-lossless-compaction] Jev could not be asked: HTTP 401.');
+  assert.equal(text, '[lossless-compaction] Jev could not be asked: HTTP 401.');
   const thrown = await find(
     input(files, messages, 'Which?', async () => {
       throw new Error(`down, key ${TYPESAFE.key}`);

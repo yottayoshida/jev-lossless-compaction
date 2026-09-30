@@ -1,6 +1,6 @@
 {
-  "name": "jev-lossless-compaction",
-  "version": "0.3.0",
+  "name": "lossless-compaction",
+  "version": "0.4.0",
   "description": "Context compaction that moves old tool output to local files instead of deleting it.",
   "license": "MIT OR Apache-2.0",
   "author": {
@@ -34,7 +34,7 @@
     "storeDir": {
       "type": "string",
       "title": "Where moved-out results are kept",
-      "description": "An absolute directory. Unset, jev-lossless-compaction under CLAUDE_CONFIG_DIR when that is set, else under ~/.claude."
+      "description": "An absolute directory. Unset, lossless-compaction under CLAUDE_CONFIG_DIR when that is set, else under ~/.claude; an existing jev-lossless-compaction directory there, from earlier versions, is written to instead, and both are read."
     },
     "targetPercent": {
       "type": "number",

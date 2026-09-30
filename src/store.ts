@@ -6,17 +6,23 @@
 
 import type { Files } from './types.ts';
 
-export const PLUGIN = 'jev-lossless-compaction';
+export const PLUGIN = 'lossless-compaction';
+/** The name the plugin carried up to 0.3.0. What was written under it is still read (ADR 0004). */
+export const OLD_PLUGIN = 'jev-lossless-compaction';
 export const RECALL = 'recall';
 export const FIND = 'find';
 /** The names the model calls this plugin's tools by. */
 export const RECALL_TOOL = `mcp__${PLUGIN}__${RECALL}`;
 export const FIND_TOOL = `mcp__${PLUGIN}__${FIND}`;
+const OLD_RECALL_TOOL = `mcp__${OLD_PLUGIN}__${RECALL}`;
+const OLD_FIND_TOOL = `mcp__${OLD_PLUGIN}__${FIND}`;
 
-/** This plugin's own tools, whose results are named by the short name in a ticket. */
+/** This plugin's own tools, under either name, whose results are named by the short name in a ticket. */
 const OWN = new Map([
   [RECALL_TOOL, RECALL],
   [FIND_TOOL, FIND],
+  [OLD_RECALL_TOOL, RECALL],
+  [OLD_FIND_TOOL, FIND],
 ]);
 
 /** True for the name of one of this plugin's own tools, as a call or as a ticket spells it. */
@@ -29,11 +35,15 @@ export const MAX_BYTES = 4 * 1024 * 1024 - 4096;
 
 const ID = /^[0-9a-f]{64}$/;
 const TOOL_NAME = /^[A-Za-z0-9_.-]{1,128}$/;
-const TICKET = new RegExp(`^\\[moved out\\] ([A-Za-z0-9_.-]{1,128}) result, (\\d{1,9}) bytes; recall with ${RECALL_TOOL} id ([0-9a-f]{64})$`);
-// The wording of version 0.1.0. Conversations compacted then still carry it, so it is read, never written.
+const movedOut = (recallTool: string) =>
+  new RegExp(`^\\[moved out\\] ([A-Za-z0-9_.-]{1,128}) result, (\\d{1,9}) bytes; recall with ${recallTool} id ([0-9a-f]{64})$`);
+const TICKET = movedOut(RECALL_TOOL);
+// The wordings of earlier versions. Conversations compacted then still carry them, so they are read, never written:
+// 0.2.0 and 0.3.0 wrote the line above under the old name, 0.1.0 a longer one.
+const TICKET_OLD_NAME = movedOut(OLD_RECALL_TOOL);
 const TICKET_2026_09 = new RegExp(
-  `^\\[${PLUGIN}\\] This ([A-Za-z0-9_.-]{1,128}) result \\((\\d{1,9}) bytes\\) was moved out of the conversation ` +
-    `and is kept unchanged on disk\\. To read it, call the tool ${RECALL_TOOL} with id ([0-9a-f]{64})\\.$`,
+  `^\\[${OLD_PLUGIN}\\] This ([A-Za-z0-9_.-]{1,128}) result \\((\\d{1,9}) bytes\\) was moved out of the conversation ` +
+    `and is kept unchanged on disk\\. To read it, call the tool ${OLD_RECALL_TOOL} with id ([0-9a-f]{64})\\.$`,
 );
 
 export type Ticket = { tool: string; bytes: number; id: string };
@@ -65,9 +75,9 @@ export function ticketText({ tool, bytes, id }: Ticket): string {
   return `[moved out] ${name} result, ${bytes} bytes; recall with ${RECALL_TOOL} id ${id}`;
 }
 
-/** Reads a line that has the shape of a ticket, in either wording. The shape alone proves nothing: see `isStored`. */
+/** Reads a line that has the shape of a ticket, in any wording written so far. The shape alone proves nothing: see `isStored`. */
 export function readTicket(text: string): Ticket | null {
-  const match = TICKET.exec(text) ?? TICKET_2026_09.exec(text);
+  const match = TICKET.exec(text) ?? TICKET_OLD_NAME.exec(text) ?? TICKET_2026_09.exec(text);
   if (!match) return null;
   const [, tool, bytes, id] = match;
   if (tool === undefined || bytes === undefined || id === undefined) return null;
@@ -80,6 +90,16 @@ const withoutLastSlash = (path: string | undefined) => (path ?? '').trim().repla
 /** The variables the default place is read from. A repository's own settings can set them. */
 export type Places = { CLAUDE_CONFIG_DIR?: string | undefined; HOME?: string | undefined; USERPROFILE?: string | undefined };
 
+const absolute = (path: string) => (ABSOLUTE.test(path) ? path : null);
+
+/** The directory named `name` under Claude Code's own: `CLAUDE_CONFIG_DIR` when set, else `~/.claude`. */
+function defaultDirFrom(name: string, env: Places): string | null {
+  const config = withoutLastSlash(env.CLAUDE_CONFIG_DIR);
+  if (config !== '') return absolute(config) && `${config}/${name}`;
+  const home = withoutLastSlash(env.HOME) || withoutLastSlash(env.USERPROFILE);
+  return absolute(home) && `${home}/.claude/${name}`;
+}
+
 /**
  * Where results are kept: the setting, else a directory of this plugin's under
  * Claude Code's own. Null when what it would be built from is not an absolute
@@ -87,12 +107,34 @@ export type Places = { CLAUDE_CONFIG_DIR?: string | undefined; HOME?: string | u
  * be written into the repository at hand.
  */
 export function storeDirFrom(setting: unknown, env: Places): string | null {
-  const absolute = (path: string) => (ABSOLUTE.test(path) ? path : null);
   if (typeof setting === 'string' && setting.trim() !== '') return absolute(withoutLastSlash(setting));
-  const config = withoutLastSlash(env.CLAUDE_CONFIG_DIR);
-  if (config !== '') return absolute(config) && `${config}/${PLUGIN}`;
-  const home = withoutLastSlash(env.HOME) || withoutLastSlash(env.USERPROFILE);
-  return absolute(home) && `${home}/.claude/${PLUGIN}`;
+  return defaultDirFrom(PLUGIN, env);
+}
+
+/** Where results were kept up to 0.3.0, when nothing was set: the same place under the old name. */
+export function oldStoreDirFrom(env: Places): string | null {
+  return defaultDirFrom(OLD_PLUGIN, env);
+}
+
+/** The directory results are written to, and the directories they are read from, the first being the one written to. */
+export type StoreDirs = { write: string; read: readonly string[] };
+
+/**
+ * Results are read from two places and written to one. With a setting, that
+ * place alone. Without one, the default under the current name and the default
+ * under the old name are both read; the old one is written to while it exists
+ * (a link to it counts, a plain file in its place does not), since that is
+ * where the results are and where a directory made readable to its owner
+ * alone was made; else the current one.
+ */
+export async function placesOf(files: Files, setting: unknown, env: Places): Promise<StoreDirs | null> {
+  const chosen = storeDirFrom(setting, env);
+  if (chosen === null) return null;
+  if (typeof setting === 'string' && setting.trim() !== '') return { write: chosen, read: [chosen] };
+  const old = oldStoreDirFrom(env);
+  if (old === null || old === chosen) return { write: chosen, read: [chosen] };
+  const found = await look(files, old);
+  return found === 'missing' || found === 'file' ? { write: chosen, read: [chosen, old] } : { write: old, read: [old, chosen] };
 }
 
 const blobPath = (dir: string, id: string) => `${dir}/blobs/${id}.txt`;
@@ -168,35 +210,41 @@ export async function moveOut(files: Files, dir: string, tool: string, text: str
   return { tool, bytes, id, text: ticketText({ tool, bytes, id }) };
 }
 
-/** True when `text` is a ticket this store wrote: its shape, and an entry of that size under its id. */
-export async function isStored(files: Files, dir: string, text: string): Promise<boolean> {
+const dirsOf = (dirs: string | readonly string[]): readonly string[] => (typeof dirs === 'string' ? [dirs] : dirs);
+
+/** True when `text` is a ticket this store wrote: its shape, and an entry of that size under its id, in any of `dirs`. */
+export async function isStored(files: Files, dirs: string | readonly string[], text: string): Promise<boolean> {
   const ticket = readTicket(text);
   if (!ticket) return false;
-  if ((await look(files, entryPath(dir, ticket.id))) !== 'file') return false;
-  try {
-    const entry: unknown = JSON.parse(await files.read(entryPath(dir, ticket.id)));
-    return typeof entry === 'object' && entry !== null && (entry as { bytes?: unknown }).bytes === ticket.bytes;
-  } catch {
-    return false;
+  for (const dir of dirsOf(dirs)) {
+    if ((await look(files, entryPath(dir, ticket.id))) !== 'file') continue;
+    try {
+      const entry: unknown = JSON.parse(await files.read(entryPath(dir, ticket.id)));
+      if (typeof entry === 'object' && entry !== null && (entry as { bytes?: unknown }).bytes === ticket.bytes) return true;
+    } catch {
+      // An entry that cannot be read is not this store's; the next place may hold it.
+    }
   }
+  return false;
 }
 
 export type Recalled = { text: string } | { error: string };
 
-/** The text behind an id, checked against the id before it is handed over. */
-export async function recall(files: Files, dir: string, id: unknown): Promise<Recalled> {
+/** The text behind an id, from the first of `dirs` that holds it, checked against the id before it is handed over. */
+export async function recall(files: Files, dirs: string | readonly string[], id: unknown): Promise<Recalled> {
   if (typeof id !== 'string' || !ID.test(id)) {
     return { error: 'That id is not 64 hexadecimal characters. Copy it from the ticket in the conversation.' };
   }
-  if ((await look(files, entryPath(dir, id))) !== 'file' || (await look(files, blobPath(dir, id))) !== 'file') {
-    return { error: 'Nothing is stored under that id on this machine.' };
+  for (const dir of dirsOf(dirs)) {
+    if ((await look(files, entryPath(dir, id))) !== 'file' || (await look(files, blobPath(dir, id))) !== 'file') continue;
+    let text;
+    try {
+      text = await files.read(blobPath(dir, id));
+    } catch {
+      return { error: 'The stored result could not be read.' };
+    }
+    if ((await idOf(text)) !== id) return { error: 'The stored result has changed on disk and is not returned.' };
+    return { text };
   }
-  let text;
-  try {
-    text = await files.read(blobPath(dir, id));
-  } catch {
-    return { error: 'The stored result could not be read.' };
-  }
-  if ((await idOf(text)) !== id) return { error: 'The stored result has changed on disk and is not returned.' };
-  return { text };
+  return { error: 'Nothing is stored under that id on this machine.' };
 }
