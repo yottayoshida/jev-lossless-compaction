@@ -131,7 +131,8 @@ export type Provider =
 export type Settings = { provider?: unknown; apiKey?: unknown; cloudflareAccountId?: unknown; model?: unknown };
 export type Environment = { TYPESAFE_API_KEY?: string; CLOUDFLARE_API_TOKEN?: string; CLOUDFLARE_ACCOUNT_ID?: string };
 
-const filled = (value: unknown): string | undefined =>
+/** A setting as it is taken: a string that is not blank, trimmed. Anything else is unset. trust.ts judges by it too. */
+export const filled = (value: unknown): string | undefined =>
   typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined;
 
 /**

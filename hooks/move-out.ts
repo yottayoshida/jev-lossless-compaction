@@ -22,6 +22,7 @@ import {
 import { find } from '../src/find.ts';
 import { goalOf, whyNotRebuilt } from '../src/select.ts';
 import { FIND, PLUGIN, RECALL, placesOf, recall, type StoreDirs } from '../src/store.ts';
+import { describeTaints, placeTaints, sendTaints, taintsFrom, type RepoSettings, type Seen, type Taint } from '../src/trust.ts';
 import type { FileStat, Files, HttpResponse, Message } from '../src/types.ts';
 
 const FALLBACK_WINDOW = 200_000;
@@ -44,6 +45,7 @@ type WithHttp = {
   };
   clock: { sleep: (ms: number, options: { signal: AbortSignal }) => Promise<void> };
 };
+type WithSettings = { settings: { read: (args: { source: 'project' | 'local' | 'user' }) => Promise<unknown> } };
 type WithSession = {
   session: {
     messages: (args?: { as: 'api' }) => Promise<unknown>;
@@ -73,20 +75,81 @@ function hostOf($: WithFiles): Host {
   return { files: filesOf($), now: () => Date.now() };
 }
 
-async function storeOf($: WithEnv & WithFiles, options: PluginOptions): Promise<StoreDirs | null> {
-  return placesOf(filesOf($), options['storeDir'], {
-    CLAUDE_CONFIG_DIR: await $.env.get('CLAUDE_CONFIG_DIR'),
+// Each name spelled out: Claude Code reads which variables a module reads off its source.
+async function envOf($: WithEnv): Promise<Seen['env']> {
+  return {
     HOME: await $.env.get('HOME'),
     USERPROFILE: await $.env.get('USERPROFILE'),
-  });
-}
-
-async function providerOf($: WithEnv, options: PluginOptions): Promise<Provider | null | { error: string }> {
-  return providerFrom(options, {
+    CLAUDE_CONFIG_DIR: await $.env.get('CLAUDE_CONFIG_DIR'),
     TYPESAFE_API_KEY: await $.env.get('TYPESAFE_API_KEY'),
     CLOUDFLARE_API_TOKEN: await $.env.get('CLOUDFLARE_API_TOKEN'),
     CLOUDFLARE_ACCOUNT_ID: await $.env.get('CLOUDFLARE_ACCOUNT_ID'),
+    HTTPS_PROXY: await $.env.get('HTTPS_PROXY'),
+    https_proxy: await $.env.get('https_proxy'),
+    HTTP_PROXY: await $.env.get('HTTP_PROXY'),
+    http_proxy: await $.env.get('http_proxy'),
+    ALL_PROXY: await $.env.get('ALL_PROXY'),
+    all_proxy: await $.env.get('all_proxy'),
+    NODE_TLS_REJECT_UNAUTHORIZED: await $.env.get('NODE_TLS_REJECT_UNAUTHORIZED'),
+    NODE_EXTRA_CA_CERTS: await $.env.get('NODE_EXTRA_CA_CERTS'),
+    SSL_CERT_FILE: await $.env.get('SSL_CERT_FILE'),
+    SSL_CERT_DIR: await $.env.get('SSL_CERT_DIR'),
+  };
+}
+
+/** The values this plugin sees that the repository's settings files hold; null when those files could not be read. */
+async function taintsOf($: WithSettings, env: Seen['env'], options: PluginOptions): Promise<Taint[] | null> {
+  let repo: RepoSettings;
+  try {
+    repo = { project: await $.settings.read({ source: 'project' }), local: await $.settings.read({ source: 'local' }) };
+  } catch {
+    repo = null;
+  }
+  // Only to tell your home directory's project file from a repository's: unread, the project file simply counts.
+  if (repo !== null) {
+    try {
+      repo.user = await $.settings.read({ source: 'user' });
+    } catch {
+      // Left out.
+    }
+  }
+  return taintsFrom(repo, { env, options });
+}
+
+/** Where results are kept, or why no place can be trusted: the repository's settings never decide it (ADR 0005). */
+async function storeOf($: WithEnv & WithFiles & WithSettings, options: PluginOptions): Promise<StoreDirs | string> {
+  const env = await envOf($);
+  const taints = await taintsOf($, env, options);
+  const deciding = taints === null ? null : placeTaints(taints, options);
+  if (deciding === null || deciding.length > 0) {
+    return deciding === null
+      ? describeTaints(null)
+      : `where results are kept would be decided by the repository (${describeTaints(deciding)}); set storeDir in your user settings`;
+  }
+  const store = await placesOf(filesOf($), options['storeDir'], {
+    CLAUDE_CONFIG_DIR: env.CLAUDE_CONFIG_DIR,
+    HOME: env.HOME,
+    USERPROFILE: env.USERPROFILE,
   });
+  return store ?? 'the place to keep results in is not an absolute path; set storeDir to one';
+}
+
+/** The provider `find` asks, none without a key, or why not: the repository's settings never decide where it sends (ADR 0005). */
+async function providerOf($: WithEnv & WithSettings, options: PluginOptions): Promise<Provider | null | { error: string }> {
+  const env = await envOf($);
+  const provider = providerFrom(options, env);
+  if (provider === null || 'error' in provider) return provider;
+  const taints = await taintsOf($, env, options);
+  const deciding = taints === null ? null : sendTaints(taints, options);
+  if (deciding === null || deciding.length > 0) {
+    return {
+      error:
+        deciding === null
+          ? describeTaints(null)
+          : `where it sends would be decided by the repository (${describeTaints(deciding)}); set the key in your user settings`,
+    };
+  }
+  return provider;
 }
 
 function numberIn(value: unknown, fallback: number, min: number, max: number): number {
@@ -110,14 +173,14 @@ function summary(report: Report): string {
  * built-in compaction runs on the conversation as it is. Nothing is thrown,
  * so the caller calls `next` once whatever happened here.
  */
-async function attempt($: WithUi & WithEnv & WithFiles & WithSession, e: Compacting, options: PluginOptions): Promise<Outcome | string> {
+async function attempt($: WithUi & WithEnv & WithFiles & WithSession & WithSettings, e: Compacting, options: PluginOptions): Promise<Outcome | string> {
   try {
     // First, so that it is said whatever else this compaction comes to.
     if (options['keepNewest'] !== undefined) {
       say($, 'the keepNewest setting is gone: the newest results are kept by size now, set keepTokens instead');
     }
     const store = await storeOf($, options);
-    if (store === null) return 'the place to keep results in is not an absolute path; set storeDir to one';
+    if (typeof store === 'string') return store;
     const messages = e.messages as readonly Message[];
     const why = whyNotRebuilt(messages, await $.session.messages({ as: 'api' }));
     if (why !== null) return why;
@@ -197,7 +260,7 @@ export const register: Register = (on, options) => {
   // Spelled out, not imported: Claude Code reads the matcher from this file. A test holds it to RECALL_TOOL.
   on('tool.call', { tool: 'mcp__lossless-compaction__recall' }, async ($, e) => {
     const store = await storeOf($, options);
-    if (store === null) return { result: `[${PLUGIN}] No place to read from: set storeDir to an absolute path.` };
+    if (typeof store === 'string') return { result: `[${PLUGIN}] Nothing is read: ${store}.` };
     const found = await recall(filesOf($), store.read, (e as { id?: unknown }).id);
     return { result: 'text' in found ? found.text : `[${PLUGIN}] ${found.error}` };
   });
@@ -206,7 +269,7 @@ export const register: Register = (on, options) => {
   on('tool.call', { tool: 'mcp__lossless-compaction__find' }, async ($, e) => {
     try {
       const store = await storeOf($, options);
-      if (store === null) return { result: `[${PLUGIN}] No place to read from: set storeDir to an absolute path.` };
+      if (typeof store === 'string') return { result: `[${PLUGIN}] Nothing is read: ${store}.` };
       const provider = await providerOf($, options);
       if (provider !== null && 'error' in provider) {
         return { result: `[${PLUGIN}] find cannot ask Jev: ${provider.error}. recall reads a result by its id.` };
