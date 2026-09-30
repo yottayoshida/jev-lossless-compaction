@@ -3,11 +3,10 @@ import { test } from 'node:test';
 
 import { CHARS_PER_TOKEN, compact, windowFrom, type Config, type Host, type Input } from '../src/compact.ts';
 import { moveOut, readTicket, recall, ticketText } from '../src/store.ts';
-import type { Http, Message } from '../src/types.ts';
-import { MemoryFiles, conversation, ok, output, questionsOf, recordingHttp, sized, type Call } from './helpers.ts';
+import type { Message } from '../src/types.ts';
+import { MemoryFiles, conversation, output, sized, type Call } from './helpers.ts';
 
 const DIR = '/home/u/.claude/jev-lossless-compaction';
-const TYPESAFE = { kind: 'typesafe', key: 'test-key-for-typesafe', model: 'jev-latest' } as const;
 
 const CONFIG: Config = {
   storeDir: DIR,
@@ -16,37 +15,16 @@ const CONFIG: Config = {
   minChars: 200,
   targetPercent: 40,
   maxAfterPercent: 60,
-  provider: null,
-  askWithinMs: 5000,
 };
 
 /** A conversation of this many tokens has to lose half: 400 tokens, which one result of `call` covers. */
 const ONE_RESULT = 800;
 
-const refuse: Http = async () => {
-  throw new Error('nothing may be sent in this test');
-};
-
-/** A host whose timer never fires unless `late` is set, and then fires at once. */
-function hostWith(files: MemoryFiles, http: Http = refuse, late = false) {
-  const waits: { ms: number; aborted: boolean }[] = [];
+/** A host with files and a clock: a compaction needs nothing else of it. */
+function hostWith(files: MemoryFiles) {
   let clock = 0;
-  const host: Host = {
-    files,
-    http,
-    now: () => (clock += 10),
-    wait: (ms, signal) =>
-      new Promise((resolve, reject) => {
-        const entry = { ms, aborted: false };
-        waits.push(entry);
-        signal.addEventListener('abort', () => {
-          entry.aborted = true;
-          reject(new Error('aborted'));
-        });
-        if (late) resolve();
-      }),
-  };
-  return { host, waits };
+  const host: Host = { files, now: () => (clock += 10) };
+  return { host };
 }
 
 const call = (label: string, lines = 100): Call => ({
@@ -301,99 +279,30 @@ test('the allowance is set in tokens and measured in characters, three to a toke
   assert.equal(report.candidates, 1);
 });
 
-test('without a key nothing is sent, and rules decide the order', async () => {
-  const files = new MemoryFiles();
-  const { http, sent } = recordingHttp(() => ok({ answers: {} }));
-  const before = conversation([call('a'), call('b'), call('c'), call('d')]);
-
-  const { report } = await compact(inputFor(before), CONFIG, hostWith(files, http).host);
-
-  assert.equal(sent.length, 0);
-  assert.equal(report.order, 'rules');
-  assert.equal(report.requests, 0);
-});
-
-test("with a key, Jev's scores decide what leaves first", async () => {
-  // Room for one result to leave. By rules the oldest would go; Jev says the third is the one not needed.
-  const before = conversation([call('a'), call('b'), call('c'), call('d'), call('e')], 'x');
-  const window = 8 * Math.ceil(inputFor(before).tokens);
-  const input = { ...inputFor(before, window), tokens: ONE_RESULT };
-  const scoreOf: Record<string, number> = { r1: 3, r2: 3, r3: 0, r4: 3 };
-
-  const byRules = await compact(input, CONFIG, hostWith(new MemoryFiles()).host);
-  const { http, sent } = recordingHttp((request) =>
-    ok({ answers: Object.fromEntries(Object.keys(questionsOf(request)).map((key) => [key, { score: scoreOf[key] }])) }),
-  );
-  const { host, waits } = hostWith(new MemoryFiles(), http);
-  const byJev = await compact(input, { ...CONFIG, provider: TYPESAFE }, host);
-
-  assert.deepEqual(movedOut(before, byRules.messages).map(({ id }) => id), ['toolu_1']);
-  assert.deepEqual(movedOut(before, byJev.messages).map(({ id }) => id), ['toolu_3']);
-  assert.equal(byJev.report.order, 'jev');
-  assert.equal(sent.length, 1);
-  // The timer is stopped once Jev has answered: a wait that ran on would be paid for.
-  assert.deepEqual(waits, [{ ms: 5000, aborted: true }]);
-});
-
-test('results a later call made obsolete leave first and are not asked about', async () => {
+test('rules decide the order: a result a later call made obsolete leaves before the oldest', async () => {
   const again = { tool: 'Bash', input: { command: 'show a' }, text: output('a, second run', 100) };
+  // Room for one result to leave. The oldest is a; the third call ran a again, so a is obsolete.
   const before = conversation([call('a'), call('b'), again, call('d'), call('e')], 'x');
   const input = { ...inputFor(before), tokens: ONE_RESULT };
-  const { http, sent } = recordingHttp((request) =>
-    ok({ answers: Object.fromEntries(Object.keys(questionsOf(request)).map((key) => [key, { score: 0 }])) }),
-  );
 
-  const { messages } = await compact(input, { ...CONFIG, provider: TYPESAFE }, hostWith(new MemoryFiles(), http).host);
+  const { messages } = await compact(input, CONFIG, hostWith(new MemoryFiles()).host);
 
   assert.deepEqual(movedOut(before, messages).map(({ id }) => id), ['toolu_1']);
-  assert.equal(sent.length, 0);
 });
 
-test('when more has to leave than the obsolete results, Jev is asked about the others only', async () => {
-  const again = { tool: 'Bash', input: { command: 'show a' }, text: output('a, second run', 100) };
-  const before = conversation([call('a'), call('b'), again, call('d'), call('e'), call('f')], 'x');
-  const input = { ...inputFor(before), tokens: 2 * ONE_RESULT };
-  const { http, sent } = recordingHttp((request) =>
-    ok({ answers: Object.fromEntries(Object.keys(questionsOf(request)).map((key) => [key, { score: key === 'r4' ? 0 : 3 }])) }),
-  );
-
-  const { messages } = await compact(input, { ...CONFIG, provider: TYPESAFE }, hostWith(new MemoryFiles(), http).host);
-
-  assert.equal(sent.length, 1);
-  assert.deepEqual(Object.keys(questionsOf(sent[0] as never)), ['r2', 'r3', 'r4', 'r5']);
-  assert.deepEqual(movedOut(before, messages).map(({ id }) => id).sort(), ['toolu_1', 'toolu_4']);
-});
-
-test('when Jev is late, rules decide and the late answer changes nothing', async () => {
-  const before = conversation([call('a'), call('b'), call('c'), call('d'), call('e')], 'x');
+test('rules decide the order: of results that are not obsolete, the one sharing least with the goal leaves first', async () => {
+  // The goal names beta and delta; alpha, gamma and eps share nothing with it, and alpha is the oldest of those.
+  const calls = ['alpha', 'beta', 'gamma', 'delta', 'eps'].map((label) => call(label));
+  const before = conversation(calls, 'show beta and show delta');
   const input = { ...inputFor(before), tokens: ONE_RESULT };
-  const slow: Http = () => new Promise(() => {});
 
-  const { messages, report } = await compact(
-    input,
-    { ...CONFIG, provider: TYPESAFE },
-    hostWith(new MemoryFiles(), slow, true).host,
-  );
+  const { messages } = await compact(input, CONFIG, hostWith(new MemoryFiles()).host);
 
   assert.deepEqual(movedOut(before, messages).map(({ id }) => id), ['toolu_1']);
-  assert.equal(report.order, 'rules');
-});
-
-test('what was sent before the waiting ended is reported as sent', async () => {
-  const before = conversation([call('a'), call('b'), call('c'), call('d'), call('e')], 'x');
-  const input = { ...inputFor(before), tokens: ONE_RESULT };
-  const sizes: number[] = [];
-  const slow: Http = (_url, init) => {
-    sizes.push(init.body.length);
-    return new Promise(() => {});
-  };
-
-  const { report } = await compact(input, { ...CONFIG, provider: TYPESAFE }, hostWith(new MemoryFiles(), slow, true).host);
-
-  assert.equal(report.order, 'rules');
-  assert.equal(sizes.length, 1);
-  assert.equal(report.requests, 1);
-  assert.equal(report.sentChars, sizes[0]);
+  // The goal naming alpha as well makes gamma the first to leave.
+  const named = conversation(calls, 'show alpha and show beta and show delta');
+  const other = await compact({ ...inputFor(named), tokens: ONE_RESULT }, CONFIG, hostWith(new MemoryFiles()).host);
+  assert.deepEqual(movedOut(named, other.messages).map(({ id }) => id), ['toolu_3']);
 });
 
 test('a result whose call holds another text stays in the conversation, on both sides, as it was', async () => {
@@ -413,35 +322,6 @@ test('a result whose call holds another text stays in the conversation, on both 
   assert.equal(result?.text, output('a', 100));
   // The report says so, as it says why the store left a result in place.
   assert.equal(report.notMoved['call-differs'], 1);
-});
-
-test('an answer made to mislead can change the order and nothing else', async () => {
-  const files = new MemoryFiles();
-  const before = conversation([call('a'), call('b'), call('c'), call('d'), call('e')], 'x');
-  const { http } = recordingHttp(() =>
-    ok({
-      answers: {
-        r1: { score: 999 },
-        r2: { score: -5 },
-        r5: { score: 0 },
-        r0: { score: 0 },
-        __proto__: { score: 0 },
-      },
-    }),
-  );
-
-  const { messages, report } = await compact(
-    inputFor(before),
-    { ...CONFIG, provider: TYPESAFE },
-    hostWith(files, http).host,
-  );
-
-  // r5 is the newest result and is not a candidate; asking for it to leave does not make it leave.
-  const moved = movedOut(before, messages);
-  assert.ok(moved.every(({ id }) => id !== 'toolu_5'));
-  assert.ok(moved.every(({ ticket }) => ticket !== null));
-  assert.equal(report.order, 'rules');
-  assert.equal(messages.flatMap((m) => m.toolUses).length, 5);
 });
 
 test('a result that cannot be stored stays in the conversation and is counted', async () => {

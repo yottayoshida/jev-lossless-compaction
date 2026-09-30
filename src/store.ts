@@ -8,8 +8,21 @@ import type { Files } from './types.ts';
 
 export const PLUGIN = 'jev-lossless-compaction';
 export const RECALL = 'recall';
-/** The name the model calls the recall tool by. */
+export const FIND = 'find';
+/** The names the model calls this plugin's tools by. */
 export const RECALL_TOOL = `mcp__${PLUGIN}__${RECALL}`;
+export const FIND_TOOL = `mcp__${PLUGIN}__${FIND}`;
+
+/** This plugin's own tools, whose results are named by the short name in a ticket. */
+const OWN = new Map([
+  [RECALL_TOOL, RECALL],
+  [FIND_TOOL, FIND],
+]);
+
+/** True for the name of one of this plugin's own tools, as a call or as a ticket spells it. */
+export function isOwnTool(tool: string): boolean {
+  return OWN.has(tool) || tool === RECALL || tool === FIND;
+}
 
 /** The host refuses a read or write over 4 MiB; stay under it with room to spare. */
 export const MAX_BYTES = 4 * 1024 * 1024 - 4096;
@@ -44,10 +57,11 @@ export async function idOf(text: string): Promise<string> {
  * The line left in the conversation. Fixed wording, the tool's name, a size
  * and an id: nothing from the result itself, which is text from outside. The
  * tool's exact name is what the model loads the tool by, so it is spelled out;
- * this plugin's own recall tool, whose results leave too, is named `recall`.
+ * this plugin's own tools, whose results leave too, are named `recall` and
+ * `find`.
  */
 export function ticketText({ tool, bytes, id }: Ticket): string {
-  const name = tool === RECALL_TOOL ? RECALL : tool;
+  const name = OWN.get(tool) ?? tool;
   return `[moved out] ${name} result, ${bytes} bytes; recall with ${RECALL_TOOL} id ${id}`;
 }
 

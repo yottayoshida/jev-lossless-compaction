@@ -7,7 +7,7 @@
 
 import type { PluginOptions, Register } from 'claude-code';
 
-import { providerFrom } from '../src/ask.ts';
+import { providerFrom, type Provider } from '../src/ask.ts';
 import {
   CHARS_PER_TOKEN,
   charsOf,
@@ -19,11 +19,11 @@ import {
   type Outcome,
   type Report,
 } from '../src/compact.ts';
+import { find } from '../src/find.ts';
 import { goalOf, whyNotRebuilt } from '../src/select.ts';
-import { PLUGIN, RECALL, recall, storeDirFrom } from '../src/store.ts';
+import { FIND, PLUGIN, RECALL, recall, storeDirFrom } from '../src/store.ts';
 import type { FileStat, Files, HttpResponse, Message } from '../src/types.ts';
 
-const ASK_WITHIN_MS = 5000;
 const FALLBACK_WINDOW = 200_000;
 
 type WithUi = { ui: { log: (text: string) => void; toast: (text: string) => void } };
@@ -35,7 +35,7 @@ type WithFiles = {
     stat: (path: string) => Promise<FileStat>;
   };
 };
-type WithHost = WithFiles & {
+type WithHttp = {
   http: {
     fetch: (
       url: string,
@@ -46,7 +46,7 @@ type WithHost = WithFiles & {
 };
 type WithSession = {
   session: {
-    messages: (args: { as: 'api' }) => Promise<unknown>;
+    messages: (args?: { as: 'api' }) => Promise<unknown>;
     usage: (args: { breakdown: 'summary' }) => Promise<{ context?: (Context & { tokens?: unknown }) | undefined }>;
   };
 };
@@ -57,7 +57,7 @@ function say($: WithUi, text: string): void {
     $.ui.log(`${PLUGIN}: ${text}`);
     $.ui.toast(`${PLUGIN}: ${text}`);
   } catch {
-    // A surface that cannot show it must not change what the compaction does.
+    // A surface that cannot show it must not change what the plugin does.
   }
 }
 
@@ -69,13 +69,8 @@ function filesOf($: WithFiles): Files {
   };
 }
 
-function hostOf($: WithHost): Host {
-  return {
-    files: filesOf($),
-    http: (url, init) => $.http.fetch(url, init),
-    wait: (ms, signal) => $.clock.sleep(ms, { signal }),
-    now: () => Date.now(),
-  };
+function hostOf($: WithFiles): Host {
+  return { files: filesOf($), now: () => Date.now() };
 }
 
 async function storeDirOf($: WithEnv, options: PluginOptions): Promise<string | null> {
@@ -86,7 +81,7 @@ async function storeDirOf($: WithEnv, options: PluginOptions): Promise<string | 
   });
 }
 
-async function providerOf($: WithEnv, options: PluginOptions) {
+async function providerOf($: WithEnv, options: PluginOptions): Promise<Provider | null | { error: string }> {
   return providerFrom(options, {
     TYPESAFE_API_KEY: await $.env.get('TYPESAFE_API_KEY'),
     CLOUDFLARE_API_TOKEN: await $.env.get('CLOUDFLARE_API_TOKEN'),
@@ -100,22 +95,13 @@ function numberIn(value: unknown, fallback: number, min: number, max: number): n
 
 function summary(report: Report): string {
   const took = report.ms < 1000 ? `${report.ms} ms` : `${(report.ms / 1000).toFixed(1)} s`;
-  const requests =
-    `${report.requests} ${report.requests === 1 ? 'request' : 'requests'}` +
-    (report.failedRequests > 0 ? ` (${report.failedRequests} failed)` : '');
-  const asked =
-    report.order === 'jev'
-      ? `order by jev, ${requests}, ${report.sentChars} chars sent`
-      : report.requests > 0
-        ? `order by rules, jev gave no usable answer in time, ${requests}, ${report.sentChars} chars sent`
-        : 'order by rules';
   const stayed = Object.entries(report.notMoved)
     .map(([reason, count]) => `${count} ${reason}`)
     .join(', ');
   return (
     `moved ${report.moved} of ${report.results} tool results out ` +
     `(${report.charsBefore} -> ${report.charsAfter} chars, about ${report.tokensAfter} of ${report.window} tokens in use) ` +
-    `in ${took}; ${asked}${stayed === '' ? '' : `; left in place: ${stayed}`}`
+    `in ${took}${stayed === '' ? '' : `; left in place: ${stayed}`}`
   );
 }
 
@@ -124,12 +110,7 @@ function summary(report: Report): string {
  * built-in compaction runs on the conversation as it is. Nothing is thrown,
  * so the caller calls `next` once whatever happened here.
  */
-async function attempt(
-  $: WithUi & WithEnv & WithHost & WithSession,
-  e: Compacting,
-  options: PluginOptions,
-): Promise<Outcome | string> {
-  let key = '';
+async function attempt($: WithUi & WithEnv & WithFiles & WithSession, e: Compacting, options: PluginOptions): Promise<Outcome | string> {
   try {
     // First, so that it is said whatever else this compaction comes to.
     if (options['keepNewest'] !== undefined) {
@@ -141,13 +122,6 @@ async function attempt(
     const why = whyNotRebuilt(messages, await $.session.messages({ as: 'api' }));
     if (why !== null) return why;
 
-    let provider = await providerOf($, options);
-    if (provider !== null && 'error' in provider) {
-      say($, `jev is not asked: ${provider.error}`);
-      provider = null;
-    }
-    key = provider?.key ?? '';
-
     // A summary is estimated by Claude Code itself: nothing is sent for it.
     const { context } = await $.session.usage({ breakdown: 'summary' });
     const tokens = context?.tokens;
@@ -157,8 +131,6 @@ async function attempt(
       minChars: Math.floor(numberIn(options['minChars'], 2000, 0, 10_000_000)),
       targetPercent: numberIn(options['targetPercent'], 40, 1, 99),
       maxAfterPercent: numberIn(options['maxAfterPercent'], 75, 1, 100),
-      provider,
-      askWithinMs: ASK_WITHIN_MS,
     };
     return await compact(
       {
@@ -171,8 +143,7 @@ async function attempt(
       hostOf($),
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return key === '' ? message : message.split(key).join('[key]');
+    return error instanceof Error ? error.message : String(error);
   }
 }
 
@@ -187,13 +158,38 @@ export const register: Register = (on, options) => {
         inputSchema: {
           type: 'object',
           properties: {
-            id: { type: 'string', description: 'The 64 hexadecimal characters at the end of the line that stands in the result\'s place.' },
+            id: { type: 'string', description: "The 64 hexadecimal characters at the end of the line that stands in the result's place." },
           },
           required: ['id'],
         },
       });
     } catch (error) {
       say($, `the recall tool could not be registered: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    // Only with a key: without one the tool would have nothing to answer with.
+    try {
+      const provider = await providerOf($, options);
+      if (provider !== null && 'error' in provider) {
+        say($, `the find tool is not registered: ${provider.error}`);
+      } else if (provider !== null) {
+        await $.tool.register({
+          name: FIND,
+          description:
+            `Finds, among the tool results that ${PLUGIN} moved out of this conversation, the one a question is about, ` +
+            'and returns it unchanged. Ask in words what the result contains or is about; a phrase of twelve characters ' +
+            'or more in double quotes is looked for as written. When Jev is not sure which result it is, the likeliest few ' +
+            'are listed with the ids to recall them by; when none of them seems to be about it, it says so.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              question: { type: 'string', description: 'What the result is about, in words; an exact phrase, twelve characters or more, in double quotes.' },
+            },
+            required: ['question'],
+          },
+        });
+      }
+    } catch (error) {
+      say($, `the find tool could not be registered: ${error instanceof Error ? error.message : String(error)}`);
     }
     return next(e);
   });
@@ -204,6 +200,34 @@ export const register: Register = (on, options) => {
     if (dir === null) return { result: `[${PLUGIN}] No place to read from: set storeDir to an absolute path.` };
     const found = await recall(filesOf($), dir, (e as { id?: unknown }).id);
     return { result: 'text' in found ? found.text : `[${PLUGIN}] ${found.error}` };
+  });
+
+  // Spelled out, not imported: a test holds it to FIND_TOOL.
+  on('tool.call', { tool: 'mcp__jev-lossless-compaction__find' }, async ($, e) => {
+    try {
+      const dir = await storeDirOf($, options);
+      if (dir === null) return { result: `[${PLUGIN}] No place to read from: set storeDir to an absolute path.` };
+      const provider = await providerOf($, options);
+      if (provider !== null && 'error' in provider) {
+        return { result: `[${PLUGIN}] find cannot ask Jev: ${provider.error}. recall reads a result by its id.` };
+      }
+      const agentId = (e as { agentId?: string | undefined }).agentId;
+      const messages = agentId === undefined ? ((await $.session.messages()) as readonly Message[]) : [];
+      const result = await find({
+        files: filesOf($),
+        dir,
+        messages,
+        provider,
+        http: (url, init) => $.http.fetch(url, init),
+        wait: (ms, signal) => $.clock.sleep(ms, { signal }),
+        question: (e as { question?: unknown }).question,
+        agentId,
+      });
+      return { result };
+    } catch (error) {
+      // What the host threw names no key: keys are only ever read, not thrown.
+      return { result: `[${PLUGIN}] find could not run: ${error instanceof Error ? error.message : String(error)}` };
+    }
   });
 
   on('session.compact', async ($, e, next) => {
