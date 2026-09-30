@@ -5,6 +5,10 @@ local files instead of summarizing or deleting it. One line stays behind for
 each result. The agent reads a result back by its id with `recall`, or by
 what it is about with `find`, which asks [Jev](https://typesafe.ai) to choose.
 
+![A conversation compacted by lossless-compaction: three large Read results move out of the context into content-addressed files under ~/.claude/lossless-compaction/, one ticket line stays behind for each, and recall by id or find by meaning brings the exact result back. Recorded figures: 6 of 21 results moved in 61 ms; find answered 13 of 13.](docs/assets/readme-header.svg)
+
+A recorded session, not a drawing: [how each figure was taken](docs/measurements.md).
+
 > **Before you install**
 >
 > - A compaction sends nothing anywhere. With a key set, `find` sends the Jev
