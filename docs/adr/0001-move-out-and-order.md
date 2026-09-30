@@ -34,15 +34,19 @@ is far larger than that.
 3. Files are named by the SHA-256 of their content.
 4. Jev is asked one `score` question per tool result, with a digest of that
    result in the question. The answers are used as an order, not cut at a
-   threshold. How much is moved out is decided by a size target.
+   threshold. How much is moved out is decided by a size target. (Amended by
+   ADR 0003: a compaction asks Jev nothing; rules alone order what leaves,
+   and Jev chooses what comes back through the `find` tool.)
 5. What rules can decide is not asked: results that a later call replaced,
    short results, failed calls, the first and the newest messages. (Amended
    by ADR 0002: the newest results are kept by size, not by count of
    messages, and a result a later call replaced is a candidate even when it is
    the newest.)
-6. When Jev fails or runs late, the order falls back to rules. When too much
-   is still in use after moving out, and a summary of what is left could
-   change that, what is left is handed to Claude Code's built-in compaction.
+6. When Jev fails or runs late, the order falls back to rules. (Amended by
+   ADR 0003: there is nothing to fall back from; the order is rules'.) When
+   too much is still in use after moving out, and a summary of what is left
+   could change that, what is left is handed to Claude Code's built-in
+   compaction.
 7. The plugin works once it is installed and given a key. It sends digests of
    the conversation to the Jev provider by default, and the README says so at
    the top.

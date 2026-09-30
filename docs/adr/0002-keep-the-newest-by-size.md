@@ -48,6 +48,7 @@ are 60,000 characters or shorter (the 95th percentile is 30,176, the 99th
    compaction still moves out only what brings the context to its target, so
    in a conversation with more candidates than that, older candidates stay and
    Jev's order decides which. That is decision 4 of ADR 0001 unchanged.
+   (Amended by ADR 0003: the order is rules', not Jev's.)
 3. The `keepNewest` setting is removed and ignored. Where the host still hands
    its value to the plugin, every compaction of the main conversation says so
    in one line, before anything else is decided; whether the host does hand

@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+- A `find` tool, registered when a Jev key is set: asked in words, it returns the moved-out result of this conversation that the question is about, or lists the likeliest few when Jev is not sure which, or says that none of them seems to be about it. Jev is shown the call that made each result and a digest of it, with "none of these" among the choices; a phrase of twelve characters or more that the question puts in double quotes is looked for as written first. Measured on thirteen results whose calls said nothing of their content, an agent with `recall` alone found 6 of 13 after 41 recalls; Jev's choice over the digests named 13 of 13, one request each.
+
+### Changed
+
+- A compaction asks Jev nothing and waits for nothing: rules alone decide the order results leave in (those a later call replaced, then those sharing the least with the goal, then the oldest). Measured on twenty-four real compactions, Jev's order had never changed which results left. The report line no longer says `order by`.
+
+### Removed
+
+- The `score` questions at compaction time, and the five second wait for their answers. The `provider`, `apiKey`, `cloudflareAccountId` and `model` settings now serve the `find` tool alone; without a key there is no `find`, and `recall` works as before.
+
 ## [0.2.0] - 2026-09-30
 
 ### Changed
