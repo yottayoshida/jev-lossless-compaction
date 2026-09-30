@@ -25,17 +25,19 @@ each result, and the agent reads the result back when it needs it.
 
 ## Demo
 
-What a compaction reports, and the line that stands in a result's place. Both
-are from a real session:
+What a compaction reports, and the line that stands in a result's place, from
+one real session (Claude Code 2.1.285, Claude Haiku 4.5, sixteen `Read`
+results, 179,353 tokens):
 
 ```text
-jev-lossless-compaction: moved 5 of 10 tool results out (64304 -> 20230 chars, about 34483 of 167000 tokens in use) in 327 ms; order by jev, 1 request, 6379 chars sent
+jev-lossless-compaction: moved 14 of 16 tool results out (408174 -> 30293 chars, about 51909 of 167000 tokens in use) in 44 ms; order by rules
 
-[jev-lossless-compaction] This Read result (11951 bytes) was moved out of the conversation and is kept unchanged on disk. To read it, call the tool mcp__jev-lossless-compaction__recall with id 48e80312589725690ff740fc7410381823186a71f53959432f2474289ba6c728.
+[moved out] Read result, 36925 bytes; recall with mcp__jev-lossless-compaction__recall id a55c9850d2e336adcaf429cc720b2d070c2452bce2023e886c648b546ff96944
 ```
 
-Asked about that file on the next turn, the agent called `recall` on its own
-and quoted the right line.
+Asked on the next turn for the first heading of one of the moved-out files,
+without rereading it, the agent called `recall` with the id from the ticket
+and quoted the heading exactly.
 
 Another conversation, compacted once by the plugin and once by Claude Code
 itself. The file the question asks about had been deleted in between.
@@ -47,9 +49,10 @@ itself. The file the question asks about had been deleted in between.
 | "What was on line 5 of that file?"  | Quoted the line, via recall | Could not answer    |
 
 One run each, on 2026-09-30, Claude Code 2.1.285 with Claude Haiku 4.5, a
-conversation of 76,490 tokens. With a key, the compaction shown above ran
-three times and took 3.0 s, 1.2 s and 0.3 s, Jev on Cloudflare Workers AI
-included; the next turn sent 31,948 tokens where 49,951 were in use before.
+conversation of 76,490 tokens. With a key, a compaction of a ten-result
+conversation ran three times and took 3.0 s, 1.2 s and 0.3 s, Jev on
+Cloudflare Workers AI included; the next turn sent 31,948 tokens where 49,951
+were in use before.
 
 Not measured: a conversation of the size where compaction usually runs, and
 whether Jev's order is better than the order by rules. In these runs
@@ -95,8 +98,15 @@ From then on `/compact` and automatic compaction go through the plugin.
 - **Jev decides the order and nothing else.** It is asked one question per
   result, with a digest of the result in the question, and its scores decide
   which results leave first. Results that a later call replaced leave first
-  without being asked about; short results, failed calls and the newest
-  messages stay. When Jev fails or is late, rules decide the order.
+  without being asked about. Of the tool results that could leave — long
+  enough, not failed, not a ticket, not in the first message, not made
+  obsolete by a later call, and with the same text on both sides of the call —
+  a compaction keeps the newest whatever its size, and keeps the ones before
+  it while they and the newest together add up to at most `keepTokens` tokens
+  (three characters to a token, 20,000 by default); every older one is a
+  candidate to leave, whatever message it is in. A result a later call made
+  obsolete is a candidate even when it is the newest. When Jev fails or is
+  late, rules decide the order.
 
 ## Limits
 
@@ -117,8 +127,14 @@ From then on `/compact` and automatic compaction go through the plugin.
 - `recall` looks where results are kept now. After the setting or the
   variables above change, results kept elsewhere are not found until they
   change back.
-- Tokens are estimated from characters, so more can leave the conversation
-  than the target asks for.
+- Tokens are estimated from characters, three to a token, so more can leave
+  the conversation than the target asks for; and since source code runs
+  nearer 2.2 characters a token, `keepTokens` keeps more than its number
+  says. The `keepNewest` setting of 0.1.0 is gone and ignored; where the host
+  still hands its value to the plugin, every compaction of the main
+  conversation says so.
+- Tickets written by 0.1.0 begin `[jev-lossless-compaction] This … result`;
+  those written now begin `[moved out]`. Both are recognised.
 - When Claude Code loads tools on demand, the agent has to load `recall` by
   name before calling it. It did so on its own in the runs above.
 

@@ -36,7 +36,10 @@ is far larger than that.
    result in the question. The answers are used as an order, not cut at a
    threshold. How much is moved out is decided by a size target.
 5. What rules can decide is not asked: results that a later call replaced,
-   short results, failed calls, the first and the newest messages.
+   short results, failed calls, the first and the newest messages. (Amended
+   by ADR 0002: the newest results are kept by size, not by count of
+   messages, and a result a later call replaced is a candidate even when it is
+   the newest.)
 6. When Jev fails or runs late, the order falls back to rules. When too much
    is still in use after moving out, and a summary of what is left could
    change that, what is left is handed to Claude Code's built-in compaction.
@@ -63,6 +66,8 @@ Settled by running on a real Claude Code (2.1.284 and 2.1.285, 2026-09-29 and
    permission; the plugin's own tool ran without one.
 10. A ticket has the same wording for the same content: no time, no counter.
     A second compaction leaves the earlier part of the conversation as it was.
+    (Amended by ADR 0002: the wording is shorter; tickets in this version's
+    wording are still read.)
 11. Files live under `~/.claude/jev-lossless-compaction/` unless a setting
     says otherwise, one index file per result. The host offers a plugin no
     directory of its own, so the place is built from `CLAUDE_CONFIG_DIR` or
