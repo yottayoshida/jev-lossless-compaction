@@ -48,7 +48,8 @@ Every figure, with how it was taken: [docs/measurements.md](docs/measurements.md
 ## Quick start
 
 ```sh
-# In your shell profile: function hooks are off without it.
+# In your shell profile, or under "env" in a repository's .claude/settings.local.json:
+# function hooks are off without it.
 export CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1
 
 # Where results will be kept, made before the first compaction so that only
@@ -69,17 +70,8 @@ to both commands and run them in that repository.
 
 From then on `/compact` and automatic compaction go through the plugin.
 
-**Coming from `jev-lossless-compaction` (0.3.0 and before):** the plugin was
-renamed, and an installed copy does not follow: `claude plugin update` under
-the old id fails with "Plugin not found" and changes nothing. Uninstall it,
-remove the marketplace `jev-lossless-compaction`, then add and install as above, and set
-the key — and `storeDir`, if you had set it — again under the new id. Until
-then there is no hook, and Claude Code's own compaction runs; do not keep both
-installed. Your results stay where they are: `~/.claude/jev-lossless-compaction/`
-goes on being read and written to while it exists, so `chmod 700` it if the
-plugin made it rather than you. Tickets in old conversations name the old
-tool; call `recall` with the same id, or compact once more and they are
-rewritten.
+Coming from `jev-lossless-compaction` (0.3.0 and before)? An installed copy
+does not follow the rename: see [moving from the old name](docs/limits.md#moving-from-the-old-name).
 
 ## What it does
 
@@ -99,9 +91,7 @@ rewritten.
   is about, or lists the likeliest few when Jev is not sure which. Jev is
   shown the call that made each result and a digest of it, with "none of
   these" among the choices; a phrase of twelve characters or more in double
-  quotes is looked for as written first. On thirteen results whose calls
-  said nothing of their content, the agent with `recall` alone found 6 of 13
-  after 41 recalls; with `find`, 13 of 13, one call each.
+  quotes is looked for as written first.
 
 ## Limits
 

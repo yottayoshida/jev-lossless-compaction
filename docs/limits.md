@@ -97,3 +97,17 @@ id and size (only when the compaction moves something out and hands the
 conversation back; when it leaves the conversation to the built-in
 compaction, nothing of it survives). In a conversation not compacted again,
 the tickets name a tool that no longer exists: call `recall` with the same id.
+
+## Moving from the old name
+
+Up to 0.3.0 the plugin was named `jev-lossless-compaction`, and an installed
+copy does not follow the rename: `claude plugin update` under the old id
+fails with "Plugin not found" and changes nothing. Uninstall it, remove the
+marketplace `jev-lossless-compaction`, then add and install as the README
+says, and set the key — and `storeDir`, if you had set it — again under the
+new id. Until then there is no hook, and Claude Code's own compaction runs;
+do not keep both installed. Your results stay where they are:
+`~/.claude/jev-lossless-compaction/` goes on being read and written to while
+it exists, so `chmod 700` it if the plugin made it rather than you. Tickets
+in old conversations name the old tool; call `recall` with the same id, or
+compact once more and they are rewritten.
