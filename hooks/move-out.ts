@@ -1,0 +1,225 @@
+// The wiring: Claude Code's events on one side, `src/` on the other.
+// Everything that decides something lives in `src/`.
+//
+// Claude Code reads which host calls a plugin makes from this file, so `$` is
+// only ever handed to a function declared at the top of it, and every host call
+// is spelled out as `$.noun.verb(...)`.
+
+import type { PluginOptions, Register } from 'claude-code';
+
+import { providerFrom } from '../src/ask.ts';
+import {
+  CHARS_PER_TOKEN,
+  charsOf,
+  compact,
+  windowFrom,
+  type Config,
+  type Context,
+  type Host,
+  type Outcome,
+  type Report,
+} from '../src/compact.ts';
+import { goalOf, whyNotRebuilt } from '../src/select.ts';
+import { PLUGIN, RECALL, recall, storeDirFrom } from '../src/store.ts';
+import type { FileStat, Files, HttpResponse, Message } from '../src/types.ts';
+
+const ASK_WITHIN_MS = 5000;
+const FALLBACK_WINDOW = 200_000;
+
+type WithUi = { ui: { log: (text: string) => void; toast: (text: string) => void } };
+type WithEnv = { env: { get: (name: string) => Promise<string | undefined> } };
+type WithFiles = {
+  fs: {
+    read: (path: string) => Promise<string>;
+    write: (path: string, text: string) => Promise<void>;
+    stat: (path: string) => Promise<FileStat>;
+  };
+};
+type WithHost = WithFiles & {
+  http: {
+    fetch: (
+      url: string,
+      init: { method: string; headers: Record<string, string>; body: string },
+    ) => Promise<HttpResponse>;
+  };
+  clock: { sleep: (ms: number, options: { signal: AbortSignal }) => Promise<void> };
+};
+type WithSession = {
+  session: {
+    messages: (args: { as: 'api' }) => Promise<unknown>;
+    usage: (args: { breakdown: 'summary' }) => Promise<{ context?: (Context & { tokens?: unknown }) | undefined }>;
+  };
+};
+type Compacting = { messages: readonly unknown[]; instructions?: string | undefined };
+
+function say($: WithUi, text: string): void {
+  try {
+    $.ui.log(`${PLUGIN}: ${text}`);
+    $.ui.toast(`${PLUGIN}: ${text}`);
+  } catch {
+    // A surface that cannot show it must not change what the compaction does.
+  }
+}
+
+function filesOf($: WithFiles): Files {
+  return {
+    read: (path) => $.fs.read(path),
+    write: (path, text) => $.fs.write(path, text),
+    stat: (path) => $.fs.stat(path),
+  };
+}
+
+function hostOf($: WithHost): Host {
+  return {
+    files: filesOf($),
+    http: (url, init) => $.http.fetch(url, init),
+    wait: (ms, signal) => $.clock.sleep(ms, { signal }),
+    now: () => Date.now(),
+  };
+}
+
+async function storeDirOf($: WithEnv, options: PluginOptions): Promise<string | null> {
+  return storeDirFrom(options['storeDir'], {
+    CLAUDE_CONFIG_DIR: await $.env.get('CLAUDE_CONFIG_DIR'),
+    HOME: await $.env.get('HOME'),
+    USERPROFILE: await $.env.get('USERPROFILE'),
+  });
+}
+
+async function providerOf($: WithEnv, options: PluginOptions) {
+  return providerFrom(options, {
+    TYPESAFE_API_KEY: await $.env.get('TYPESAFE_API_KEY'),
+    CLOUDFLARE_API_TOKEN: await $.env.get('CLOUDFLARE_API_TOKEN'),
+    CLOUDFLARE_ACCOUNT_ID: await $.env.get('CLOUDFLARE_ACCOUNT_ID'),
+  });
+}
+
+function numberIn(value: unknown, fallback: number, min: number, max: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max ? value : fallback;
+}
+
+function summary(report: Report): string {
+  const took = report.ms < 1000 ? `${report.ms} ms` : `${(report.ms / 1000).toFixed(1)} s`;
+  const requests =
+    `${report.requests} ${report.requests === 1 ? 'request' : 'requests'}` +
+    (report.failedRequests > 0 ? ` (${report.failedRequests} failed)` : '');
+  const asked =
+    report.order === 'jev'
+      ? `order by jev, ${requests}, ${report.sentChars} chars sent`
+      : report.requests > 0
+        ? `order by rules, jev gave no usable answer in time, ${requests}, ${report.sentChars} chars sent`
+        : 'order by rules';
+  const stayed = Object.entries(report.notMoved)
+    .map(([reason, count]) => `${count} ${reason}`)
+    .join(', ');
+  return (
+    `moved ${report.moved} of ${report.results} tool results out ` +
+    `(${report.charsBefore} -> ${report.charsAfter} chars, about ${report.tokensAfter} of ${report.window} tokens in use) ` +
+    `in ${took}; ${asked}${stayed === '' ? '' : `; left in place: ${stayed}`}`
+  );
+}
+
+/**
+ * One compaction, up to what would be handed back. A string says why the
+ * built-in compaction runs on the conversation as it is. Nothing is thrown,
+ * so the caller calls `next` once whatever happened here.
+ */
+async function attempt(
+  $: WithUi & WithEnv & WithHost & WithSession,
+  e: Compacting,
+  options: PluginOptions,
+): Promise<Outcome | string> {
+  let key = '';
+  try {
+    const storeDir = await storeDirOf($, options);
+    if (storeDir === null) return 'the place to keep results in is not an absolute path; set storeDir to one';
+    const messages = e.messages as readonly Message[];
+    const why = whyNotRebuilt(messages, await $.session.messages({ as: 'api' }));
+    if (why !== null) return why;
+
+    let provider = await providerOf($, options);
+    if (provider !== null && 'error' in provider) {
+      say($, `jev is not asked: ${provider.error}`);
+      provider = null;
+    }
+    key = provider?.key ?? '';
+
+    // A summary is estimated by Claude Code itself: nothing is sent for it.
+    const { context } = await $.session.usage({ breakdown: 'summary' });
+    const tokens = context?.tokens;
+    const config: Config = {
+      storeDir,
+      keepNewest: Math.floor(numberIn(options['keepNewest'], 6, 0, 1000)),
+      minChars: Math.floor(numberIn(options['minChars'], 2000, 0, 10_000_000)),
+      targetPercent: numberIn(options['targetPercent'], 40, 1, 99),
+      maxAfterPercent: numberIn(options['maxAfterPercent'], 75, 1, 100),
+      provider,
+      askWithinMs: ASK_WITHIN_MS,
+    };
+    return await compact(
+      {
+        messages,
+        tokens: typeof tokens === 'number' && tokens > 0 ? tokens : Math.ceil(charsOf(messages) / CHARS_PER_TOKEN),
+        window: windowFrom(context, FALLBACK_WINDOW),
+        goal: goalOf(messages, e.instructions),
+      },
+      config,
+      hostOf($),
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return key === '' ? message : message.split(key).join('[key]');
+  }
+}
+
+export const register: Register = (on, options) => {
+  on('session.start', async ($, e, next) => {
+    try {
+      await $.tool.register({
+        name: RECALL,
+        description:
+          `Returns, unchanged, a tool result that ${PLUGIN} moved out of the conversation. ` +
+          "Call it with the id written in the line that stands in the result's place.",
+        inputSchema: {
+          type: 'object',
+          properties: { id: { type: 'string', description: 'The 64 hexadecimal characters after "with id".' } },
+          required: ['id'],
+        },
+      });
+    } catch (error) {
+      say($, `the recall tool could not be registered: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    return next(e);
+  });
+
+  // Spelled out, not imported: Claude Code reads the matcher from this file. A test holds it to RECALL_TOOL.
+  on('tool.call', { tool: 'mcp__jev-lossless-compaction__recall' }, async ($, e) => {
+    const dir = await storeDirOf($, options);
+    if (dir === null) return { result: `[${PLUGIN}] No place to read from: set storeDir to an absolute path.` };
+    const found = await recall(filesOf($), dir, (e as { id?: unknown }).id);
+    return { result: 'text' in found ? found.text : `[${PLUGIN}] ${found.error}` };
+  });
+
+  on('session.compact', async ($, e, next) => {
+    // A result computed ahead would be the built-in summary, paid for and then not used.
+    if (e.trigger === 'precompute') return { skip: `${PLUGIN} computes nothing ahead of a compaction` };
+    // A subagent may have no tool to read a result back with.
+    if (e.agentId !== undefined) return next(e);
+
+    const outcome = await attempt($, e, options);
+    if (typeof outcome === 'string') {
+      say($, `built-in compaction: ${outcome}`);
+      return next(e);
+    }
+    if (outcome.report.moved === 0) {
+      say($, `built-in compaction: nothing could be moved out (${summary(outcome.report)})`);
+      return next(e);
+    }
+    if (!outcome.enough) {
+      say($, `built-in compaction on what is left, too much is still in use: ${summary(outcome.report)}`);
+      return next({ ...e, messages: outcome.messages });
+    }
+    say($, summary(outcome.report));
+    return { messages: outcome.messages };
+  });
+};

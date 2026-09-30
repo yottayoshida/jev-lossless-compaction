@@ -1,0 +1,186 @@
+// Where moved-out tool results live, and the one line that stands in for each.
+//
+// A result is stored under the SHA-256 of its text. The same text always gets
+// the same name and the same ticket, so compacting twice writes nothing new and
+// changes nothing that an earlier compaction left in the conversation.
+
+import type { Files } from './types.ts';
+
+export const PLUGIN = 'jev-lossless-compaction';
+export const RECALL = 'recall';
+/** The name the model calls the recall tool by. */
+export const RECALL_TOOL = `mcp__${PLUGIN}__${RECALL}`;
+
+/** The host refuses a read or write over 4 MiB; stay under it with room to spare. */
+export const MAX_BYTES = 4 * 1024 * 1024 - 4096;
+
+const ID = /^[0-9a-f]{64}$/;
+const TOOL_NAME = /^[A-Za-z0-9_.-]{1,128}$/;
+const TICKET = new RegExp(
+  `^\\[${PLUGIN}\\] This ([A-Za-z0-9_.-]{1,128}) result \\((\\d{1,9}) bytes\\) was moved out of the conversation ` +
+    `and is kept unchanged on disk\\. To read it, call the tool ${RECALL_TOOL} with id ([0-9a-f]{64})\\.$`,
+);
+
+export type Ticket = { tool: string; bytes: number; id: string };
+
+export type Moved = Ticket & { text: string };
+
+export type NotMoved = {
+  reason: 'tool-name' | 'too-large' | 'symlink' | 'not-a-file' | 'differs' | 'write-failed';
+};
+
+export function bytesOf(text: string): number {
+  return new TextEncoder().encode(text).length;
+}
+
+export async function idOf(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * The line left in the conversation. Fixed wording, the tool's name, a size
+ * and an id: nothing from the result itself, which is text from outside.
+ */
+export function ticketText({ tool, bytes, id }: Ticket): string {
+  return (
+    `[${PLUGIN}] This ${tool} result (${bytes} bytes) was moved out of the conversation ` +
+    `and is kept unchanged on disk. To read it, call the tool ${RECALL_TOOL} with id ${id}.`
+  );
+}
+
+/** Reads a line that has the shape of a ticket. The shape alone proves nothing: see `isStored`. */
+export function readTicket(text: string): Ticket | null {
+  const match = TICKET.exec(text);
+  if (!match) return null;
+  const [, tool, bytes, id] = match;
+  if (tool === undefined || bytes === undefined || id === undefined) return null;
+  return { tool, bytes: Number(bytes), id };
+}
+
+const ABSOLUTE = /^(?:\/|[A-Za-z]:[\\/])/;
+const withoutLastSlash = (path: string | undefined) => (path ?? '').trim().replace(/[\\/]+$/, '');
+
+/** The variables the default place is read from. A repository's own settings can set them. */
+export type Places = { CLAUDE_CONFIG_DIR?: string | undefined; HOME?: string | undefined; USERPROFILE?: string | undefined };
+
+/**
+ * Where results are kept: the setting, else a directory of this plugin's under
+ * Claude Code's own. Null when what it would be built from is not an absolute
+ * path: a relative one is taken from the working directory, and results would
+ * be written into the repository at hand.
+ */
+export function storeDirFrom(setting: unknown, env: Places): string | null {
+  const absolute = (path: string) => (ABSOLUTE.test(path) ? path : null);
+  if (typeof setting === 'string' && setting.trim() !== '') return absolute(withoutLastSlash(setting));
+  const config = withoutLastSlash(env.CLAUDE_CONFIG_DIR);
+  if (config !== '') return absolute(config) && `${config}/${PLUGIN}`;
+  const home = withoutLastSlash(env.HOME) || withoutLastSlash(env.USERPROFILE);
+  return absolute(home) && `${home}/.claude/${PLUGIN}`;
+}
+
+const blobPath = (dir: string, id: string) => `${dir}/blobs/${id}.txt`;
+const entryPath = (dir: string, id: string) => `${dir}/index/${id}.json`;
+
+type Found = 'missing' | 'file' | 'symlink' | 'not-a-file';
+
+async function look(files: Files, path: string): Promise<Found> {
+  let stat;
+  try {
+    stat = await files.stat(path);
+  } catch {
+    return 'missing';
+  }
+  if (stat.isLink === true) return 'symlink';
+  return stat.kind === 'file' ? 'file' : 'not-a-file';
+}
+
+/** A directory the store writes into: there as a plain directory, or not there yet. */
+async function plainDirectory(files: Files, path: string): Promise<boolean> {
+  let stat;
+  try {
+    stat = await files.stat(path);
+  } catch {
+    return true;
+  }
+  return stat.isLink !== true && stat.kind === 'dir';
+}
+
+/**
+ * Writes `text` at `path` unless the same text is already there, then reads it
+ * back. The host's write follows symbolic links, so a link is refused before
+ * anything is written.
+ */
+async function writeOnce(files: Files, path: string, text: string): Promise<NotMoved | null> {
+  const found = await look(files, path);
+  if (found === 'symlink') return { reason: 'symlink' };
+  if (found === 'not-a-file') return { reason: 'not-a-file' };
+  if (found === 'missing') {
+    try {
+      await files.write(path, text);
+    } catch {
+      return { reason: 'write-failed' };
+    }
+  }
+  let back;
+  try {
+    back = await files.read(path);
+  } catch {
+    return { reason: 'write-failed' };
+  }
+  return back === text ? null : { reason: 'differs' };
+}
+
+/**
+ * Stores one tool result and returns the ticket that replaces it, or why the
+ * result has to stay where it is. The result is replaced only after the stored
+ * text has been read back and found equal.
+ */
+export async function moveOut(files: Files, dir: string, tool: string, text: string): Promise<Moved | NotMoved> {
+  if (!TOOL_NAME.test(tool)) return { reason: 'tool-name' };
+  const bytes = bytesOf(text);
+  if (bytes > MAX_BYTES) return { reason: 'too-large' };
+  for (const path of [dir, `${dir}/blobs`, `${dir}/index`]) {
+    if (!(await plainDirectory(files, path))) return { reason: 'symlink' };
+  }
+  const id = await idOf(text);
+  const blob = await writeOnce(files, blobPath(dir, id), text);
+  if (blob) return blob;
+  const entry = await writeOnce(files, entryPath(dir, id), JSON.stringify({ bytes, tool }));
+  // An entry written for another tool that returned the same text differs, and that is fine.
+  if (entry && entry.reason !== 'differs') return entry;
+  return { tool, bytes, id, text: ticketText({ tool, bytes, id }) };
+}
+
+/** True when `text` is a ticket this store wrote: its shape, and an entry of that size under its id. */
+export async function isStored(files: Files, dir: string, text: string): Promise<boolean> {
+  const ticket = readTicket(text);
+  if (!ticket) return false;
+  if ((await look(files, entryPath(dir, ticket.id))) !== 'file') return false;
+  try {
+    const entry: unknown = JSON.parse(await files.read(entryPath(dir, ticket.id)));
+    return typeof entry === 'object' && entry !== null && (entry as { bytes?: unknown }).bytes === ticket.bytes;
+  } catch {
+    return false;
+  }
+}
+
+export type Recalled = { text: string } | { error: string };
+
+/** The text behind an id, checked against the id before it is handed over. */
+export async function recall(files: Files, dir: string, id: unknown): Promise<Recalled> {
+  if (typeof id !== 'string' || !ID.test(id)) {
+    return { error: 'That id is not 64 hexadecimal characters. Copy it from the ticket in the conversation.' };
+  }
+  if ((await look(files, entryPath(dir, id))) !== 'file' || (await look(files, blobPath(dir, id))) !== 'file') {
+    return { error: 'Nothing is stored under that id on this machine.' };
+  }
+  let text;
+  try {
+    text = await files.read(blobPath(dir, id));
+  } catch {
+    return { error: 'The stored result could not be read.' };
+  }
+  if ((await idOf(text)) !== id) return { error: 'The stored result has changed on disk and is not returned.' };
+  return { text };
+}
