@@ -17,9 +17,9 @@ A recorded session, not a drawing: [how each figure was taken](docs/measurements
 >   it and a 400-character digest of it. Shapes of secrets are blanked first,
 >   which is a courtesy and not a guarantee. Without a key there is no `find`,
 >   and nothing is sent.
-> - A repository you open can set the key and where files are written through
->   its own `.claude/settings.json`; the plugin's own settings rule that out.
->   See [what a repository can change](docs/limits.md#what-a-repository-can-change).
+> - A repository's own settings files do not decide where results are written
+>   or where `find` sends: a key, proxy or place from them stops the plugin
+>   instead. See [what a repository can change](docs/limits.md#what-a-repository-can-change).
 > - It needs Claude Code's function hooks, which are early access and off by
 >   default. It is not on npm; it installs from this repository.
 
@@ -69,8 +69,9 @@ Then give it a key with
 Code. For Jev on Cloudflare Workers AI, set `provider` to `cloudflare` there,
 and the account id next to the key. With nothing set there, the key is read
 from the environment: `TYPESAFE_API_KEY`, or `CLOUDFLARE_API_TOKEN` and
-`CLOUDFLARE_ACCOUNT_ID`. To use it in one repository only, add `--scope local`
-to both commands and run them in that repository.
+`CLOUDFLARE_ACCOUNT_ID`, unless a repository's settings set it. To use it in
+one repository only, add `--scope local` to the install and run it there;
+set the key without `--scope`.
 
 From then on `/compact` and automatic compaction go through the plugin.
 

@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Security
+
+- A repository's own settings files (`.claude/settings.json`, `.claude/settings.local.json`) no longer decide where moved-out results are written or where `find` sends. Before either is used, the plugin reads both files; a value it would use that one of them holds stops it, and the line it prints names the value and the file. A place from them (`HOME`, `USERPROFILE` or `CLAUDE_CONFIG_DIR` without a `storeDir` of yours, or a `storeDir`) means nothing is moved out and the built-in compaction runs; a key variable without a key in the plugin's settings, the plugin's provider settings, or a proxy or certificate variable means there is no `find`. Measured on Claude Code 2.1.286, a key variable and `HTTPS_PROXY` from those files did reach the plugin, and `HTTPS_PROXY` routed its requests; the place variables and `pluginConfigs` did not (ADR 0005). Set the key and `storeDir` in your user settings.
+
 ## [0.4.0] - 2026-09-30
 
 ### Changed
