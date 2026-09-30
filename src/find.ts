@@ -23,7 +23,8 @@ const DIGEST_CHARS = 400;
 
 export type FindInput = {
   files: Files;
-  dir: string;
+  /** Where results are read from, the place written to first. */
+  dirs: readonly string[];
   /** The conversation as the host hands it to a hook. */
   messages: readonly Message[];
   provider: Provider | null;
@@ -84,8 +85,8 @@ type Entry = { ticket: Stored; option: string; holds: boolean };
 
 const describe = (ticket: Stored) => `${ticket.tool} called with ${inputLine(ticket.input)}; ${ticket.bytes} bytes`;
 
-async function found(files: Files, dir: string, ticket: Stored, why: string): Promise<string> {
-  const got = await recall(files, dir, ticket.id);
+async function found(files: Files, dirs: readonly string[], ticket: Stored, why: string): Promise<string> {
+  const got = await recall(files, dirs, ticket.id);
   if ('error' in got) return `[${PLUGIN}] ${got.error}`;
   return `[found] ${ticket.tool} result, ${ticket.bytes} bytes; id ${ticket.id}; ${why}\n\n${got.text}`;
 }
@@ -112,13 +113,13 @@ export async function find(input: FindInput): Promise<string> {
   const question = typeof input.question === 'string' ? input.question.trim() : '';
   if (question === '') return `[${PLUGIN}] Ask in words what the result is about.`;
 
-  const { files, dir } = input;
+  const { files, dirs } = input;
   const phrases = phrasesOf(question);
   const entries: Entry[] = [];
   // One stored text at a time: what is kept of each is a few hundred characters.
   for (const ticket of ticketsIn(input.messages)) {
-    if (!(await isStored(files, dir, ticket.line))) continue;
-    const got = await recall(files, dir, ticket.id);
+    if (!(await isStored(files, dirs, ticket.line))) continue;
+    const got = await recall(files, dirs, ticket.id);
     if ('error' in got) continue;
     const holds = phrases.length > 0 && phrases.every((phrase) => got.text.includes(phrase));
     entries.push({ ticket, option: `${describe(ticket)}. It reads: ${digest(shown(got.text), DIGEST_CHARS)}`, holds });
@@ -132,7 +133,7 @@ export async function find(input: FindInput): Promise<string> {
 
   const holding = entries.filter((entry) => entry.holds);
   if (holding.length === 1) {
-    return found(files, dir, (holding[0] as Entry).ticket, `matched the quoted phrase "${phrases[0]}"`);
+    return found(files, dirs, (holding[0] as Entry).ticket, `matched the quoted phrase "${phrases[0]}"`);
   }
   const pool = holding.length > 1 ? holding : entries;
   const byKey = new Map(pool.map((entry, index): [string, Entry] => [`t${index + 1}`, entry]));
@@ -152,7 +153,7 @@ export async function find(input: FindInput): Promise<string> {
   }
   if (decisive) {
     const entry = byKey.get(first[0]);
-    if (entry) return found(files, dir, entry.ticket, `probability ${first[1].toFixed(2)}`);
+    if (entry) return found(files, dirs, entry.ticket, `probability ${first[1].toFixed(2)}`);
   }
   const likeliest = chosen.ranked.slice(0, LISTED);
   const results = likeliest.flatMap(([key, p]): [Entry, number][] => {

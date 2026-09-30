@@ -21,7 +21,7 @@ import {
 } from '../src/compact.ts';
 import { find } from '../src/find.ts';
 import { goalOf, whyNotRebuilt } from '../src/select.ts';
-import { FIND, PLUGIN, RECALL, recall, storeDirFrom } from '../src/store.ts';
+import { FIND, PLUGIN, RECALL, placesOf, recall, type StoreDirs } from '../src/store.ts';
 import type { FileStat, Files, HttpResponse, Message } from '../src/types.ts';
 
 const FALLBACK_WINDOW = 200_000;
@@ -73,8 +73,8 @@ function hostOf($: WithFiles): Host {
   return { files: filesOf($), now: () => Date.now() };
 }
 
-async function storeDirOf($: WithEnv, options: PluginOptions): Promise<string | null> {
-  return storeDirFrom(options['storeDir'], {
+async function storeOf($: WithEnv & WithFiles, options: PluginOptions): Promise<StoreDirs | null> {
+  return placesOf(filesOf($), options['storeDir'], {
     CLAUDE_CONFIG_DIR: await $.env.get('CLAUDE_CONFIG_DIR'),
     HOME: await $.env.get('HOME'),
     USERPROFILE: await $.env.get('USERPROFILE'),
@@ -116,8 +116,8 @@ async function attempt($: WithUi & WithEnv & WithFiles & WithSession, e: Compact
     if (options['keepNewest'] !== undefined) {
       say($, 'the keepNewest setting is gone: the newest results are kept by size now, set keepTokens instead');
     }
-    const storeDir = await storeDirOf($, options);
-    if (storeDir === null) return 'the place to keep results in is not an absolute path; set storeDir to one';
+    const store = await storeOf($, options);
+    if (store === null) return 'the place to keep results in is not an absolute path; set storeDir to one';
     const messages = e.messages as readonly Message[];
     const why = whyNotRebuilt(messages, await $.session.messages({ as: 'api' }));
     if (why !== null) return why;
@@ -126,7 +126,7 @@ async function attempt($: WithUi & WithEnv & WithFiles & WithSession, e: Compact
     const { context } = await $.session.usage({ breakdown: 'summary' });
     const tokens = context?.tokens;
     const config: Config = {
-      storeDir,
+      store,
       keepTokens: Math.floor(numberIn(options['keepTokens'], 20_000, 0, 1_000_000)),
       minChars: Math.floor(numberIn(options['minChars'], 2000, 0, 10_000_000)),
       targetPercent: numberIn(options['targetPercent'], 40, 1, 99),
@@ -195,18 +195,18 @@ export const register: Register = (on, options) => {
   });
 
   // Spelled out, not imported: Claude Code reads the matcher from this file. A test holds it to RECALL_TOOL.
-  on('tool.call', { tool: 'mcp__jev-lossless-compaction__recall' }, async ($, e) => {
-    const dir = await storeDirOf($, options);
-    if (dir === null) return { result: `[${PLUGIN}] No place to read from: set storeDir to an absolute path.` };
-    const found = await recall(filesOf($), dir, (e as { id?: unknown }).id);
+  on('tool.call', { tool: 'mcp__lossless-compaction__recall' }, async ($, e) => {
+    const store = await storeOf($, options);
+    if (store === null) return { result: `[${PLUGIN}] No place to read from: set storeDir to an absolute path.` };
+    const found = await recall(filesOf($), store.read, (e as { id?: unknown }).id);
     return { result: 'text' in found ? found.text : `[${PLUGIN}] ${found.error}` };
   });
 
   // Spelled out, not imported: a test holds it to FIND_TOOL.
-  on('tool.call', { tool: 'mcp__jev-lossless-compaction__find' }, async ($, e) => {
+  on('tool.call', { tool: 'mcp__lossless-compaction__find' }, async ($, e) => {
     try {
-      const dir = await storeDirOf($, options);
-      if (dir === null) return { result: `[${PLUGIN}] No place to read from: set storeDir to an absolute path.` };
+      const store = await storeOf($, options);
+      if (store === null) return { result: `[${PLUGIN}] No place to read from: set storeDir to an absolute path.` };
       const provider = await providerOf($, options);
       if (provider !== null && 'error' in provider) {
         return { result: `[${PLUGIN}] find cannot ask Jev: ${provider.error}. recall reads a result by its id.` };
@@ -215,7 +215,7 @@ export const register: Register = (on, options) => {
       const messages = agentId === undefined ? ((await $.session.messages()) as readonly Message[]) : [];
       const result = await find({
         files: filesOf($),
-        dir,
+        dirs: store.read,
         messages,
         provider,
         http: (url, init) => $.http.fetch(url, init),

@@ -6,10 +6,12 @@ import { moveOut, readTicket, recall, ticketText } from '../src/store.ts';
 import type { Message } from '../src/types.ts';
 import { MemoryFiles, conversation, output, sized, type Call } from './helpers.ts';
 
-const DIR = '/home/u/.claude/jev-lossless-compaction';
+const DIR = '/home/u/.claude/lossless-compaction';
+/** Where 0.3.0 and before kept results. */
+const OLD = '/home/u/.claude/jev-lossless-compaction';
 
 const CONFIG: Config = {
-  storeDir: DIR,
+  store: { write: DIR, read: [DIR] },
   // The newest result that could leave stays, and nothing else for being new.
   keepTokens: 0,
   minChars: 200,
@@ -235,39 +237,86 @@ test('a result that only looks like a ticket is moved out like any other result'
   assert.deepEqual(await recall(files, DIR, ticket?.id), { text: forged });
 });
 
-test('tickets in the wording of version 0.1.0 are left as they are, even when every length is a candidate', async () => {
+/** The wordings earlier versions wrote: 0.1.0's long line, and 0.2.0's line under the old name. */
+const OLD_WORDINGS = [
+  (t: { bytes: number; id: string }) =>
+    `[jev-lossless-compaction] This Bash result (${t.bytes} bytes) was moved out of the conversation and is kept ` +
+    `unchanged on disk. To read it, call the tool mcp__jev-lossless-compaction__recall with id ${t.id}.`,
+  (t: { bytes: number; id: string }) => `[moved out] Bash result, ${t.bytes} bytes; recall with mcp__jev-lossless-compaction__recall id ${t.id}`,
+];
+
+test('tickets in the wordings of earlier versions are recognised, rewritten once to the current wording on both sides, and then left alone', async () => {
   const files = new MemoryFiles();
   const before = conversation([call('a'), call('b'), call('c'), call('d'), call('e')]);
-  // Three results left in an earlier version: the store has them, and the conversation has the old tickets.
-  for (const id of ['toolu_1', 'toolu_2', 'toolu_3']) {
+  // Three results left in earlier versions, into the old place: the store has them, and the conversation has the old tickets.
+  const ids = ['toolu_1', 'toolu_2', 'toolu_3'];
+  const stored = new Map<string, { bytes: number; id: string }>();
+  for (const [index, id] of ids.entries()) {
     const result = before.flatMap((m) => m.toolResults ?? []).find((r) => r.tool_use_id === id);
     assert.ok(result);
-    const stored = await moveOut(files, DIR, 'Bash', result.text);
-    assert.ok(!('reason' in stored));
-    const old =
-      `[jev-lossless-compaction] This Bash result (${stored.bytes} bytes) was moved out of the conversation and is kept ` +
-      `unchanged on disk. To read it, call the tool mcp__jev-lossless-compaction__recall with id ${stored.id}.`;
+    const kept = await moveOut(files, OLD, 'Bash', result.text);
+    assert.ok(!('reason' in kept));
+    stored.set(id, kept);
+    const old = (OLD_WORDINGS[index % 2] as (typeof OLD_WORDINGS)[number])(kept);
     for (const message of before) {
       for (const use of message.toolUses) if (use.tool_use_id === id) use.text = old;
       for (const r of message.toolResults ?? []) if (r.tool_use_id === id) r.text = old;
     }
   }
   const disk = files.snapshot();
+  // Today's store writes to the old place while it exists, and reads the new one as well.
+  const config = { ...CONFIG, store: { write: OLD, read: [OLD, DIR] }, minChars: 0 };
 
-  const { messages, report } = await compact(inputFor(before), { ...CONFIG, minChars: 0 }, hostWith(files).host);
+  const first = await compact(inputFor(before), config, hostWith(files).host);
 
-  const after = new Map(messages.flatMap((m) => m.toolResults ?? []).map((r) => [r.tool_use_id, r.text]));
-  for (const id of ['toolu_1', 'toolu_2', 'toolu_3']) {
-    assert.ok(after.get(id)?.startsWith('[jev-lossless-compaction] This Bash result'), `${id} was changed`);
+  const after = new Map(first.messages.flatMap((m) => m.toolResults ?? []).map((r) => [r.tool_use_id, r.text]));
+  const calls = new Map(first.messages.flatMap((m) => m.toolUses).map((u) => [u.tool_use_id, u.text]));
+  for (const id of ids) {
+    const kept = stored.get(id);
+    assert.ok(kept);
+    const now = `[moved out] Bash result, ${kept.bytes} bytes; recall with mcp__lossless-compaction__recall id ${kept.id}`;
+    assert.equal(after.get(id), now, `${id} on the result's side`);
+    assert.equal(calls.get(id), now, `${id} on the call's side`);
   }
-  assert.equal(report.notMoved.differs, undefined);
-  // What left today, d, has a ticket in the new wording that reads back and recalls.
-  const line = after.get('toolu_4') ?? '';
-  const fresh = readTicket(line);
-  assert.ok(fresh && line.length <= 170, line);
-  assert.deepEqual(await recall(files, DIR, fresh.id), { text: output('d', 100) });
-  // Nothing already stored was written again.
+  assert.equal(first.report.notMoved.differs, undefined);
+  // Nothing already stored was written again, and the old tickets were not taken for results to move out.
   for (const [path, text] of Object.entries(disk)) assert.equal(files.files.get(path), text, path);
+  assert.equal(first.report.moved, first.report.candidates);
+  // d alone: e is the newest and stays, a to c are tickets.
+  assert.equal(first.report.candidates, 1);
+  // What left today, d, has a ticket in the new wording that reads back and recalls.
+  const fresh = readTicket(after.get('toolu_4') ?? '');
+  assert.ok(fresh);
+  assert.deepEqual(await recall(files, [OLD], fresh.id), { text: output('d', 100) });
+
+  // Compacted again, nothing changes: the wording is already the current one.
+  const second = await compact(inputFor(first.messages), config, hostWith(files).host);
+  assert.deepEqual(second.messages, first.messages);
+  for (const [path, text] of Object.entries(disk)) assert.equal(files.files.get(path), text, path);
+});
+
+test('a ticket whose result is kept in the other place is recognised as stored, not moved out again', async () => {
+  const NEW = '/home/u/.claude/lossless-compaction';
+  const files = new MemoryFiles();
+  const before = conversation([call('a'), call('b'), call('c')]);
+  // a's result sits in the new place; the store writes to the old one and reads the new one as well.
+  const result = before.flatMap((m) => m.toolResults ?? []).find((r) => r.tool_use_id === 'toolu_1');
+  assert.ok(result);
+  const kept = await moveOut(files, NEW, 'Bash', result.text);
+  assert.ok(!('reason' in kept));
+  for (const message of before) {
+    for (const use of message.toolUses) if (use.tool_use_id === 'toolu_1') use.text = kept.text;
+    for (const r of message.toolResults ?? []) if (r.tool_use_id === 'toolu_1') r.text = kept.text;
+  }
+  const disk = files.snapshot();
+
+  const { messages, report } = await compact(inputFor(before), { ...CONFIG, store: { write: OLD, read: [OLD, NEW] }, minChars: 0 }, hostWith(files).host);
+
+  // a stays a ticket: it was not a candidate, and nothing was written for it anywhere.
+  assert.equal(report.candidates, 1);
+  assert.equal(messages.flatMap((m) => m.toolResults ?? []).find((r) => r.tool_use_id === 'toolu_1')?.text, kept.text);
+  for (const [path, text] of Object.entries(disk)) assert.equal(files.files.get(path), text, path);
+  assert.ok(![...files.files.keys()].some((path) => path.startsWith(`${OLD}/blobs/${kept.id}`)));
 });
 
 test('the allowance is set in tokens and measured in characters, three to a token', async () => {

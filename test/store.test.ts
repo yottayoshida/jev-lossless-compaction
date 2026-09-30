@@ -8,6 +8,8 @@ import {
   idOf,
   isStored,
   moveOut,
+  oldStoreDirFrom,
+  placesOf,
   readTicket,
   recall,
   storeDirFrom,
@@ -16,7 +18,7 @@ import {
 } from '../src/store.ts';
 import { MemoryFiles, output } from './helpers.ts';
 
-const DIR = '/home/u/.claude/jev-lossless-compaction';
+const DIR = '/home/u/.claude/lossless-compaction';
 
 async function moved(files: MemoryFiles, text: string, tool = 'Read'): Promise<Moved> {
   const result = await moveOut(files, DIR, tool, text);
@@ -192,12 +194,71 @@ test('a line shaped like a ticket is one only when the store has an entry for it
 test('results are kept where the setting says, else under the directory Claude Code keeps its own in', () => {
   const home = { HOME: '/home/u' };
 
-  assert.equal(storeDirFrom(undefined, home), '/home/u/.claude/jev-lossless-compaction');
-  assert.equal(storeDirFrom('  ', home), '/home/u/.claude/jev-lossless-compaction');
+  assert.equal(storeDirFrom(undefined, home), '/home/u/.claude/lossless-compaction');
+  assert.equal(storeDirFrom('  ', home), '/home/u/.claude/lossless-compaction');
   assert.equal(storeDirFrom('/data/moved/', home), '/data/moved');
   assert.equal(storeDirFrom('C:\\Users\\u\\moved', {}), 'C:\\Users\\u\\moved');
-  assert.equal(storeDirFrom(undefined, { ...home, CLAUDE_CONFIG_DIR: '/etc/claude/' }), '/etc/claude/jev-lossless-compaction');
-  assert.equal(storeDirFrom(undefined, { USERPROFILE: 'C:\\Users\\u' }), 'C:\\Users\\u/.claude/jev-lossless-compaction');
+  assert.equal(storeDirFrom(undefined, { ...home, CLAUDE_CONFIG_DIR: '/etc/claude/' }), '/etc/claude/lossless-compaction');
+  assert.equal(storeDirFrom(undefined, { USERPROFILE: 'C:\\Users\\u' }), 'C:\\Users\\u/.claude/lossless-compaction');
+  // Where 0.3.0 and before kept them, with nothing set: the same place under the old name.
+  assert.equal(oldStoreDirFrom(home), '/home/u/.claude/jev-lossless-compaction');
+  assert.equal(oldStoreDirFrom({ ...home, CLAUDE_CONFIG_DIR: '/etc/claude/' }), '/etc/claude/jev-lossless-compaction');
+});
+
+test('results are read from the new and the old place, and written to the old one while it exists', async () => {
+  const home = { HOME: '/home/u' };
+  const NEW = '/home/u/.claude/lossless-compaction';
+  const OLD = '/home/u/.claude/jev-lossless-compaction';
+
+  // Neither exists yet: the new place, the old one read as well.
+  assert.deepEqual(await placesOf(new MemoryFiles(), undefined, home), { write: NEW, read: [NEW, OLD] });
+  // The old one exists: written to, read first.
+  const old = new MemoryFiles();
+  old.dirs.add(OLD);
+  assert.deepEqual(await placesOf(old, undefined, home), { write: OLD, read: [OLD, NEW] });
+  // Both exist, as after following the README's mkdir with the old one still there: still the old one.
+  old.dirs.add(NEW);
+  assert.deepEqual(await placesOf(old, undefined, home), { write: OLD, read: [OLD, NEW] });
+  // The old one is a link: it exists.
+  const linked = new MemoryFiles();
+  linked.links.set(OLD, '/elsewhere/kept');
+  assert.deepEqual(await placesOf(linked, undefined, home), { write: OLD, read: [OLD, NEW] });
+  // A plain file where the old directory was: read, but not a place to write to.
+  const filed = new MemoryFiles();
+  filed.files.set(OLD, 'not a directory');
+  assert.deepEqual(await placesOf(filed, undefined, home), { write: NEW, read: [NEW, OLD] });
+  // Under CLAUDE_CONFIG_DIR the old place has no `.claude` in it.
+  const config = new MemoryFiles();
+  config.dirs.add('/etc/claude/jev-lossless-compaction');
+  assert.deepEqual(await placesOf(config, undefined, { ...home, CLAUDE_CONFIG_DIR: '/etc/claude' }), {
+    write: '/etc/claude/jev-lossless-compaction',
+    read: ['/etc/claude/jev-lossless-compaction', '/etc/claude/lossless-compaction'],
+  });
+  // A setting is used alone, whatever exists.
+  assert.deepEqual(await placesOf(old, '/data/moved', home), { write: '/data/moved', read: ['/data/moved'] });
+  assert.equal(await placesOf(old, undefined, { HOME: '.' }), null);
+});
+
+test('a result kept under the old name is read back by the same id from the second place, and recognised as stored', async () => {
+  const NEW = '/home/u/.claude/lossless-compaction';
+  const OLD = '/home/u/.claude/jev-lossless-compaction';
+  const files = new MemoryFiles();
+  const text = output('kept.ts', 40);
+  const stored = await moveOut(files, OLD, 'Read', text);
+  assert.ok(!('reason' in stored));
+  const oldWording = `[moved out] Read result, ${stored.bytes} bytes; recall with mcp__jev-lossless-compaction__recall id ${stored.id}`;
+
+  assert.deepEqual(readTicket(oldWording), { tool: 'Read', bytes: stored.bytes, id: stored.id });
+  assert.deepEqual(await recall(files, [NEW, OLD], stored.id), { text });
+  assert.ok('error' in (await recall(files, [NEW], stored.id)));
+  assert.equal(await isStored(files, [NEW, OLD], oldWording), true);
+  assert.equal(await isStored(files, [NEW, OLD], wordingOf2026_09('Read', stored.bytes, stored.id)), true);
+  assert.equal(await isStored(files, [NEW], oldWording), false);
+  // Written today, the same content gets the new wording and, in this store, goes to the old place.
+  const again = await moveOut(files, OLD, 'Read', text);
+  assert.ok(!('reason' in again));
+  assert.equal(again.text, ticketText(stored));
+  assert.ok(again.text.includes('mcp__lossless-compaction__recall'));
 });
 
 test('a place that is not an absolute path is no place: it would be inside the repository at hand', () => {
@@ -212,7 +273,7 @@ test('a place that is not an absolute path is no place: it would be inside the r
   // What was set is not passed over for the default when it cannot be used.
   assert.equal(storeDirFrom('moved', home), null);
   assert.equal(storeDirFrom('/', home), null);
-  assert.equal(storeDirFrom(7, home), '/home/u/.claude/jev-lossless-compaction');
+  assert.equal(storeDirFrom(7, home), '/home/u/.claude/lossless-compaction');
 });
 
 /** The wording version 0.1.0 wrote. Conversations compacted then still carry it. */

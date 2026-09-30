@@ -12,6 +12,14 @@ test('the tool.call matchers are spelled out in the hook and name the tools the 
   assert.ok(hooks.includes(`{ tool: '${FIND_TOOL}' }`), 'find matcher');
 });
 
+test('every tool and the compaction read where results are through placesOf, so the old place is read too', () => {
+  assert.ok(hooks.includes("placesOf(filesOf($), options['storeDir']"), 'placesOf');
+  assert.ok(!hooks.includes('storeDirFrom('), 'the plain default is never used on its own');
+  assert.ok(hooks.includes('const config: Config = {\n      store,'), 'the compaction is handed both places');
+  assert.ok(hooks.includes('recall(filesOf($), store.read,'), 'recall reads both');
+  assert.ok(hooks.includes('dirs: store.read,'), 'find reads both');
+});
+
 test("the find hook hands find the host's clock, answers a broken provider setting itself, and catches what the host throws", () => {
   const handler = hooks.slice(hooks.indexOf(`{ tool: '${FIND_TOOL}' }`));
   assert.ok(handler.includes('wait: (ms, signal) => $.clock.sleep(ms, { signal })'), 'clock');
