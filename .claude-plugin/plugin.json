@@ -11,13 +11,13 @@
     "provider": {
       "type": "string",
       "title": "Jev provider",
-      "description": "Where Jev is asked: typesafe or cloudflare. Leave the key unset to order by rules only and send nothing.",
+      "description": "Where Jev is asked when the find tool is called: typesafe or cloudflare. Leave the key unset to have no find tool and send nothing; recall works without one.",
       "default": "typesafe"
     },
     "apiKey": {
       "type": "string",
       "title": "API key",
-      "description": "The key for the chosen provider. Unset, TYPESAFE_API_KEY or CLOUDFLARE_API_TOKEN is read from the environment.",
+      "description": "The key for the chosen provider, used by the find tool only. Unset, TYPESAFE_API_KEY or CLOUDFLARE_API_TOKEN is read from the environment.",
       "sensitive": true
     },
     "cloudflareAccountId": {
