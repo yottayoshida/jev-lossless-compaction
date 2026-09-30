@@ -2,16 +2,17 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { CHARS_PER_TOKEN, compact, windowFrom, type Config, type Host, type Input } from '../src/compact.ts';
-import { readTicket, recall, ticketText } from '../src/store.ts';
+import { moveOut, readTicket, recall, ticketText } from '../src/store.ts';
 import type { Http, Message } from '../src/types.ts';
-import { MemoryFiles, conversation, ok, output, questionsOf, recordingHttp, type Call } from './helpers.ts';
+import { MemoryFiles, conversation, ok, output, questionsOf, recordingHttp, sized, type Call } from './helpers.ts';
 
 const DIR = '/home/u/.claude/jev-lossless-compaction';
 const TYPESAFE = { kind: 'typesafe', key: 'test-key-for-typesafe', model: 'jev-latest' } as const;
 
 const CONFIG: Config = {
   storeDir: DIR,
-  keepNewest: 2,
+  // The newest result that could leave stays, and nothing else for being new.
+  keepTokens: 0,
   minChars: 200,
   targetPercent: 40,
   maxAfterPercent: 60,
@@ -254,6 +255,50 @@ test('a result that only looks like a ticket is moved out like any other result'
   assert.equal(ticket?.tool, 'WebFetch');
   // The forged line is what the tool returned, so it is what recall gives back.
   assert.deepEqual(await recall(files, DIR, ticket?.id), { text: forged });
+});
+
+test('tickets in the wording of version 0.1.0 are left as they are, even when every length is a candidate', async () => {
+  const files = new MemoryFiles();
+  const before = conversation([call('a'), call('b'), call('c'), call('d'), call('e')]);
+  // Three results left in an earlier version: the store has them, and the conversation has the old tickets.
+  for (const id of ['toolu_1', 'toolu_2', 'toolu_3']) {
+    const result = before.flatMap((m) => m.toolResults ?? []).find((r) => r.tool_use_id === id);
+    assert.ok(result);
+    const stored = await moveOut(files, DIR, 'Bash', result.text);
+    assert.ok(!('reason' in stored));
+    const old =
+      `[jev-lossless-compaction] This Bash result (${stored.bytes} bytes) was moved out of the conversation and is kept ` +
+      `unchanged on disk. To read it, call the tool mcp__jev-lossless-compaction__recall with id ${stored.id}.`;
+    for (const message of before) {
+      for (const use of message.toolUses) if (use.tool_use_id === id) use.text = old;
+      for (const r of message.toolResults ?? []) if (r.tool_use_id === id) r.text = old;
+    }
+  }
+  const disk = files.snapshot();
+
+  const { messages, report } = await compact(inputFor(before), { ...CONFIG, minChars: 0 }, hostWith(files).host);
+
+  const after = new Map(messages.flatMap((m) => m.toolResults ?? []).map((r) => [r.tool_use_id, r.text]));
+  for (const id of ['toolu_1', 'toolu_2', 'toolu_3']) {
+    assert.ok(after.get(id)?.startsWith('[jev-lossless-compaction] This Bash result'), `${id} was changed`);
+  }
+  assert.equal(report.notMoved.differs, undefined);
+  // What left today, d, has a ticket in the new wording that reads back and recalls.
+  const line = after.get('toolu_4') ?? '';
+  const fresh = readTicket(line);
+  assert.ok(fresh && line.length <= 170, line);
+  assert.deepEqual(await recall(files, DIR, fresh.id), { text: output('d', 100) });
+  // Nothing already stored was written again.
+  for (const [path, text] of Object.entries(disk)) assert.equal(files.files.get(path), text, path);
+});
+
+test('the allowance is set in tokens and measured in characters, three to a token', async () => {
+  const before = conversation([sized('a.zig', 25_000), sized('b.zig', 25_000), sized('c.zig', 25_000)]);
+
+  // 20,000 tokens is 60,000 characters: the newest two fit, the oldest is the one candidate.
+  const { report } = await compact(inputFor(before), { ...CONFIG, keepTokens: 20_000 }, hostWith(new MemoryFiles()).host);
+
+  assert.equal(report.candidates, 1);
 });
 
 test('without a key nothing is sent, and rules decide the order', async () => {

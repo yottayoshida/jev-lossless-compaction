@@ -215,6 +215,36 @@ test('a place that is not an absolute path is no place: it would be inside the r
   assert.equal(storeDirFrom(7, home), '/home/u/.claude/jev-lossless-compaction');
 });
 
+/** The wording version 0.1.0 wrote. Conversations compacted then still carry it. */
+const wordingOf2026_09 = (tool: string, bytes: number, id: string) =>
+  `[jev-lossless-compaction] This ${tool} result (${bytes} bytes) was moved out of the conversation and is kept unchanged on disk. To read it, call the tool mcp__jev-lossless-compaction__recall with id ${id}.`;
+
+test('a ticket in the wording of version 0.1.0 is still read as a ticket, and a ticket written today is shorter', () => {
+  const id = 'a'.repeat(64);
+  // As measured in a real session: 258 characters for a five-digit size.
+  const old = wordingOf2026_09('Read', 43893, id);
+  assert.equal(old.length, 258);
+  assert.deepEqual(readTicket(old), { tool: 'Read', bytes: 43893, id });
+
+  const now = ticketText({ tool: 'Read', bytes: 43893, id });
+  assert.ok(now.length <= 170, `${now.length} characters`);
+  assert.deepEqual(readTicket(now), { tool: 'Read', bytes: 43893, id });
+  assert.notEqual(now, old);
+  // The model loads the tool by its exact name, so the name is spelled out in full.
+  assert.ok(now.includes(RECALL_TOOL));
+});
+
+test("a result of this plugin's own recall tool is named recall in its ticket, not by the tool's full name", async () => {
+  const files = new MemoryFiles();
+  const stored = await moved(files, output('recalled', 40), RECALL_TOOL);
+
+  assert.ok(stored.text.includes('] recall result,'), stored.text);
+  assert.ok(!stored.text.includes(`${RECALL_TOOL} result`));
+  assert.equal(readTicket(stored.text)?.tool, 'recall');
+  // The store's own record keeps the name the call had.
+  assert.equal(JSON.parse(files.files.get(`${DIR}/index/${stored.id}.json`) ?? '{}').tool, RECALL_TOOL);
+});
+
 test('the hook answers to the name the ticket tells the model to call', async () => {
   const hook = await readFile(new URL('../hooks/move-out.ts', import.meta.url), 'utf8');
 

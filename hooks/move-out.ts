@@ -131,6 +131,10 @@ async function attempt(
 ): Promise<Outcome | string> {
   let key = '';
   try {
+    // First, so that it is said whatever else this compaction comes to.
+    if (options['keepNewest'] !== undefined) {
+      say($, 'the keepNewest setting is gone: the newest results are kept by size now, set keepTokens instead');
+    }
     const storeDir = await storeDirOf($, options);
     if (storeDir === null) return 'the place to keep results in is not an absolute path; set storeDir to one';
     const messages = e.messages as readonly Message[];
@@ -149,7 +153,7 @@ async function attempt(
     const tokens = context?.tokens;
     const config: Config = {
       storeDir,
-      keepNewest: Math.floor(numberIn(options['keepNewest'], 6, 0, 1000)),
+      keepTokens: Math.floor(numberIn(options['keepTokens'], 20_000, 0, 1_000_000)),
       minChars: Math.floor(numberIn(options['minChars'], 2000, 0, 10_000_000)),
       targetPercent: numberIn(options['targetPercent'], 40, 1, 99),
       maxAfterPercent: numberIn(options['maxAfterPercent'], 75, 1, 100),
@@ -182,7 +186,9 @@ export const register: Register = (on, options) => {
           "Call it with the id written in the line that stands in the result's place.",
         inputSchema: {
           type: 'object',
-          properties: { id: { type: 'string', description: 'The 64 hexadecimal characters after "with id".' } },
+          properties: {
+            id: { type: 'string', description: 'The 64 hexadecimal characters at the end of the line that stands in the result\'s place.' },
+          },
           required: ['id'],
         },
       });

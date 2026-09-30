@@ -7,7 +7,11 @@ import type { Files, Http, Message, ToolResult, ToolUse } from './types.ts';
 
 export type Config = {
   storeDir: string;
-  keepNewest: number;
+  /**
+   * The newest result that could leave stays whatever its size; the ones before
+   * it stay while they and the newest add up to this many tokens.
+   */
+  keepTokens: number;
   minChars: number;
   /** Results leave until the conversation is estimated under this share of the window, in percent. */
   targetPercent: number;
@@ -193,7 +197,11 @@ export async function compact(input: Input, config: Config, host: Host): Promise
   const started = host.now();
   const { files } = host;
   const stored = await storedTickets(files, config.storeDir, input.messages);
-  const { candidates, left: stayed } = select(input.messages, config, stored);
+  const { candidates, left: stayed } = select(
+    input.messages,
+    { keepChars: config.keepTokens * CHARS_PER_TOKEN, minChars: config.minChars },
+    stored,
+  );
 
   // At most the target, and never more than half of what is there now: a
   // compaction that was asked for should leave room to work in.

@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { HOST_SHOWS, goalOf, ruleOrder, select, termsOf, whyNotRebuilt } from '../src/select.ts';
-import { conversation, output, type Call } from './helpers.ts';
+import { conversation, output, sized, type Call } from './helpers.ts';
 
-const OPTIONS = { keepNewest: 2, minChars: 200 };
+// The newest result that could leave stays, and nothing else for being new.
+const OPTIONS = { keepChars: 0, minChars: 200 };
 const NONE: ReadonlySet<string> = new Set();
 
 const read = (file: string, text = output(file, 40)): Call => ({ tool: 'Read', input: { file_path: file }, text });
@@ -13,12 +14,75 @@ const bash = (command: string, text = output(command, 40)): Call => ({ tool: 'Ba
 const idsOf = (calls: readonly Call[], options = OPTIONS, stored = NONE) =>
   select(conversation(calls), options, stored).candidates.map((candidate) => candidate.id);
 
-test('results in the newest messages stay, the older ones are candidates', () => {
+test('the newest result stays, the older ones are candidates', () => {
   const calls = [read('a.ts'), read('b.ts'), read('c.ts')];
 
-  // The last two messages are the assistant's last word and the result of c.ts.
+  // The newest result, c.ts, stays; with room for all of them, none is a candidate.
   assert.deepEqual(idsOf(calls), ['toolu_1', 'toolu_2']);
-  assert.deepEqual(idsOf(calls, { keepNewest: 0, minChars: 200 }), ['toolu_1', 'toolu_2', 'toolu_3']);
+  assert.deepEqual(idsOf(calls, { keepChars: 1_000_000, minChars: 200 }), []);
+});
+
+test('the newest result that could leave stays whatever its size; older ones stay only while they and it fit in keepChars', () => {
+  const allowance = { keepChars: 60_000, minChars: 200 };
+  // The newest alone fits in 60,000; the newest two do not.
+  const three = [sized('a.zig', 50_000), sized('b.zig', 50_000), sized('c.zig', 50_000)];
+  assert.deepEqual(idsOf(three, allowance), ['toolu_1', 'toolu_2']);
+  // A newest result over the allowance stays all the same.
+  const huge = [sized('a.zig', 50_000), sized('b.zig', 200_000)];
+  assert.deepEqual(idsOf(huge, allowance), ['toolu_1']);
+  // Three small results and then a large one before them: 3 × 2,500 + 50,000 fits, so the large one stays.
+  // An implementation that kept one result, however new, would let it leave.
+  const runUp = [sized('old.zig', 50_000), sized('big.zig', 50_000), bash('ls a', 'x'.repeat(2500)), bash('ls b', 'x'.repeat(2500)), bash('ls c', 'x'.repeat(2500))];
+  assert.deepEqual(idsOf(runUp, allowance), ['toolu_1']);
+  // From the first that goes over, every older one is a candidate, a small one that would fit included.
+  const gap = [sized('small.zig', 1_000), sized('big.zig', 50_000), sized('newest.zig', 50_000)];
+  assert.deepEqual(idsOf(gap, allowance), ['toolu_1', 'toolu_2']);
+  // Short results are not counted: with the allowance used up by the newest, a short one before it still stays.
+  const short = [sized('a.zig', 50_000), read('tiny.ts', 'ok'), sized('c.zig', 50_000)];
+  const selection = select(conversation(short), allowance, NONE);
+  assert.deepEqual(selection.candidates.map((c) => c.id), ['toolu_1']);
+  assert.equal(selection.left.short, 1);
+});
+
+test('the allowance is "at most": a result that brings the total exactly to it stays, one character more and it leaves', () => {
+  const allowance = { keepChars: 60_000, minChars: 200 };
+
+  assert.deepEqual(idsOf([sized('old.zig', 1_000), sized('a.zig', 30_000), sized('b.zig', 30_000)], allowance), ['toolu_1']);
+  assert.deepEqual(idsOf([sized('old.zig', 1_000), sized('a.zig', 30_001), sized('b.zig', 30_000)], allowance), ['toolu_1', 'toolu_2']);
+});
+
+test("results in the first message stay: after a resume it may be all the conversation has of what the work is", () => {
+  const messages = conversation([read('a.ts'), read('b.ts')]);
+  messages[0] = {
+    role: 'user',
+    text: 'Fix it',
+    toolUses: [],
+    toolResults: [{ tool_use_id: 'toolu_0', text: output('first', 40), isError: false }],
+    handle: 'h0',
+  };
+
+  const { candidates, left } = select(messages, OPTIONS, NONE);
+
+  // toolu_0 sits in the first message, toolu_2 is the newest; only a.ts may leave.
+  assert.deepEqual(candidates.map((c) => c.id), ['toolu_1']);
+  assert.equal(left.newest, 2);
+});
+
+test('a result a later call made obsolete is a candidate even when it is the newest, and counts for nothing', () => {
+  const edit = (file: string): Call => ({ tool: 'Edit', input: { file_path: file, old_string: 'x', new_string: 'y' }, text: 'ok' });
+
+  // b.zig was edited after it was read: that read is stale, so a.zig is the newest that could leave.
+  const newest = select(conversation([sized('a.zig', 50_000), sized('b.zig', 50_000), edit('b.zig')]), { keepChars: 60_000, minChars: 200 }, NONE);
+  assert.deepEqual(newest.candidates.map((c) => [c.id, c.superseded]), [['toolu_2', true]]);
+  assert.equal(newest.left.newest, 1);
+
+  // A stale result between two that stay does not use up the allowance: 25,000 + 30,000 fit, the 50,000 in between counts for nothing.
+  const between = select(
+    conversation([sized('a.zig', 30_000), sized('b.zig', 50_000), sized('c.zig', 25_000), edit('b.zig')]),
+    { keepChars: 60_000, minChars: 200 },
+    NONE,
+  );
+  assert.deepEqual(between.candidates.map((c) => [c.id, c.superseded]), [['toolu_2', true]]);
 });
 
 test('short results, failed calls and results that already are tickets stay', () => {

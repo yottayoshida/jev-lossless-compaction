@@ -16,7 +16,9 @@ export const MAX_BYTES = 4 * 1024 * 1024 - 4096;
 
 const ID = /^[0-9a-f]{64}$/;
 const TOOL_NAME = /^[A-Za-z0-9_.-]{1,128}$/;
-const TICKET = new RegExp(
+const TICKET = new RegExp(`^\\[moved out\\] ([A-Za-z0-9_.-]{1,128}) result, (\\d{1,9}) bytes; recall with ${RECALL_TOOL} id ([0-9a-f]{64})$`);
+// The wording of version 0.1.0. Conversations compacted then still carry it, so it is read, never written.
+const TICKET_2026_09 = new RegExp(
   `^\\[${PLUGIN}\\] This ([A-Za-z0-9_.-]{1,128}) result \\((\\d{1,9}) bytes\\) was moved out of the conversation ` +
     `and is kept unchanged on disk\\. To read it, call the tool ${RECALL_TOOL} with id ([0-9a-f]{64})\\.$`,
 );
@@ -40,18 +42,18 @@ export async function idOf(text: string): Promise<string> {
 
 /**
  * The line left in the conversation. Fixed wording, the tool's name, a size
- * and an id: nothing from the result itself, which is text from outside.
+ * and an id: nothing from the result itself, which is text from outside. The
+ * tool's exact name is what the model loads the tool by, so it is spelled out;
+ * this plugin's own recall tool, whose results leave too, is named `recall`.
  */
 export function ticketText({ tool, bytes, id }: Ticket): string {
-  return (
-    `[${PLUGIN}] This ${tool} result (${bytes} bytes) was moved out of the conversation ` +
-    `and is kept unchanged on disk. To read it, call the tool ${RECALL_TOOL} with id ${id}.`
-  );
+  const name = tool === RECALL_TOOL ? RECALL : tool;
+  return `[moved out] ${name} result, ${bytes} bytes; recall with ${RECALL_TOOL} id ${id}`;
 }
 
-/** Reads a line that has the shape of a ticket. The shape alone proves nothing: see `isStored`. */
+/** Reads a line that has the shape of a ticket, in either wording. The shape alone proves nothing: see `isStored`. */
 export function readTicket(text: string): Ticket | null {
-  const match = TICKET.exec(text);
+  const match = TICKET.exec(text) ?? TICKET_2026_09.exec(text);
   if (!match) return null;
   const [, tool, bytes, id] = match;
   if (tool === undefined || bytes === undefined || id === undefined) return null;
