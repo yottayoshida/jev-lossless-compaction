@@ -42,11 +42,11 @@
       "description": "Results are moved out until the context is estimated to be under this share, in percent, of the size at which Claude Code compacts on its own (the model's window when auto-compaction is off).",
       "default": 40
     },
-    "keepNewest": {
+    "keepTokens": {
       "type": "number",
-      "title": "Newest messages to leave alone",
-      "description": "Tool results in this many of the newest messages are never moved out.",
-      "default": 6
+      "title": "Newest results to leave alone, in tokens",
+      "description": "The newest tool result that could leave always stays; the ones before it stay while they and the newest add up to this many tokens (three characters to a token). 0 keeps the newest one only.",
+      "default": 20000
     },
     "minChars": {
       "type": "number",

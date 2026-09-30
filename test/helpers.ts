@@ -116,6 +116,13 @@ export function conversation(calls: readonly Call[], request = 'Fix the failing 
   return messages;
 }
 
+/** A Read of `file` whose result is exactly `chars` characters, distinct per file. */
+export const sized = (file: string, chars: number): Call => ({
+  tool: 'Read',
+  input: { file_path: file },
+  text: `${file}\n${'x'.repeat(chars - file.length - 1)}`,
+});
+
 /** `lines` numbered lines that start with `label`, so two outputs never share text. */
 export function output(label: string, lines: number): string {
   return Array.from({ length: lines }, (_, i) => `${label} line ${i + 1}: value ${(i * 7919) % 1000}`).join('\n');

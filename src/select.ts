@@ -22,8 +22,12 @@ export type Selection = {
 };
 
 export type SelectOptions = {
-  /** Results in this many of the newest messages stay. The first message always stays. */
-  keepNewest: number;
+  /**
+   * The newest result that could leave stays whatever its size; the ones before
+   * it stay while they and the newest add up to this many characters. The first
+   * message always stays.
+   */
+  keepChars: number;
   /** Results shorter than this many characters stay. */
   minChars: number;
 };
@@ -78,9 +82,9 @@ export function select(messages: readonly Message[], options: SelectOptions, sto
   });
   const callIndex = new Map(order.map((id, index) => [id, index]));
 
-  const firstKept = Math.max(1, messages.length - Math.max(0, options.keepNewest));
   const left = { newest: 0, short: 0, failed: 0, tickets: 0, unlike: 0 };
-  const candidates: Candidate[] = [];
+  // Every result that could leave, oldest first; which of them do is decided below.
+  const could: Candidate[] = [];
   let position = 0;
 
   messages.forEach((message, index) => {
@@ -90,7 +94,7 @@ export function select(messages: readonly Message[], options: SelectOptions, sto
         left.tickets += 1;
         continue;
       }
-      if (index === 0 || index >= firstKept) {
+      if (index === 0) {
         left.newest += 1;
         continue;
       }
@@ -114,7 +118,7 @@ export function select(messages: readonly Message[], options: SelectOptions, sto
       const file = use && use.tool === 'Read' ? fileOf(use.input) : null;
       const repeated = target !== null && (lastCall.get(target) ?? -1) > at;
       const rewritten = file !== null && (lastWrite.get(file) ?? -1) > at;
-      candidates.push({
+      could.push({
         id: result.tool_use_id,
         position,
         tool: use?.tool ?? 'tool',
@@ -124,6 +128,31 @@ export function select(messages: readonly Message[], options: SelectOptions, sto
       });
     }
   });
+
+  // The newest result that could leave stays whatever its size; the ones before
+  // it stay while they and the newest add up to keepChars. From the first that
+  // goes over, every older one is a candidate. A result a later call made
+  // obsolete is a candidate wherever it sits and counts for nothing.
+  const candidates: Candidate[] = [];
+  let kept = 0;
+  let total = 0;
+  let closed = false;
+  for (let index = could.length - 1; index >= 0; index -= 1) {
+    const candidate = could[index] as Candidate;
+    if (candidate.superseded || closed) {
+      candidates.push(candidate);
+      continue;
+    }
+    if (kept === 0 || total + candidate.text.length <= options.keepChars) {
+      kept += 1;
+      total += candidate.text.length;
+      left.newest += 1;
+      continue;
+    }
+    closed = true;
+    candidates.push(candidate);
+  }
+  candidates.reverse();
 
   return { candidates, left };
 }
