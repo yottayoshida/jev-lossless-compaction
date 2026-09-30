@@ -9,7 +9,7 @@
       "name": "jev-lossless-compaction",
       "source": "./",
       "description": "Context compaction that moves old tool output to local files instead of deleting it.",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "license": "MIT OR Apache-2.0"
     }
   ]

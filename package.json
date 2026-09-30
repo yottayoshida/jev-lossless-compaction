@@ -1,6 +1,6 @@
 {
   "name": "jev-lossless-compaction",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Claude Code plugin: context compaction that moves old tool output to local files instead of deleting it, with a find tool that brings a result back by what it is about, chosen by Jev.",
   "license": "MIT OR Apache-2.0",
