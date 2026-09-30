@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-09-30
 
+> Written when the plugin was named `jev-lossless-compaction`. The rename is ADR 0004; what this record says of names and paths is of its time.
+
 ## Context
 
 ADR 0001 gave Jev one job: order the results that may leave a compaction, by

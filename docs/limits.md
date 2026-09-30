@@ -34,11 +34,23 @@ installs, shows in the list, and does nothing.
 
 ## The files
 
-Files are plain text under `~/.claude/jev-lossless-compaction/`, or under
+Files are plain text under `~/.claude/lossless-compaction/`, or under
 `CLAUDE_CONFIG_DIR` when that is set. The plugin creates them readable by
 other users of the machine, which `mkdir -p -m 700` beforehand prevents, and
 never cleans them up. A secret in a tool result stays there until you delete
 it.
+
+Up to 0.3.0 the plugin was named `jev-lossless-compaction`, and the directory
+with it. Results are read from both places; while the old directory exists — a
+link to it counts — new results are written there too, whether or not the new
+directory exists, since that is where the results are and where a directory
+made readable to its owner alone was made. An old directory the plugin made
+is readable by other users, and the README's `mkdir` makes only the new one:
+`chmod 700 ~/.claude/jev-lossless-compaction` closes it. If the old directory
+is a link, writing is refused as before and the built-in compaction runs,
+which the compaction says; a plain file in its place is not written to. A
+`storeDir` setting is used alone. Settings are kept under the plugin's id, so
+a `storeDir` set under the old id has to be set again.
 
 `recall` and `find` look where results are kept now. After the setting or
 the variables above change, results kept elsewhere are not found until they
@@ -77,4 +89,11 @@ the conversation than the target asks for; and since source code runs nearer
 its value to the plugin, every compaction of the main conversation says so.
 
 Tickets written by 0.1.0 begin `[jev-lossless-compaction] This … result`;
-those written now begin `[moved out]`. Both are recognised.
+those written by 0.2.0 and 0.3.0 begin `[moved out]` and name the old tool,
+`mcp__jev-lossless-compaction__recall`; those written now name
+`mcp__lossless-compaction__recall`. All three are recognised. A conversation
+compacted again has its old tickets rewritten in the current wording, same
+id and size (only when the compaction moves something out and hands the
+conversation back; when it leaves the conversation to the built-in
+compaction, nothing of it survives). In a conversation not compacted again,
+the tickets name a tool that no longer exists: call `recall` with the same id.

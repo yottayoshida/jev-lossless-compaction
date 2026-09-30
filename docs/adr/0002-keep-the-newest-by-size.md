@@ -4,6 +4,8 @@
 - Date: 2026-09-30
 - Amends: 0001 (decision 5, what rules leave alone; decision 10, the ticket's wording)
 
+> Written when the plugin was named `jev-lossless-compaction`. The rename is ADR 0004; what this record says of names and paths is of its time.
+
 ## Context
 
 The first version left alone every tool result in the newest six messages
