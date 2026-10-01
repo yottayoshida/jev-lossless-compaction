@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-01
+
 ### Changed
 
 - `provider` is `auto` unless set: an account id in the plugin's settings chooses Cloudflare and none chooses TypeSafe, so Cloudflare takes the key and the account id and nothing else. Settings that hold `provider: cloudflare`, and ones with neither a provider nor an account id, behave as before. **Settings that hold an account id and no `provider` now ask Cloudflare, whichever key they hold.** If yours hold a TypeSafe key next to an account id left over from trying Cloudflare, `find` asked TypeSafe until now; after this update that key and the excerpts `find` sends go to Cloudflare, and nothing says so: clear the account id. With the key in the environment instead: `TYPESAFE_API_KEY` alone leaves you with no `find` (Cloudflare is chosen, and it has no key), and `CLOUDFLARE_API_TOKEN`, which was not read before, now registers `find` and sends to Cloudflare (ADR 0009).
