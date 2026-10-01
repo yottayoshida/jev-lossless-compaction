@@ -123,3 +123,41 @@ a copy of that conversation not compacted again, returned it at probability
 0.99; and with an empty `~/.claude/lossless-compaction/` made by hand,
 `recall` of an old ticket's id returned the result, and the new directory
 stayed empty.
+
+## When Claude Code's summary runs
+
+On 2026-10-01, Claude Code 2.1.286 with Claude Haiku 4.5, before the
+clean-up (ADR 0006) and the private directory were merged. A conversation of
+four turns: a first message giving seven details (a codename, a reviewer's
+name, a deadline, a build number, a port, a dependency not to add, a
+colour), then four `Read`s of 2,200-line data files, two runs of a script
+printing 401 lines, and an answer giving three numbered reasons. It was
+copied twice and compacted with `/compact`, once by 0.4.0 and once by this
+change, both set so that nothing could be moved out (`minChars` at its
+largest), so that Claude Code's own summary ran each time. Before the
+questions, the data files and the script were taken out of the working
+directory, and `Bash`, `Glob` and `Grep` were refused; `Read` was allowed,
+since a `recall` result over about 50 KB comes back as a file to read.
+Twenty questions, one fresh copy of the compacted conversation each.
+
+|                                                         | 0.4.0 | This change |
+| ------------------------------------------------------- | ----- | ----------- |
+| A row of a data file or a line of the script's output, 10 asked | 1 | 8 |
+| What was said in the conversation, 10 asked             | 10    | 10          |
+
+Every one of the eight came back through `recall`: three in what `recall`
+returned, five in the file Claude Code saved a large `recall` result to.
+The one 0.4.0 answered, the agent found by reading Claude Code's own
+transcript of the session from disk. The ten about what was said were
+mostly in the summary itself (seven were answered with no tool at all, by
+both); one answer in Japanese is counted right by hand. The summary ran in
+21.5 s after 0.4.0 and in 27.5 s after this change.
+
+A conversation holding an image (`Read` of a PNG and of a text file),
+compacted by this change: the kept part held `[image not kept]` and the
+text file's ticket, and asked for a line of the text file after it was
+taken away, the agent recalled the part, then the result, and answered.
+In both conversations the message holding the tickets stood right after
+the summary, and a further turn and a resumed session read it; the
+conversation handed back was no larger than the summary and what Claude
+Code kept.

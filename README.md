@@ -14,7 +14,9 @@ A recorded session, not a drawing: [how each figure was taken](docs/measurements
 > - A compaction sends nothing anywhere. With a key set, `find` sends the Jev
 >   provider you choose, each time the agent calls it, the agent's question
 >   and, for every result moved out of the conversation, the call that made
->   it and a 400-character digest of it. Shapes of secrets are blanked first,
+>   it and a 400-character digest of it, and for every part of the
+>   conversation kept before a summary, the head of what was said in it.
+>   Shapes of secrets are blanked first,
 >   which is a courtesy and not a guarantee. Without a key there is no `find`,
 >   and nothing is sent.
 > - A repository's own settings files do not decide where results are written
@@ -98,15 +100,23 @@ does not follow the rename: see [moving from the old name](docs/limits.md#moving
 
 ## Limits
 
-- Claude Code's built-in compaction still runs when the conversation holds an
-  image or a document, has 4096 messages or more, belongs to a subagent, or
-  is still too full after moving out. Earlier tickets may then be gone from
-  the conversation; the files remain.
+- Claude Code's own summary still runs when moving out is not enough, when
+  nothing can be moved out, when the conversation holds an image, a document,
+  a block of a kind the plugin does not know or 4096 messages or more, and in
+  a subagent. Whenever it runs on the main conversation and the results'
+  place can be written to, what it summarizes is kept first, and `recall`
+  returns it unchanged by the ids left right after the summary — except
+  images, documents and thinking, and messages older than the 4096 Claude
+  Code shows. When that place is not an absolute path, cannot be made
+  private, or a write fails, nothing is kept, and the compaction says so;
+  earlier tickets may then be gone from the conversation, and the files
+  remain.
 - Files are plain text under `~/.claude/lossless-compaction/` — or under
   `~/.claude/jev-lossless-compaction/` while that exists — in a directory the
   plugin makes or closes to mode 700 before writing, or else writes nothing.
-  Once a week the transcripts are read; a file none of them names goes to a
-  trash, and is removed a week later if still named by none. A transcript
+  Once a week the transcripts are read; a file that neither they nor a part
+  kept before a summary names goes to a trash, and is removed a week later if
+  still named by none. A transcript
   outside the places recorded, from another machine say, is not counted. A result
   moved out by an earlier version is read back after the rename, by the same
   id, from where it was written; a `storeDir` set under the old id has to be
@@ -132,6 +142,8 @@ The full list: [docs/limits.md](docs/limits.md).
   why a repository's settings do not decide where results go.
   [ADR 0006](docs/adr/0006-results-live-as-long-as-a-transcript-names-them.md):
   why results are kept as long as a transcript names them.
+  [ADR 0007](docs/adr/0007-keep-what-the-summary-replaces.md): why what
+  Claude Code's summary replaces is kept first.
 - [Measurements](docs/measurements.md), [Limits](docs/limits.md),
   [Development](docs/development.md), [CHANGELOG](CHANGELOG.md), and the
   settings with their defaults in
