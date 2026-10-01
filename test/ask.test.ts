@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import {
@@ -167,7 +168,84 @@ test('with the key from the settings, the account id is not read from the enviro
   });
 });
 
-test('a provider that is not one of the two, a key that cannot be a key, a bad account id: all refused', () => {
+test('left on auto, an account id in the settings chooses Cloudflare and none chooses TypeSafe', () => {
+  const account = 'a'.repeat(32);
+  const cloudflare = { kind: 'cloudflare', key: 'k', accountId: account };
+  const typesafe = { kind: 'typesafe', key: 'k', model: 'jev-latest' };
+
+  // Not set, blank and `auto` are one thing: what Claude Code hands over when the field was left alone.
+  for (const provider of ['auto', ' auto ', undefined, '']) {
+    assert.deepEqual(providerFrom({ provider, apiKey: 'k', cloudflareAccountId: account }, {}), cloudflare);
+    assert.deepEqual(providerFrom({ provider, cloudflareAccountId: account }, { CLOUDFLARE_API_TOKEN: 'k' }), cloudflare);
+    assert.deepEqual(providerFrom({ provider, apiKey: 'k' }, {}), typesafe);
+    assert.deepEqual(providerFrom({ provider }, { TYPESAFE_API_KEY: 'k' }), typesafe);
+    // An account id in the environment chooses nothing: it is there for other tools.
+    assert.deepEqual(providerFrom({ provider, apiKey: 'k' }, { CLOUDFLARE_ACCOUNT_ID: account }), typesafe);
+    assert.equal(providerFrom({ provider }, { CLOUDFLARE_API_TOKEN: 'k', CLOUDFLARE_ACCOUNT_ID: account }), null);
+    // A key still goes to its own provider only.
+    assert.equal(providerFrom({ provider, cloudflareAccountId: account }, { TYPESAFE_API_KEY: 'k' }), null);
+  }
+});
+
+test('an account id that is there and malformed, or there while the provider says typesafe, sends nothing', () => {
+  const account = 'a'.repeat(32);
+
+  // Read as absent, a malformed id would send a Cloudflare key to TypeSafe.
+  // So would one that is not text, which a settings file written by hand can hold.
+  for (const cloudflareAccountId of ['abc', 'a'.repeat(31), `${account}0`, 12345, [], [account], {}, false]) {
+    for (const provider of ['auto', undefined]) {
+      const malformed = providerFrom({ provider, apiKey: 'k', cloudflareAccountId }, {});
+      assert.ok(malformed !== null && 'error' in malformed, JSON.stringify({ provider, cloudflareAccountId }));
+      // It names the field and both ways out, and does not repeat what was entered.
+      assert.match(malformed.error, /cloudflareAccountId/);
+      assert.match(malformed.error, /clear it to ask TypeSafe/);
+      assert.ok(!malformed.error.includes('abc'), malformed.error);
+    }
+  }
+  const chosen = providerFrom({ provider: 'cloudflare', apiKey: 'k', cloudflareAccountId: 'abc' }, {});
+  assert.ok(chosen !== null && 'error' in chosen && /cloudflareAccountId/.test(chosen.error));
+  // With Cloudflare chosen by name, TypeSafe is not a way out to offer.
+  assert.ok(!chosen.error.includes('TypeSafe'), chosen.error);
+
+  for (const env of [{}, { TYPESAFE_API_KEY: 'from-env' }]) {
+    const settings = 'TYPESAFE_API_KEY' in env ? {} : { apiKey: 'k' };
+    const contradiction = providerFrom({ ...settings, provider: 'typesafe', cloudflareAccountId: account }, env);
+    assert.ok(contradiction !== null && 'error' in contradiction, JSON.stringify(env));
+    // The message names both fields: it is what says how to put it right.
+    assert.match(contradiction.error, /provider/);
+    assert.match(contradiction.error, /cloudflareAccountId/);
+  }
+  // Without a key there is nothing to send and nothing to say.
+  assert.equal(providerFrom({ provider: 'typesafe', cloudflareAccountId: account }, {}), null);
+  // What stops it is the id in the settings, not one in the environment.
+  assert.deepEqual(providerFrom({ provider: 'typesafe', apiKey: 'k' }, { CLOUDFLARE_ACCOUNT_ID: account }), {
+    kind: 'typesafe',
+    key: 'k',
+    model: 'jev-latest',
+  });
+});
+
+test('what the manifest hands over when provider was left alone is read as auto, and the field is free text', () => {
+  const manifest = JSON.parse(readFileSync(new URL('../.claude-plugin/plugin.json', import.meta.url), 'utf8')) as {
+    userConfig: Record<string, { default?: unknown; options?: unknown }>;
+  };
+  const field = manifest.userConfig['provider'];
+  const account = 'a'.repeat(32);
+
+  // Claude Code fills the default in, so this is what reaches providerFrom from someone who entered the key and the id.
+  assert.deepEqual(providerFrom({ provider: field?.default, apiKey: 'k', cloudflareAccountId: account }, {}), {
+    kind: 'cloudflare',
+    key: 'k',
+    accountId: account,
+  });
+  assert.deepEqual(providerFrom({ provider: field?.default, apiKey: 'k' }, {}), { kind: 'typesafe', key: 'k', model: 'jev-latest' });
+  // As a picker, a value outside the options would silently become the default instead of being refused (ADR 0009).
+  assert.equal(field?.options, undefined);
+  // No default of its own: an account id filled in for everyone would choose Cloudflare for everyone.
+  assert.equal(manifest.userConfig['cloudflareAccountId']?.default, undefined);
+});
+
+test('a provider that is not one of the three, a key that cannot be a key, a bad account id: all refused', () => {
   for (const settings of [
     { provider: 'https://evil.example/collect', apiKey: 'k' },
     { apiKey: 'two words' },

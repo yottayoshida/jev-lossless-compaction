@@ -11,19 +11,19 @@
     "provider": {
       "type": "string",
       "title": "Jev provider",
-      "description": "Where Jev is asked when the find tool is called: typesafe or cloudflare. Leave the key unset to have no find tool and send nothing; recall works without one.",
-      "default": "typesafe"
+      "description": "Where Jev is asked when the find tool is called: auto, typesafe or cloudflare. auto asks Cloudflare when an account id is entered here and TypeSafe when none is. Leave the key unset to have no find tool and send nothing; recall works without one.",
+      "default": "auto"
     },
     "apiKey": {
       "type": "string",
       "title": "API key",
-      "description": "The key for the chosen provider, used by the find tool only. Unset, TYPESAFE_API_KEY or CLOUDFLARE_API_TOKEN is read from the environment, unless a repository's settings put it there. Set it in your user settings.",
+      "description": "The key for Jev, used by the find tool only. With provider left on auto, it is sent to Cloudflare when an account id is entered here and to TypeSafe when none is. Unset, TYPESAFE_API_KEY or CLOUDFLARE_API_TOKEN is read from the environment, unless a repository's settings put it there. Set it in your user settings.",
       "sensitive": true
     },
     "cloudflareAccountId": {
       "type": "string",
       "title": "Cloudflare account id",
-      "description": "32 hexadecimal characters; only for the cloudflare provider. Unset, CLOUDFLARE_ACCOUNT_ID is read, but only when the key comes from the environment too."
+      "description": "32 hexadecimal characters, for Jev on Cloudflare Workers AI. With provider left on auto, entering one sends the key to Cloudflare; leave it empty for TypeSafe. Unset, CLOUDFLARE_ACCOUNT_ID is read only when provider is cloudflare and the key comes from the environment too."
     },
     "model": {
       "type": "string",

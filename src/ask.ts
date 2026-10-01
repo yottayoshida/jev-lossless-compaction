@@ -139,21 +139,47 @@ export const filled = (value: unknown): string | undefined =>
  * Who is asked, or null when no key was given and nothing is to be sent.
  * A setting is read before the environment. The address is fixed per kind and
  * cannot be set, and a key from the environment goes to its own provider only.
- * The key in the settings is one field: it goes to whichever provider is set.
+ * The key in the settings is one field: it goes to whichever provider is chosen.
+ *
+ * Left on `auto`, an account id in the settings chooses Cloudflare and none
+ * chooses TypeSafe: the field for the provider arrives filled in whether or not
+ * it was touched, so the account id is what tells the two apart (ADR 0009).
+ * "In the settings" is "not blank", not "well formed": a malformed id read as
+ * absent would send a Cloudflare key to TypeSafe.
  */
 export function providerFrom(settings: Settings, env: Environment): Provider | null | { error: string } {
-  const kind = filled(settings.provider) ?? 'typesafe';
-  if (kind !== 'typesafe' && kind !== 'cloudflare') return { error: 'provider must be typesafe or cloudflare' };
+  const chosen = filled(settings.provider) ?? 'auto';
+  if (chosen !== 'auto' && chosen !== 'typesafe' && chosen !== 'cloudflare') {
+    return { error: 'provider must be auto, typesafe or cloudflare' };
+  }
+  // A value that is not text is there too, and is no id: '' stands for it, which is entered and never well formed.
+  const id = settings.cloudflareAccountId;
+  const entered = typeof id === 'string' ? filled(id) : id === undefined || id === null ? undefined : '';
+  const kind = chosen === 'auto' ? (entered === undefined ? 'typesafe' : 'cloudflare') : chosen;
   const set = filled(settings.apiKey);
   const key = set ?? filled(kind === 'typesafe' ? env.TYPESAFE_API_KEY : env.CLOUDFLARE_API_TOKEN);
   if (key === undefined) return null;
   if (!/^[\x21-\x7e]+$/.test(key)) return { error: 'the API key holds a character a key cannot have' };
-  if (kind === 'typesafe') return { kind, key, model: filled(settings.model) ?? 'jev-latest' };
+  if (kind === 'typesafe') {
+    if (entered !== undefined) {
+      return {
+        error:
+          'provider is typesafe while cloudflareAccountId is set, so the key is sent to neither: ' +
+          'clear cloudflareAccountId to ask TypeSafe, or set provider to auto to ask Cloudflare',
+      };
+    }
+    return { kind, key, model: filled(settings.model) ?? 'jev-latest' };
+  }
   // With the key from the settings, the account comes from the settings too: the
   // environment, which a repository can set, then decides nothing about where it goes.
-  const accountId = filled(settings.cloudflareAccountId) ?? (set === undefined ? filled(env.CLOUDFLARE_ACCOUNT_ID) : undefined);
+  const accountId = entered ?? (set === undefined ? filled(env.CLOUDFLARE_ACCOUNT_ID) : undefined);
   if (accountId === undefined || !/^[0-9a-f]{32}$/i.test(accountId)) {
-    return { error: 'the cloudflare provider needs an account id of 32 hexadecimal characters' };
+    if (entered === undefined) return { error: 'the cloudflare provider needs an account id of 32 hexadecimal characters' };
+    return {
+      error:
+        'cloudflareAccountId is not 32 hexadecimal characters, so the key is sent nowhere: correct it to ask Cloudflare' +
+        (chosen === 'auto' ? ', or clear it to ask TypeSafe' : ''),
+    };
   }
   return { kind, key, accountId };
 }
