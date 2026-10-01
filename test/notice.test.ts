@@ -16,7 +16,7 @@ const SETTING = 'CLAUDE_CODE_ENABLE_FUNCTION_HOOKS';
 const SESSION = '0f8fad5b-d9cb-469f-a165-70867728950e';
 const OTHER = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
 
-type Given = { mark?: string; pid?: string; data?: string | null; input?: string };
+type Given = { mark?: string; pid?: string; data?: string | null; input?: string; setting?: string };
 
 // What Claude Code 2.1.286 handed the hooks, written out as it was: the hook reads these
 // by their text, so a test input built another way would not say what the hook is given.
@@ -26,6 +26,7 @@ const manual = (session = SESSION): string => precompact('manual', session);
 const automatic = precompact('auto');
 const started = (source: string): string =>
   `{"session_id":"${SESSION}","transcript_path":"/home/someone/.claude/projects/-work/${SESSION}.jsonl","cwd":"/work","hook_event_name":"SessionStart","source":"${source}","model":"claude-haiku-4-5-20251001"}`;
+const prompted = `{"session_id":"${SESSION}","transcript_path":"/home/someone/.claude/projects/-work/${SESSION}.jsonl","cwd":"/work","scratchpad_dir":"/tmp/claude-501/-work/${SESSION}/scratchpad","prompt_id":"3d5cd9d1-b3f5-4d2b-95da-a8e19857e678","permission_mode":"auto","hook_event_name":"UserPromptSubmit","prompt":"Reply with OK"}`;
 
 /** One run of the hook. PATH is empty: a command it could only find there would fail the run. */
 function run(shell: string, mode: string, given: Given) {
@@ -33,6 +34,7 @@ function run(shell: string, mode: string, given: Given) {
   if (given.mark !== undefined) env[MARK] = given.mark;
   if (given.pid !== undefined) env['CLAUDE_PID'] = given.pid;
   if (typeof given.data === 'string') env['CLAUDE_PLUGIN_DATA'] = given.data;
+  if (given.setting !== undefined) env[SETTING] = given.setting;
   const done = spawnSync(shell, [script, mode], { input: given.input ?? manual(), env, encoding: 'utf8' });
   return { status: done.status, stdout: done.stdout, stderr: done.stderr };
 }
@@ -192,6 +194,96 @@ for (const shell of SHELLS) {
       assert.deepEqual(run(shell, 'after', { mark: '9999', data, input: started('compact') }), quiet);
     });
   });
+
+  test(`${shell}: at a prompt without the mark, one line names the setting, once in a process`, () => {
+    withData((data) => {
+      const told = join(data, 'told');
+      const said = run(shell, 'prompt', { pid: '4242', data, input: prompted });
+      assert.equal(said.status, 0);
+      assert.equal(said.stderr, '');
+      // Plain stdout of UserPromptSubmit is added to the conversation; a systemMessage is shown and is not.
+      const message = (JSON.parse(said.stdout) as { systemMessage: string }).systemMessage;
+      assert.match(message, /is not running in this session/);
+      assert.match(message, new RegExp(`"${SETTING}": "1"`));
+      assert.match(message, /start a new session/);
+      assert.equal(readFileSync(told, 'utf8'), '4242\n');
+      assert.equal(statSync(told).mode & 0o077, 0, "the file is its owner's alone");
+
+      // The next prompt in that process, in this conversation or after /clear: nothing more.
+      assert.deepEqual(run(shell, 'prompt', { pid: '4242', data, input: prompted }), quiet);
+      // Another process, the conversation reopened: told again, since the plugin still does not run there.
+      assert.match(run(shell, 'prompt', { pid: '5555', data, input: prompted }).stdout, /systemMessage/);
+      assert.equal(readFileSync(told, 'utf8'), '4242\n5555\n');
+    });
+  });
+
+  test(`${shell}: at a prompt with the mark of this process, or "any", nothing is said whatever the variable, and a mark handed down still tells`, () => {
+    withData((data) => {
+      // The variable is not read: unset, Claude Code's rollout decides, so it cannot say whether the module runs.
+      for (const setting of [undefined, '0', '1']) {
+        assert.deepEqual(run(shell, 'prompt', { mark: '4242', pid: '4242', data, input: prompted, setting }), quiet, String(setting));
+        assert.deepEqual(run(shell, 'prompt', { mark: ANY, pid: '4242', data, input: prompted, setting }), quiet, String(setting));
+      }
+      assert.ok(!existsSync(join(data, 'told')));
+      assert.match(run(shell, 'prompt', { mark: '9999', pid: '4242', data, input: prompted }).stdout, /systemMessage/);
+      assert.match(run(shell, 'prompt', { mark: '9999', pid: '5555', data, input: prompted, setting: '1' }).stdout, /systemMessage/);
+    });
+  });
+
+  test(`${shell}: being told at a prompt does not let the /compact of that process through`, () => {
+    withData((data, held) => {
+      assert.match(run(shell, 'prompt', { pid: '4242', data, input: prompted }).stdout, /systemMessage/);
+      assert.equal(run(shell, 'before', { pid: '4242', data }).status, 2);
+      assert.equal(readFileSync(held, 'utf8'), `4242 ${SESSION}\n`);
+      // And the other way round: held does not count as told.
+      assert.match(run(shell, 'prompt', { pid: '5555', data, input: prompted }).stdout, /systemMessage/);
+    });
+  });
+
+  test(`${shell}: at a prompt nothing is said when the process cannot be told or told cannot be kept`, () => {
+    withData((data) => {
+      const told = join(data, 'told');
+      // Without CLAUDE_PID it would be said at every prompt.
+      assert.deepEqual(run(shell, 'prompt', { data, input: prompted }), quiet);
+      assert.deepEqual(run(shell, 'prompt', { mark: '9999', data, input: prompted }), quiet);
+      assert.deepEqual(run(shell, 'prompt', { pid: '4242', data: null, input: prompted }), quiet);
+      assert.deepEqual(run(shell, 'prompt', { pid: '4242', data: join(data, 'not-there'), input: prompted }), quiet);
+      assert.ok(!existsSync(told));
+
+      writeFileSync(told, '1111\n');
+      chmodSync(told, 0o200);
+      assert.deepEqual(run(shell, 'prompt', { pid: '4242', data, input: prompted }), quiet);
+      chmodSync(told, 0o400);
+      // Readable and not writable: what cannot be remembered is not said, or it would be said at every prompt.
+      assert.deepEqual(run(shell, 'prompt', { pid: '4242', data, input: prompted }), quiet);
+      chmodSync(told, 0o600);
+      assert.equal(readFileSync(told, 'utf8'), '1111\n');
+    });
+    withData((data) => {
+      const told = join(data, 'told');
+      const elsewhere = join(data, 'elsewhere');
+      writeFileSync(elsewhere, '1111\n');
+      symlinkSync(elsewhere, told);
+      assert.deepEqual(run(shell, 'prompt', { pid: '4242', data, input: prompted }), quiet);
+      assert.equal(readFileSync(elsewhere, 'utf8'), '1111\n');
+    });
+  });
+
+  test(`${shell}: told starts again past fifty lines and reads a last line without its newline`, () => {
+    withData((data) => {
+      const told = join(data, 'told');
+      writeFileSync(told, Array.from({ length: 50 }, (_, at) => `${1000 + at}\n`).join(''));
+      assert.match(run(shell, 'prompt', { pid: '4242', data, input: prompted }).stdout, /systemMessage/);
+      assert.equal(readFileSync(told, 'utf8'), '4242\n');
+    });
+    withData((data) => {
+      const told = join(data, 'told');
+      writeFileSync(told, '1111\n4242');
+      assert.deepEqual(run(shell, 'prompt', { pid: '4242', data, input: prompted }), quiet);
+      assert.match(run(shell, 'prompt', { pid: '5555', data, input: prompted }).stdout, /systemMessage/);
+      assert.equal(readFileSync(told, 'utf8'), '1111\n4242\n5555\n');
+    });
+  });
 }
 
 test('the id the mark holds is what a command the plugin starts sees as its parent, and anything else is "any"', async () => {
@@ -230,21 +322,24 @@ test('the id the mark holds is what a command the plugin starts sees as its pare
   assert.equal(MARK, 'LOSSLESS_COMPACTION_RUNNING');
 });
 
-test('the hook file wires the module, the two classic hooks and the name of the mark together', () => {
+test('the hook file wires the module, the three classic hooks and the name of the mark together', () => {
   const read = (path: string): string => readFileSync(new URL(path, import.meta.url), 'utf8');
   const wiring = JSON.parse(read('../hooks/hooks.json')) as {
     modules: string[];
     hooks: Record<string, { matcher?: string; hooks: { type: string; command: string; timeout?: number }[] }[]>;
   };
   assert.deepEqual(wiring.modules, ['./move-out.ts']);
-  assert.deepEqual(Object.keys(wiring.hooks).sort(), ['PreCompact', 'SessionStart']);
+  assert.deepEqual(Object.keys(wiring.hooks).sort(), ['PreCompact', 'SessionStart', 'UserPromptSubmit']);
   const before = wiring.hooks['PreCompact']?.[0];
   const after = wiring.hooks['SessionStart']?.[0];
+  const prompt = wiring.hooks['UserPromptSubmit']?.[0];
   assert.equal(before?.hooks[0]?.command, 'sh "${CLAUDE_PLUGIN_ROOT}/hooks/notice.sh" before');
   assert.equal(after?.hooks[0]?.command, 'sh "${CLAUDE_PLUGIN_ROOT}/hooks/notice.sh" after');
+  assert.equal(prompt?.hooks[0]?.command, 'sh "${CLAUDE_PLUGIN_ROOT}/hooks/notice.sh" prompt');
   // Only after a compaction: at startup the classic hook runs before the module has set the mark.
   assert.equal(after?.matcher, 'compact');
   assert.equal(before?.matcher, undefined);
+  assert.equal(prompt?.matcher, undefined);
 
   const module = read('../hooks/move-out.ts');
   // Claude Code reads the variable a module writes off its source, so the name is spelled out there.

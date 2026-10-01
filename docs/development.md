@@ -42,16 +42,19 @@ tools, and a `/compact` is held by `hooks/notice.sh`.
 promise: a classic hook sees a variable the module set with `$.env.set`, and
 it is handed `CLAUDE_PID`; and it reads its input by its text
 (`"trigger":"manual"`, `"source":"compact"`, `"session_id":"…"`, as 2.1.286
-writes them). No test in CI can see any of these. With every version, two
-runs, each a new conversation that has used no tool, so that the module hands
-it to the built-in compaction and `PreCompact` runs (when the module compacts
-by itself, that hook does not run at all):
+writes them); and that a `systemMessage` from `UserPromptSubmit` is shown and
+not sent to the model. No test in CI can see any of these. With every version,
+two runs, each a new conversation that has used no tool, so that the module
+hands it to the built-in compaction and `PreCompact` runs (when the module
+compacts by itself, that hook does not run at all):
 
 ```sh
-# The module runs: /compact is not held, and no "was not running" line follows.
+# The module runs: no line at the first message, /compact is not held, and no
+# "was not running" line follows.
 env -u LOSSLESS_COMPACTION_RUNNING claude --plugin-dir . --settings on.json --debug
-# The module does not run, with another process's mark handed down: /compact is
-# held, and run again in that session it is followed by the line.
+# The module does not run, with another process's mark handed down: the first
+# message is followed by the line and the second is not, /compact is held, and
+# run again in that session it is followed by the line.
 env LOSSLESS_COMPACTION_RUNNING=99999 claude --plugin-dir . --settings off.json
 ```
 

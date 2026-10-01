@@ -95,10 +95,21 @@ variable, and `1` in `~/.claude/settings.json` under `env` turned them on;
 a value there wins over one set in the shell.
 
 A compaction in such a session does not go by unsaid. When the module runs,
-it sets `LOSSLESS_COMPACTION_RUNNING` to the id of its process. Two classic
+it sets `LOSSLESS_COMPACTION_RUNNING` to the id of its process. Three classic
 hooks, which run whether or not function hooks are on, compare it with the
 id Claude Code hands them:
 
+- At the first message sent in a process without the mark, one line says
+  that the plugin is not running in this session, that a compaction there
+  would be Claude Code's own, which setting to add, and to start a new
+  session. It is said once in a process, and again in the conversation
+  reopened in another, where the plugin may still not run. The line is shown
+  on the screen and is not part of the conversation: measured on Claude Code
+  2.1.286, the tokens sent were the same with and without it, and `claude -p`
+  printed the same bytes. The processes told are one line each in `told`
+  next to `held` (below), kept the same way. The hook runs at every message;
+  in a session where the plugin runs it reads no file and takes about 10 ms
+  (0.3 s for a message of 1 MB, most of it reading its input).
 - Before a `/compact` without the mark, the compaction is held: nothing is
   compacted, and a line says that the plugin is not running, which setting
   to add, how to reopen the conversation, and that running `/compact` again
@@ -125,16 +136,23 @@ Not reached:
 - A system without `/bin/sh` or `/usr/bin/sh`: the mark is then `any`, which
   a `claude` started from the session inherits and counts as its own.
 - A Claude Code that hands a classic hook no `CLAUDE_PID`: nothing is held,
-  and any mark counts.
+  nothing is said at the first message, and any mark counts.
 - A `held` that cannot be written, cannot be read, or is a link: nothing is
-  held; the line after the compaction is still said.
+  held; the line after the compaction is still said. The same for `told`:
+  nothing is said at the first message, since it would then be said at every
+  one.
+- A slash command does not pass the hook that runs at a message: in a session
+  where only slash commands are sent, the line comes at the first message
+  that is not one. A `/compact` among them is held as above.
 - A process id used again by a later session, as where every run gets the
-  same id: its first `/compact` is not held. After `/clear`, the new
-  conversation is in a process already held, and is not held either.
+  same id: its first `/compact` is not held, and it is not told at its first
+  message, since `told` keeps process ids alone. After `/clear`, the new
+  conversation is in a process already held and told, and is neither held
+  nor told.
 - `LOSSLESS_COMPACTION_RUNNING` set by hand, or by the `env` of a
   repository's settings: `any`, or the process's own id, counts as the
-  plugin's mark and silences both hooks, which leaves a session as it was
-  before them. It is not among the values in
+  plugin's mark and silences all three hooks, which leaves a session as it
+  was before them. It is not among the values in
   [What a repository can change](#what-a-repository-can-change), since it
   decides neither where results are written nor where `find` sends.
 
@@ -143,14 +161,18 @@ between it and Claude Code, the id the module reads would not be the one the
 hooks are handed, and a running session would be told it is not; this was
 not met, and was measured on one machine.
 
-Someone who keeps function hooks off with the plugin enabled is held as
-above in every conversation; `LOSSLESS_COMPACTION_RUNNING` set to `any` in
-their own settings' `env` ends it. The variable is in the environment of
-everything the session starts, as every variable a plugin sets is. Measured
-on Claude Code
-2.1.286, interactively and with `-p`: the held `/compact`, the line after
-one that went ahead, and an automatic compaction with
-`CLAUDE_CODE_AUTO_COMPACT_WINDOW` lowered.
+Someone who keeps function hooks off with the plugin enabled is told and
+held as above in every conversation; `LOSSLESS_COMPACTION_RUNNING` set to
+`any` in their own settings' `env` ends it. The variable is in the
+environment of everything the session starts, as every variable a plugin
+sets is. Measured on Claude Code 2.1.286, interactively and with `-p`: the
+line at the first message, the held `/compact`, the line after one that went
+ahead, and an automatic compaction with `CLAUDE_CODE_AUTO_COMPACT_WINDOW`
+lowered. With function hooks on, the mark was in place by the first message
+in 30 of 30 interactive starts (with a prompt on the command line, typed as
+soon as the input box showed, and right after `--resume`), and after
+`/reload-plugins` loaded the module into a session that had started without
+it; a `/compact` there was not held.
 
 ## Setting it up
 
