@@ -35,22 +35,51 @@ installs, shows in the list, and does nothing.
 ## The files
 
 Files are plain text under `~/.claude/lossless-compaction/`, or under
-`CLAUDE_CONFIG_DIR` when that is set. The plugin creates them readable by
-other users of the machine, which `mkdir -p -m 700` beforehand prevents, and
-never cleans them up. A secret in a tool result stays there until you delete
-it.
+`CLAUDE_CONFIG_DIR` when that is set. The plugin never cleans them up. A
+secret in a tool result stays there until you delete it.
+
+Before a compaction writes anything, the plugin makes the directory it writes
+to readable by its owner alone: it runs `mkdir -m 700` when the directory is
+not there and `chmod 700` on it either way (from `/bin`, else `/usr/bin`,
+never through `PATH`). A link or a file in its place, a directory `chmod`
+fails on (someone else's), or a host where neither command can be run —
+NixOS without `/bin` and `/usr/bin`, a surface of Claude Code that runs no
+commands — means nothing is moved out, and the line the compaction prints
+says why. Each other directory it reads from that is there as a directory is
+closed the same way; when that fails, the compaction says so and goes on. A
+`storeDir` you point at an existing directory is made mode 700 too: point it
+at a directory of its own.
+
+What that covers and what it does not:
+
+- The files inside keep the mode the host writes them with; no other user can
+  reach them through a directory of mode 700.
+- That the mode is 700 afterwards is known from `chmod` succeeding: the host's
+  file information has no mode. It proves less for root, whose `chmod`
+  succeeds on anyone's directory, and on a file system without modes (exFAT,
+  some network mounts), where `chmod` can succeed and change nothing. An
+  access control list on macOS (one that lets everyone read, say) is not
+  removed by `chmod`. Another plugin's hook on the host's command runner could
+  answer for `chmod` without running it.
+- Between the check that a path is a plain directory and the write, only a
+  process of your own user can put a link in a directory of mode 700 that you
+  own. That is outside what the plugin guards against.
+- On Windows (a place starting with a drive letter) no mode is set: the
+  profile directory's access control is what keeps others out.
+- A blob a write left half done, whose text no longer has the hash it is
+  named by, is written over the next time the same result moves out.
 
 Up to 0.3.0 the plugin was named `jev-lossless-compaction`, and the directory
 with it. Results are read from both places; while the old directory exists — a
 link to it counts — new results are written there too, whether or not the new
-directory exists, since that is where the results are and where a directory
-made readable to its owner alone was made. An old directory the plugin made
-is readable by other users, and the README's `mkdir` makes only the new one:
-`chmod 700 ~/.claude/jev-lossless-compaction` closes it. If the old directory
-is a link, writing is refused as before and the built-in compaction runs,
-which the compaction says; a plain file in its place is not written to. A
-`storeDir` setting is used alone. Settings are kept under the plugin's id, so
-a `storeDir` set under the old id has to be set again.
+directory exists, since that is where the results are. It is made mode 700
+like the new one. With `storeDir` set, the old directory is neither read nor
+closed: `chmod 700 ~/.claude/jev-lossless-compaction` if an earlier version
+made it. If the old directory is a link, writing is refused as
+before and the built-in compaction runs, which the compaction says; a plain
+file in its place is not written to. A `storeDir` setting is used alone.
+Settings are kept under the plugin's id, so a `storeDir` set under the old id
+has to be set again.
 
 `recall` and `find` look where results are kept now. After the setting or
 the variables above change, results kept elsewhere are not found until they
@@ -142,6 +171,6 @@ says, and set the key — and `storeDir`, if you had set it — again under the
 new id. Until then there is no hook, and Claude Code's own compaction runs;
 do not keep both installed. Your results stay where they are:
 `~/.claude/jev-lossless-compaction/` goes on being read and written to while
-it exists, so `chmod 700` it if the plugin made it rather than you. Tickets
+it exists, and the plugin makes it mode 700 before it writes there. Tickets
 in old conversations name the old tool; call `recall` with the same id, or
 compact once more and they are rewritten.

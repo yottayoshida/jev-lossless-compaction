@@ -34,7 +34,7 @@
     "storeDir": {
       "type": "string",
       "title": "Where moved-out results are kept",
-      "description": "An absolute directory, set in your user settings: one from a repository's settings stops the plugin. Unset, lossless-compaction under CLAUDE_CONFIG_DIR when that is set, else under ~/.claude; an existing jev-lossless-compaction directory there, from earlier versions, is written to instead, and both are read."
+      "description": "An absolute directory, set in your user settings: one from a repository's settings stops the plugin. It is made, or closed, to mode 700 before anything is written, so give it a directory of its own. Unset, lossless-compaction under CLAUDE_CONFIG_DIR when that is set, else under ~/.claude; an existing jev-lossless-compaction directory there, from earlier versions, is written to instead, and both are read."
     },
     "targetPercent": {
       "type": "number",
