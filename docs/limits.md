@@ -90,10 +90,18 @@ To use the plugin in one repository only, add `--scope local` to the install
 and run it there; set the key without `--scope`.
 
 The key for `find` is set with
-`/plugin configure lossless-compaction@lossless-compaction`. With nothing set
-there, it is read from the environment: `TYPESAFE_API_KEY`, or
-`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, unless a repository's
-settings set it.
+`/plugin configure lossless-compaction@lossless-compaction`. `provider` is
+`auto` unless you change it: an account id entered there chooses Cloudflare
+and none chooses TypeSafe. When the account id is not 32 hexadecimal
+characters, or `provider` is `typesafe` while an account id is entered,
+nothing is sent: with a key for the provider chosen, `find` is not
+registered and a line at the start of the session says why; with none,
+nothing is said, as for any setup without a key. With no key set there, the key of the
+provider chosen is read from the environment, unless a repository's settings
+set it: `TYPESAFE_API_KEY`, or `CLOUDFLARE_API_TOKEN` once Cloudflare is
+chosen, by the account id or by `provider` set to `cloudflare`; only the
+latter also reads `CLOUDFLARE_ACCOUNT_ID`. The two Cloudflare variables alone
+choose nothing ([ADR 0009](adr/0009-an-account-id-is-enough-to-choose-cloudflare.md)).
 
 Coming from `jev-lossless-compaction` (0.3.0 and before), an installed copy
 does not follow the rename: see [moving from the old

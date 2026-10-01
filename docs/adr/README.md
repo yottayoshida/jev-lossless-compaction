@@ -18,3 +18,5 @@ Why the plugin is built the way it is, one record a decision.
   summary replaces is kept first.
 - [0008](0008-no-limit-and-nothing-lost-to-a-failed-write.md): why nothing
   is lost to a failed write, and there is no limit.
+- [0009](0009-an-account-id-is-enough-to-choose-cloudflare.md): why an
+  account id is enough to choose Cloudflare.

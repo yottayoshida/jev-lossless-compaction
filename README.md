@@ -30,8 +30,9 @@ one did. No such line after a compaction means function hooks are off.
 
 `recall` needs nothing more. `find` is optional and needs a Jev key: set it
 with `/plugin configure lossless-compaction@lossless-compaction` inside
-Claude Code (for Jev on Cloudflare Workers AI, set `provider` to `cloudflare`
-there, and the account id next to the key).
+Claude Code. For Jev on Cloudflare Workers AI, enter the account id there as
+well: with `provider` left on `auto`, an account id entered there sends the
+key to Cloudflare, and none sends it to TypeSafe.
 More ways to set it up — one repository only, the key from the environment,
 coming from `jev-lossless-compaction` — are in
 [docs/limits.md](docs/limits.md#setting-it-up).

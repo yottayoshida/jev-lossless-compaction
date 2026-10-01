@@ -185,8 +185,9 @@ export async function find(input: FindInput): Promise<string> {
   }
   if (input.provider === null) {
     return (
-      `[${PLUGIN}] find needs a Jev key: set provider and apiKey in the plugin's settings, or TYPESAFE_API_KEY or ` +
-      'CLOUDFLARE_API_TOKEN in the environment. recall reads a result by its id without one.'
+      `[${PLUGIN}] find needs a Jev key: set apiKey in the plugin's settings, and cloudflareAccountId as well for ` +
+      'Cloudflare, or have TYPESAFE_API_KEY in the environment (CLOUDFLARE_API_TOKEN once Cloudflare is chosen). ' +
+      'recall reads a result by its id without one.'
     );
   }
   const question = typeof input.question === 'string' ? input.question.trim() : '';
