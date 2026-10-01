@@ -1,4 +1,4 @@
-import type { FileStat, Files, Http, HttpResponse, Message } from '../src/types.ts';
+import type { DirEntry, FileStat, Files, Http, HttpResponse, Message } from '../src/types.ts';
 
 /**
  * A file system in memory that behaves as the host's was measured to: a write
@@ -48,6 +48,24 @@ export class MemoryFiles implements Files {
     if (text !== undefined) return { kind: 'file', size: text.length, isLink: false };
     if (this.dirs.has(path)) return { kind: 'dir', size: 0, isLink: false };
     throw new Error(`nothing at ${path}`);
+  }
+
+  /** When each file was last written, in ms; a file not in it is as old as can be. */
+  readonly mtimes = new Map<string, number>();
+
+  /** The entries directly in `path`, as the host's `fs.list` gives them: a link is `other`, not followed. */
+  async list(path: string): Promise<DirEntry[]> {
+    if (!this.dirs.has(path)) throw new Error(`no directory at ${path}`);
+    const names = new Map<string, DirEntry>();
+    const child = (full: string) => (full.startsWith(`${path}/`) ? full.slice(path.length + 1).split('/')[0] : undefined);
+    for (const full of [...this.files.keys(), ...this.dirs, ...this.links.keys()]) {
+      const name = child(full);
+      if (name === undefined || names.has(name)) continue;
+      const at = `${path}/${name}`;
+      const kind = this.links.has(at) ? 'other' : this.files.has(at) ? 'file' : 'dir';
+      names.set(name, { name, kind, mtimeMs: this.mtimes.get(at) ?? 0, isLink: this.links.has(at) });
+    }
+    return [...names.values()];
   }
 
   /** What is stored, by path, for comparing one state of the disk with another. */

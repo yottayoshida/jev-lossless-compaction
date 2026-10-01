@@ -43,8 +43,10 @@ test("where results are kept and where find sends both go through the repository
   assert.ok(user !== undefined && both?.includes('repo = null;') && !user.includes('repo = null'), 'the user file is read on its own');
   assert.ok(hooks.includes('placeTaints(taints, options)'), 'the place');
   assert.ok(hooks.includes('sendTaints(taints, options)'), 'the sending');
-  // Each of recall, find and the compaction takes the place from storeOf and gives up on its reason.
-  assert.equal(hooks.split("if (typeof store === 'string')").length - 1, 3, 'three callers');
+  // Each of recall, find, the compaction and the clean-up takes the place from storeOf and gives up on its reason.
+  assert.equal(hooks.split("if (typeof store === 'string')").length - 1, 4, 'four callers');
+  const collecting = hooks.slice(hooks.indexOf('async function collectOnce('), hooks.indexOf('function numberIn('));
+  assert.ok(collecting.includes("const store = await storeOf($, options);\n    if (typeof store === 'string') return;"), 'the clean-up too');
 });
 
 test('a compaction makes the place private before anything is written, and gives up when it cannot', () => {
@@ -54,6 +56,18 @@ test('a compaction makes the place private before anything is written, and gives
   assert.ok(made < attempt.indexOf('await compact('), 'before the compaction writes');
   assert.ok(attempt.includes('if (unsafe !== null) return unsafe;'), 'and gives up on its reason');
   assert.ok(hooks.includes('$.process.run(argv, { timeoutMs: 10_000 })'), 'commands run through the host');
+});
+
+test('the clean-up runs after the session starts, unwaited, and recall, find and the compaction put back from the trash first', () => {
+  const start = hooks.slice(hooks.indexOf("on('session.start'"), hooks.indexOf("on('tool.call'"));
+  assert.ok(start.includes('void collectOnce($, options);'), 'not waited for');
+  const recallHook = hooks.slice(hooks.indexOf(`{ tool: '${RECALL_TOOL}' }`), hooks.indexOf(`{ tool: '${FIND_TOOL}' }`));
+  assert.ok(recallHook.includes('restoreFor($, store, new Set([id]))'), 'recall');
+  const findHook = hooks.slice(hooks.indexOf(`{ tool: '${FIND_TOOL}' }`), hooks.indexOf("on('session.compact'"));
+  assert.ok(findHook.indexOf('restoreFor($, store, ticketIds(messages))') < findHook.indexOf('await find('), 'find, first');
+  const attempt = hooks.slice(hooks.indexOf('async function attempt('), hooks.indexOf('export const register'));
+  assert.ok(attempt.indexOf('restoreFor($, store, ticketIds(messages))') < attempt.indexOf('await compact('), 'the compaction, first');
+  assert.ok(attempt.indexOf('await privateOf($, store)') < attempt.indexOf('noteRootOf('), 'the place recorded once private');
 });
 
 test('a compaction imports nothing that sends: compact.ts does not reach ask.ts', () => {

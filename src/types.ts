@@ -46,6 +46,15 @@ export type Files = {
   stat(path: string): Promise<FileStat>;
 };
 
+/** One entry of a directory, as it stands: a link is not followed. */
+export type DirEntry = { name: string; kind: 'file' | 'dir' | 'other'; mtimeMs: number; isLink: boolean };
+
+/** Runs a command by its argument vector, no shell; rejects when it cannot be started or runs past `timeoutMs`. */
+export type Exec = (
+  argv: readonly string[],
+  timeoutMs: number,
+) => Promise<{ exitCode: number; stdout: string; truncated: boolean }>;
+
 export type HttpResponse = { status: number; ok: boolean; text: string };
 
 export type Http = (
