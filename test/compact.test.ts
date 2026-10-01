@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { CHARS_PER_TOKEN, compact, windowFrom, type Config, type Host, type Input } from '../src/compact.ts';
+import { CHARS_PER_TOKEN, apiChars, charsOf, compact, countFrom, reportLine, windowFrom, type Config, type Host, type Input } from '../src/compact.ts';
 import { moveOut, readTicket, recall, ticketText } from '../src/store.ts';
 import type { Message } from '../src/types.ts';
 import { MemoryFiles, conversation, output, sized, type Call } from './helpers.ts';
@@ -175,6 +175,116 @@ test('when a summary of what is left could not make room either, the built-in co
   assert.ok(report.moved >= 5);
   assert.ok(report.tokensAfter > (67_000 * 60) / 100, `${report.tokensAfter}`);
   assert.equal(enough, true);
+});
+
+/** Twelve results, with what is not the conversation and the thinking every compaction drops on top (#24). */
+function withThinking(fixedTokens: number, thinking: number, window: number, tokensPerChar = 1 / CHARS_PER_TOKEN): Input {
+  const messages = conversation(Array.from({ length: 12 }, (_, i) => call(`step ${i + 1}`)));
+  const tokens = fixedTokens + Math.ceil(charsOf(messages) * tokensPerChar) + thinking;
+  return { messages, tokens, count: { fixedTokens, tokensPerChar }, window, goal: messages[0]?.text ?? '' };
+}
+
+test('a conversation that fits once its thinking is gone is not handed to the built-in summary', async () => {
+  // Counted from `tokens`, 41,556 are in use afterwards: 756 over 60 % of the window, less than
+  // the conversation left, so the summary would be called for. Without the thinking it is 11,556.
+  const input = withThinking(10_000, 30_000, 68_000);
+
+  const { enough, report } = await compact(input, CONFIG, hostWith(new MemoryFiles()).host);
+
+  assert.ok(report.moved > 0);
+  assert.equal(report.counted, true);
+  assert.ok(report.tokensAfter < 12_000, `${report.tokensAfter}`);
+  assert.equal(enough, true);
+});
+
+test('however much of what is in use is thinking, something is still moved out', async () => {
+  // Thinking is two thirds of `tokens`. A goal of half of `tokens`, set against a size
+  // without the thinking, would need nothing, move nothing, and hand the conversation over.
+  const input = withThinking(10_000, 60_000, 1_000_000);
+
+  const { enough, report } = await compact(input, CONFIG, hostWith(new MemoryFiles()).host);
+  const without = await compact(withThinking(10_000, 0, 1_000_000), CONFIG, hostWith(new MemoryFiles()).host);
+
+  assert.ok(without.report.moved > 0);
+  // As much leaves as from the same conversation without thinking: what is needed is measured as what stays.
+  assert.equal(report.moved, without.report.moved);
+  assert.equal(enough, true);
+});
+
+test('counted from what stays, a conversation that is still too full afterwards is still handed over', async () => {
+  // What is not the conversation alone is near 60 % of the window: a summary of what is left could make room.
+  const input = withThinking(23_000, 30_000, 40_000);
+
+  const { enough, report } = await compact(input, CONFIG, hostWith(new MemoryFiles()).host);
+
+  assert.ok(report.moved > 0);
+  assert.ok(report.tokensAfter > (40_000 * 60) / 100, `${report.tokensAfter}`);
+  assert.equal(enough, false);
+});
+
+test('without what is not the conversation, sizes are estimated from what is in use and not counted', async () => {
+  const { count: _count, ...input } = withThinking(10_000, 30_000, 68_000);
+
+  const { enough, report } = await compact(input, CONFIG, hostWith(new MemoryFiles()).host);
+
+  assert.equal(report.counted, false);
+  assert.ok(report.tokensAfter > 40_000, `${report.tokensAfter}`);
+  // The decision as it was before #24.
+  assert.equal(enough, false);
+});
+
+test('a conversation that counts near a token a character is still handed over when it is too full', async () => {
+  // The same conversation, in a session whose own figure is a token a character, as Japanese runs:
+  // counted at three characters a token it would be said to fit.
+  const dense = withThinking(10_000, 0, 20_000, 1);
+  const thin = withThinking(10_000, 0, 20_000);
+
+  const counted = await compact(dense, CONFIG, hostWith(new MemoryFiles()).host);
+  const guessed = await compact({ ...dense, count: { fixedTokens: 10_000, tokensPerChar: 1 / CHARS_PER_TOKEN } }, CONFIG, hostWith(new MemoryFiles()).host);
+
+  assert.ok(counted.report.tokensAfter > (20_000 * 60) / 100, `${counted.report.tokensAfter}`);
+  assert.equal(counted.enough, false);
+  assert.equal(guessed.enough, true, 'the control: at three characters a token it would have stayed');
+  assert.equal((await compact(thin, CONFIG, hostWith(new MemoryFiles()).host)).enough, true);
+});
+
+test('a size is counted from the breakdown only when it can be relied on, at the session\'s own tokens a character', () => {
+  const row = (name: string, tokens: number, kind = 'used') => ({ name, tokens, kind, color: '', isDeferred: kind === 'deferred' });
+  const categories = [row('System prompt', 9_000), row('System tools', 21_000), row('Messages', 70_000), row('Free space', 100_000, 'free'), row('MCP tools', 5_000, 'deferred')];
+  const apiUsage = { input_tokens: 10, output_tokens: 10 };
+  const text = (chars: number) => [{ role: 'user', content: [{ type: 'text', text: 'x'.repeat(chars) }] }];
+
+  // 70,000 tokens over 70,000 characters: a token a character, as Japanese runs.
+  assert.deepEqual(countFrom({ categories, apiUsage }, 100_000, text(70_000)), { fixedTokens: 30_000, tokensPerChar: 1 });
+  // Never under one in three, whatever the session's figure.
+  assert.deepEqual(countFrom({ categories, apiUsage }, 100_000, text(700_000)), { fixedTokens: 30_000, tokensPerChar: 1 / CHARS_PER_TOKEN });
+  assert.deepEqual(countFrom({ categories, apiUsage }, 100_000, []), { fixedTokens: 30_000, tokensPerChar: 1 / CHARS_PER_TOKEN });
+  // Not Claude Code's own figure: estimated from characters when it gave none.
+  assert.equal(countFrom({ categories, apiUsage }, undefined, text(1)), undefined);
+  // Before a response, what the rows are reconciled to is missing.
+  assert.equal(countFrom({ categories, apiUsage: null }, 100_000, text(1)), undefined);
+  assert.equal(countFrom({ categories: categories.filter((r) => r.name !== 'Messages'), apiUsage }, 100_000, text(1)), undefined);
+  // Out of range either way.
+  assert.equal(countFrom({ categories, apiUsage }, 30_000, text(1)), undefined);
+  assert.equal(countFrom({ categories: [row('Messages', 70_000)], apiUsage }, 100_000, text(1)), undefined);
+  assert.equal(countFrom(undefined, 100_000, text(1)), undefined);
+});
+
+test('the characters of a conversation read with its blocks count thinking, signatures, inputs and results', () => {
+  const api = [
+    { role: 'user', content: 'hello' },
+    {
+      role: 'assistant',
+      content: [
+        { type: 'thinking', thinking: 'abc', signature: 'sig' },
+        { type: 'tool_use', id: 't1', name: 'Read', input: { path: 'a' } },
+      ],
+    },
+    { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: [{ type: 'text', text: 'body' }] }] },
+  ];
+  // 5 + (3 + 3) + (2 + 4 + 12) + (2 + 4)
+  assert.equal(apiChars(api), 5 + 6 + 2 + 4 + JSON.stringify({ path: 'a' }).length + 2 + 4);
+  assert.equal(apiChars(undefined), 0);
 });
 
 test('what a compaction measures against is where Claude Code compacts on its own, else the window', () => {
@@ -384,4 +494,13 @@ test('a result that cannot be stored stays in the conversation and is counted', 
   assert.equal(report.moved, 0);
   assert.equal(report.notMoved.differs, report.candidates);
   assert.equal(enough, false);
+});
+
+test('the line names a size of the context only when it was counted from what stays', async () => {
+  const counted = await compact(withThinking(10_000, 30_000, 68_000), CONFIG, hostWith(new MemoryFiles()).host);
+  const { count: _count, ...input } = withThinking(10_000, 30_000, 68_000);
+  const guessed = await compact(input, CONFIG, hostWith(new MemoryFiles()).host);
+
+  assert.match(reportLine(counted.report), new RegExp(`chars, about ${counted.report.tokensAfter} of 68000 tokens in use\\) in `));
+  assert.match(reportLine(guessed.report), /^moved 11 of 12 tool results out \(\d+ -> \d+ chars\) in \d+ ms$/);
 });

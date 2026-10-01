@@ -9,6 +9,21 @@ image, a document or any block of a kind the plugin does not know, has 4096
 messages or more, belongs to a subagent, has nothing that can be moved out,
 or is still too full afterwards and a summary could change that.
 
+How full it is afterwards is counted from what stays: what Claude Code's
+breakdown says is not the conversation (the system prompt, the tools'
+definitions and the like), plus the rebuilt conversation at the session's
+own tokens a character — what the breakdown's `Messages` row comes to over
+the conversation as it was sent — and at no less than one in three.
+Thinking is not in it, since no rebuilt message carries any. Measured
+against the next request, that came within 17 %, mostly high; it comes out
+low when what stays is denser than the session on average, such as
+Japanese left after source code was moved out.
+When the breakdown cannot be relied on, the line a compaction shows names
+no token count, and what was in use less what was moved out is measured
+instead: that still counts the thinking, and with no response since the
+last compaction, what was in use is the conversation's characters over
+three, without the system prompt or the tools.
+
 ## What a summary replaces
 
 Before the built-in summary runs on the main conversation, the plugin keeps
