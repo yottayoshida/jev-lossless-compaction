@@ -13,13 +13,28 @@ import { DiskFiles, MemoryFiles, conversation, output } from './helpers.ts';
 const DIR = '/home/u/.claude/lossless-compaction';
 const TEXT = output('status', 200);
 
+
+/** Two moves of the same text at once, the one that goes wrong reaching the disk only after the other has finished. */
+async function raced(files: DiskFiles) {
+  let release = () => {};
+  files.later = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const both = [moveOut(files, DIR, 'Bash', TEXT), moveOut(files, DIR, 'Bash', TEXT)];
+  await Promise.race(both);
+  release();
+  return Promise.all(both);
+}
+
 test('without a move into place, a refused write of the same text destroys what an earlier write had stored', async () => {
   // The host as it is without `mv` (Windows): written in place. This is what the move prevents.
   const files = new DiskFiles(false);
   let blobWrites = 0;
   files.full = (path) => path.includes('/blobs/') && ++blobWrites === 2;
-  const [first, second] = await Promise.all([moveOut(files, DIR, 'Bash', TEXT), moveOut(files, DIR, 'Bash', TEXT)]);
-  if (!first || 'reason' in first) return assert.fail('the first was stored');
+  const results = await raced(files);
+  const first = results.find((result) => !('reason' in result));
+  const second = results.find((result) => 'reason' in result);
+  if (!first || 'reason' in first) return assert.fail('one was stored');
   assert.ok(second && 'reason' in second && second.reason === 'write-failed');
   assert.deepEqual(await recall(files, [DIR], first.id), { error: 'The stored result has changed on disk and is not returned.' });
 });
@@ -27,8 +42,9 @@ test('without a move into place, a refused write of the same text destroys what 
 test('with a move into place, a refused write of the same text leaves what an earlier write had stored whole', async () => {
   const files = new DiskFiles(true);
   let blobWrites = 0;
-  files.full = (path) => path.endsWith('.part') && path.includes('.txt.') && ++blobWrites === 2;
-  const results = await Promise.all([moveOut(files, DIR, 'Bash', TEXT), moveOut(files, DIR, 'Bash', TEXT)]);
+  // The second write of the result's text, wherever it goes: to a part, or in place if nothing moves it.
+  files.full = (path) => (path.includes('.txt.') || path.includes('/blobs/')) && ++blobWrites === 2;
+  const results = await raced(files);
   const stored = results.filter((result): result is Extract<typeof result, { id: string }> => !('reason' in result));
   assert.ok(stored.length >= 1, 'one was stored');
   for (const result of stored) assert.deepEqual(await recall(files, [DIR], result.id), { text: TEXT });
@@ -129,9 +145,8 @@ test('a part a broken disk stored other text for is not moved over what an earli
   const files = new DiskFiles(true);
   let parts = 0;
   // The second part of the blob is stored wrong, without a word, and lands after the first was moved into place.
-  files.garble = (path) => path.endsWith('.part') && path.includes('.txt.') && ++parts === 2;
-  const [a, b] = await Promise.all([moveOut(files, DIR, 'Bash', TEXT), moveOut(files, DIR, 'Bash', TEXT)]);
-  const stored = [a, b].filter((result): result is Extract<typeof result, { id: string }> => !('reason' in result));
+  files.garble = (path) => (path.includes('.txt.') || path.includes('/blobs/')) && ++parts === 2;
+  const stored = (await raced(files)).filter((result): result is Extract<typeof result, { id: string }> => !('reason' in result));
   assert.ok(stored.length >= 1, 'one was stored');
   for (const result of stored) assert.deepEqual(await recall(files, [DIR], result.id), { text: TEXT });
 });
