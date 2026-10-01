@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-10-01
+
 ### Added
 
 - A compaction in a session where the plugin is enabled and is not running no longer goes by unsaid. With function hooks off, or with the module not loaded for any other reason, a compaction is Claude Code's own summary, and until now nothing on the screen said so. Now a `/compact` in such a session is held: nothing is compacted, and a line says that the plugin is not running, which setting to add, how to reopen the conversation, and that running `/compact` again in that session goes ahead. Reopened in another process, the conversation is held once more, so that a setting that did not take is noticed before the summary runs; from the third process on it goes through. A compaction that goes ahead there, a `/compact` run again or an automatic one, is followed by a line saying it was Claude Code's own. An automatic compaction is never held. A running module says so to two classic hooks by setting `LOSSLESS_COMPACTION_RUNNING` to the id of its process, which is now in the environment of everything the session starts; a mark inherited from the session that started this one does not count. Not reached: a session that was open before the plugin was installed, and a setup with all hooks off. If you keep function hooks off on purpose with the plugin enabled, a `/compact` is held in every conversation; `LOSSLESS_COMPACTION_RUNNING` set to `any` under `env` in your settings ends it. Measured on Claude Code 2.1.286, interactively and with `-p` (ADR 0010).
