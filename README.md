@@ -56,10 +56,6 @@ Every figure, with how it was taken: [docs/measurements.md](docs/measurements.md
 # function hooks are off without it.
 export CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1
 
-# Where results will be kept, made before the first compaction so that only
-# you can read them. The plugin cannot set the mode of what it creates.
-mkdir -p -m 700 ~/.claude/lossless-compaction
-
 claude plugin marketplace add yottayoshida/lossless-compaction
 claude plugin install lossless-compaction@lossless-compaction
 ```
@@ -105,9 +101,9 @@ does not follow the rename: see [moving from the old name](docs/limits.md#moving
   is still too full after moving out. Earlier tickets may then be gone from
   the conversation; the files remain.
 - Files are plain text under `~/.claude/lossless-compaction/` — or under
-  `~/.claude/jev-lossless-compaction/` while that exists — readable by other
-  users of the machine unless the directory written to was made with the
-  `mkdir` above or closed with `chmod 700`, and never cleaned up. A result
+  `~/.claude/jev-lossless-compaction/` while that exists — in a directory the
+  plugin makes or closes to mode 700 before writing, or else writes nothing;
+  they are never cleaned up. A result
   moved out by an earlier version is read back after the rename, by the same
   id, from where it was written; a `storeDir` set under the old id has to be
   set again under the new.

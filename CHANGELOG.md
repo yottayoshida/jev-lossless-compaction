@@ -6,7 +6,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Security
 
+- The plugin makes the directory it writes moved-out results to readable by its owner alone before it writes anything: `mkdir -m 700` when the directory is not there, `chmod 700` on it either way, from `/bin` or else `/usr/bin`. A link or a file in its place, a directory `chmod` fails on, or a host that cannot run either command means nothing is moved out and the compaction says why. Each other directory it reads from that is there as a directory, `~/.claude/jev-lossless-compaction/` of earlier versions among them, is closed the same way; when that fails, the compaction says so and goes on. With `storeDir` set, only that directory is read and closed: a `~/.claude/jev-lossless-compaction/` an earlier version made stays as it was, so `chmod 700` it yourself. The README's `mkdir -p -m 700` step is gone. On Windows no mode is set. Measured on macOS with the place missing, of mode 755, a link and a file: made 700, closed to 700 and three results moved out in 63 ms, refused with the link's target left empty, refused.
 - A repository's own settings files (`.claude/settings.json`, `.claude/settings.local.json`) no longer decide where moved-out results are written or where `find` sends. Before either is used, the plugin reads both files; a value it would use that one of them holds stops it, and the line it prints names the value and the file. A place from them (`HOME`, `USERPROFILE` or `CLAUDE_CONFIG_DIR` without a `storeDir` of yours, or a `storeDir`) means nothing is moved out and the built-in compaction runs; a key variable without a key in the plugin's settings, the plugin's provider settings, or a proxy or certificate variable means there is no `find`. Measured on Claude Code 2.1.286, a key variable and `HTTPS_PROXY` from those files did reach the plugin, and `HTTPS_PROXY` routed its requests; the place variables and `pluginConfigs` did not (ADR 0005). Set the key and `storeDir` in your user settings.
+
+### Fixed
+
+- A blob a write left half done, whose text no longer has the hash it is named by, is written over the next time the same result moves out, instead of keeping that result in the conversation for good.
 
 ## [0.4.0] - 2026-09-30
 
