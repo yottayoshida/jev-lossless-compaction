@@ -46,7 +46,29 @@ const TICKET_2026_09 = new RegExp(
     `and is kept unchanged on disk\\. To read it, call the tool ${OLD_RECALL_TOOL} with id ([0-9a-f]{64})\\.$`,
 );
 
+/** The name the index gives a part of a conversation kept before the built-in summary (ADR 0007). */
+export const PART = 'conversation';
+// A part has a wording of its own, so that no tool named `conversation` is taken for one.
+const PART_TICKET = new RegExp(
+  `^\\[moved out\\] conversation before the summary, part (\\d{1,6}) of (\\d{1,6}), messages (\\d{1,6})-(\\d{1,6}), (\\d{1,9}) bytes; recall with ${RECALL_TOOL} id ([0-9a-f]{64})$`,
+);
+
 export type Ticket = { tool: string; bytes: number; id: string };
+
+/** Which part of a kept conversation a line stands for, and which of its messages the part holds. */
+export type PartTicket = Ticket & { part: number; parts: number; first: number; last: number };
+
+export function partTicketText({ part, parts, first, last, bytes, id }: Omit<PartTicket, 'tool'>): string {
+  return `[moved out] conversation before the summary, part ${part} of ${parts}, messages ${first}-${last}, ${bytes} bytes; recall with ${RECALL_TOOL} id ${id}`;
+}
+
+/** Reads a line that has the shape of a part's ticket. The shape alone proves nothing: see `isStored`. */
+export function readPartTicket(text: string): PartTicket | null {
+  const match = PART_TICKET.exec(text);
+  if (!match) return null;
+  const [, part, parts, first, last, bytes, id] = match.map(String);
+  return { tool: PART, part: Number(part), parts: Number(parts), first: Number(first), last: Number(last), bytes: Number(bytes), id: id as string };
+}
 
 export type Moved = Ticket & { text: string };
 
@@ -54,12 +76,14 @@ export type NotMoved = {
   reason: 'tool-name' | 'too-large' | 'symlink' | 'not-a-file' | 'differs' | 'write-failed';
 };
 
+const UTF8 = new TextEncoder();
+
 export function bytesOf(text: string): number {
-  return new TextEncoder().encode(text).length;
+  return UTF8.encode(text).length;
 }
 
 export async function idOf(text: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  const digest = await crypto.subtle.digest('SHA-256', UTF8.encode(text));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
@@ -230,9 +254,29 @@ export async function moveOut(files: Files, dir: string, tool: string, text: str
 
 const dirsOf = (dirs: string | readonly string[]): readonly string[] => (typeof dirs === 'string' ? [dirs] : dirs);
 
-/** True when `text` is a ticket this store wrote: its shape, and an entry of that size under its id, in any of `dirs`. */
+/**
+ * True when `text` is a ticket this store wrote, of a result or of a part of a
+ * kept conversation: its shape, and an entry of that size under its id, in any of `dirs`.
+ */
+/**
+ * Whether `id` is a part of a kept conversation, as its entry says, in any of
+ * `dirs`; null when the entry is there and cannot be read.
+ */
+export async function isPart(files: Files, dirs: readonly string[], id: string): Promise<boolean | null> {
+  for (const dir of dirs) {
+    if ((await look(files, entryPath(dir, id))) !== 'file') continue;
+    try {
+      const entry: unknown = JSON.parse(await files.read(entryPath(dir, id)));
+      return typeof entry === 'object' && entry !== null && (entry as { tool?: unknown }).tool === PART;
+    } catch {
+      return null;
+    }
+  }
+  return false;
+}
+
 export async function isStored(files: Files, dirs: string | readonly string[], text: string): Promise<boolean> {
-  const ticket = readTicket(text);
+  const ticket = readTicket(text) ?? readPartTicket(text);
   if (!ticket) return false;
   for (const dir of dirsOf(dirs)) {
     if ((await look(files, entryPath(dir, ticket.id))) !== 'file') continue;

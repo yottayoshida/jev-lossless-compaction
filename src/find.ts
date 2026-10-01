@@ -2,7 +2,7 @@
 // is about: what the `find` tool answers with.
 
 import { choose, digest, inputLine, type Provider } from './ask.ts';
-import { PLUGIN, RECALL_TOOL, isOwnTool, isStored, readTicket, recall, type Ticket } from './store.ts';
+import { PART, PLUGIN, RECALL_TOOL, isOwnTool, isStored, readPartTicket, readTicket, recall, type Ticket } from './store.ts';
 import type { Files, Http, Message } from './types.ts';
 
 /** The text of a result is returned when the likeliest option has at least this probability ... */
@@ -20,6 +20,15 @@ const NONE_TEXT = 'None of these: the result the question is about is not among 
 export const WHOLE_UP_TO = 256 * 1024;
 export const HEAD_CHARS = 8 * 1024;
 const DIGEST_CHARS = 400;
+/** At most this many parts of kept conversations are read for the tickets in them. */
+export const MAX_PARTS = 64;
+/**
+ * Tickets read from kept parts are offered until the choice holds this many:
+ * with eighty options to a request it takes about seventeen requests, under
+ * the twenty-four a question may make. The conversation's own tickets are
+ * always offered, however many they are.
+ */
+export const MAX_OFFERED = 1200;
 
 export type FindInput = {
   files: Files;
@@ -37,8 +46,12 @@ export type FindInput = {
   agentId?: string | undefined;
 };
 
-/** A ticket of the conversation with the call that made the result it stands for. */
-export type Stored = Ticket & { line: string; input: Record<string, unknown> };
+/**
+ * A ticket of the conversation, or of a part of a conversation kept before a
+ * summary, with what it stands for in words: the call that made the result, or
+ * which messages the part holds.
+ */
+export type Stored = Ticket & { line: string; about: string };
 
 /**
  * The phrases the question puts in double quotes, long enough to narrow by.
@@ -64,7 +77,8 @@ export function shown(text: string): string {
 /**
  * The tickets of the conversation, each id once, without those that stand for
  * a result of this plugin's own tools: such a result is a copy of a stored
- * text, which would sit in the choice twice.
+ * text, which would sit in the choice twice. The tickets of parts of a kept
+ * conversation are read from the lines of the messages that hold them.
  */
 export function ticketsIn(messages: readonly Message[]): Stored[] {
   const uses = new Map(messages.flatMap((message) => message.toolUses).map((use) => [use.tool_use_id, use]));
@@ -75,20 +89,85 @@ export function ticketsIn(messages: readonly Message[]): Stored[] {
       const ticket = readTicket(result.text);
       if (!ticket || isOwnTool(ticket.tool) || seen.has(ticket.id)) continue;
       seen.add(ticket.id);
-      tickets.push({ ...ticket, line: result.text, input: uses.get(result.tool_use_id)?.input ?? {} });
+      const input = uses.get(result.tool_use_id)?.input ?? {};
+      tickets.push({ ...ticket, line: result.text, about: `${ticket.tool} called with ${inputLine(input)}` });
     }
+    if (message.role === 'user' && (message.toolResults?.length ?? 0) === 0) tickets.push(...partsIn(message.text, seen));
+  }
+  return tickets;
+}
+
+function partsIn(text: string, seen: Set<string>): Stored[] {
+  const out: Stored[] = [];
+  for (const line of text.split('\n')) {
+    const part = readPartTicket(line);
+    if (!part || seen.has(part.id)) continue;
+    seen.add(part.id);
+    out.push({ ...part, line, about: `part ${part.part} of ${part.parts} of the conversation before a summary, messages ${part.first}-${part.last}` });
+  }
+  return out;
+}
+
+const CALL = /^\[call (\S+) (\S+)\] (.*)$/;
+const RESULT = /^\[result (\S+)(?: error)?\]$/;
+
+/**
+ * The tickets written in a kept part: those of the results it holds, each
+ * described by the call the part writes above it, and those of parts kept by
+ * an earlier summary, which a part holds when a summary was summarized.
+ */
+function ticketsInPart(text: string, seen: Set<string>): Stored[] {
+  const lines = text.split('\n');
+  const calls = new Map<string, string>();
+  for (const line of lines) {
+    const match = CALL.exec(line);
+    if (match) calls.set(match[2] as string, `${match[1]} called with ${match[3]}`);
+  }
+  const out: Stored[] = [];
+  let result: string | undefined;
+  for (const line of lines) {
+    const header = RESULT.exec(line);
+    if (header) {
+      result = header[1];
+      continue;
+    }
+    const ticket = readTicket(line);
+    if (!ticket || isOwnTool(ticket.tool) || seen.has(ticket.id)) continue;
+    seen.add(ticket.id);
+    out.push({ ...ticket, line, about: (result !== undefined ? calls.get(result) : undefined) ?? `${ticket.tool} called` });
+  }
+  return [...out, ...partsIn(text, seen)];
+}
+
+/** Every ticket `find` offers: the conversation's, then, part by part up to MAX_PARTS, those in kept parts. */
+async function everyTicket(files: Files, dirs: readonly string[], messages: readonly Message[]): Promise<Stored[]> {
+  const tickets = ticketsIn(messages);
+  const seen = new Set(tickets.map((ticket) => ticket.id));
+  let read = 0;
+  for (let index = 0; index < tickets.length && read < MAX_PARTS; index += 1) {
+    const ticket = tickets[index] as Stored;
+    if (ticket.tool !== PART) continue;
+    read += 1;
+    if (!(await isStored(files, dirs, ticket.line))) continue;
+    const got = await recall(files, dirs, ticket.id);
+    if ('error' in got) continue;
+    // Parts are always followed: the limit is on the results offered, not on where they are read from.
+    const inside = ticketsInPart(got.text, seen);
+    tickets.push(...inside.filter((t) => t.tool === PART));
+    tickets.push(...inside.filter((t) => t.tool !== PART).slice(0, Math.max(0, MAX_OFFERED - tickets.length)));
   }
   return tickets;
 }
 
 type Entry = { ticket: Stored; option: string; holds: boolean };
 
-const describe = (ticket: Stored) => `${ticket.tool} called with ${inputLine(ticket.input)}; ${ticket.bytes} bytes`;
+const describe = (ticket: Stored) => `${ticket.about}; ${ticket.bytes} bytes`;
 
 async function found(files: Files, dirs: readonly string[], ticket: Stored, why: string): Promise<string> {
   const got = await recall(files, dirs, ticket.id);
   if ('error' in got) return `[${PLUGIN}] ${got.error}`;
-  return `[found] ${ticket.tool} result, ${ticket.bytes} bytes; id ${ticket.id}; ${why}\n\n${got.text}`;
+  const what = ticket.tool === PART ? ticket.about : `${ticket.tool} result`;
+  return `[found] ${what}, ${ticket.bytes} bytes; id ${ticket.id}; ${why}\n\n${got.text}`;
 }
 
 function listed(entries: readonly [Entry, number][], none: number | undefined): string {
@@ -117,7 +196,7 @@ export async function find(input: FindInput): Promise<string> {
   const phrases = phrasesOf(question);
   const entries: Entry[] = [];
   // One stored text at a time: what is kept of each is a few hundred characters.
-  for (const ticket of ticketsIn(input.messages)) {
+  for (const ticket of await everyTicket(files, dirs, input.messages)) {
     if (!(await isStored(files, dirs, ticket.line))) continue;
     const got = await recall(files, dirs, ticket.id);
     if ('error' in got) continue;
@@ -126,8 +205,8 @@ export async function find(input: FindInput): Promise<string> {
   }
   if (entries.length === 0) {
     return (
-      `[${PLUGIN}] No ticket of a moved-out result is in this conversation: none was moved out, or the built-in ` +
-      'compaction has run since, or they are older than what is shown. recall reads a result by its id.'
+      `[${PLUGIN}] No ticket of a moved-out result is in this conversation: none was moved out, or a summary ` +
+      'has run since that kept nothing, or they are older than what is shown. recall reads a result by its id.'
     );
   }
 
