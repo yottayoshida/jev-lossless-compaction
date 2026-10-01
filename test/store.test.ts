@@ -116,6 +116,52 @@ test('a result that does not read back as it was written stays in the conversati
   assert.deepEqual(await moveOut(files, DIR, 'Read', output('x', 40)), { reason: 'differs' });
 });
 
+test('a blob a failed write left behind is written over and read back, so its id is not lost for good', async () => {
+  const files = new MemoryFiles();
+  const text = output('x', 40);
+  const id = await idOf(text);
+  files.files.set(`${DIR}/blobs/${id}.txt`, text.slice(0, 100));
+  files.dirs.add(`${DIR}/blobs`);
+
+  const ticket = await moved(files, text);
+  assert.equal(ticket.id, id);
+  assert.equal(files.files.get(`${DIR}/blobs/${id}.txt`), text);
+  // A disk that still breaks what is written leaves the result where it is.
+  const broken = new MemoryFiles();
+  broken.files.set(`${DIR}/blobs/${id}.txt`, 'partial');
+  broken.corrupt = (written) => written.slice(0, -1);
+  assert.deepEqual(await moveOut(broken, DIR, 'Read', text), { reason: 'differs' });
+});
+
+test('a half-done blob another session removed before it is written over is simply written', async () => {
+  const files = new MemoryFiles();
+  const text = output('x', 40);
+  const id = await idOf(text);
+  const path = `${DIR}/blobs/${id}.txt`;
+  files.files.set(path, 'partial');
+  const read = files.read.bind(files);
+  // Once the partial text has been read back, the file goes, as another session's clean-up would take it.
+  files.read = async (at: string) => {
+    const got = await read(at);
+    if (at === path && got === 'partial') files.files.delete(path);
+    return got;
+  };
+  const ticket = await moved(files, text);
+  assert.equal(ticket.id, id);
+  assert.equal(files.files.get(path), text);
+});
+
+test('an index entry of another tool for the same text is not written over', async () => {
+  const files = new MemoryFiles();
+  const text = output('x', 40);
+  const id = await idOf(text);
+  const other = JSON.stringify({ bytes: new TextEncoder().encode(text).length, tool: 'Grep' });
+  files.files.set(`${DIR}/index/${id}.json`, other);
+
+  await moved(files, text, 'Read');
+  assert.equal(files.files.get(`${DIR}/index/${id}.json`), other);
+});
+
 test('a lone surrogate, which UTF-8 cannot hold, is caught by reading back', async () => {
   const files = new MemoryFiles();
   // What a UTF-8 disk does to a string that is not well formed.

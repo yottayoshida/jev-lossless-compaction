@@ -47,6 +47,15 @@ test("where results are kept and where find sends both go through the repository
   assert.equal(hooks.split("if (typeof store === 'string')").length - 1, 3, 'three callers');
 });
 
+test('a compaction makes the place private before anything is written, and gives up when it cannot', () => {
+  const attempt = hooks.slice(hooks.indexOf('async function attempt('), hooks.indexOf('export const register'));
+  const made = attempt.indexOf('await privateOf($, store)');
+  assert.ok(made > 0, 'privateOf is called');
+  assert.ok(made < attempt.indexOf('await compact('), 'before the compaction writes');
+  assert.ok(attempt.includes('if (unsafe !== null) return unsafe;'), 'and gives up on its reason');
+  assert.ok(hooks.includes('$.process.run(argv, { timeoutMs: 10_000 })'), 'commands run through the host');
+});
+
 test('a compaction imports nothing that sends: compact.ts does not reach ask.ts', () => {
   assert.ok(!compaction.includes("from './ask.ts'"));
   assert.ok(!compaction.includes('http'));
