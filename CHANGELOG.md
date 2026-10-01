@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed
+
+- A conversation that fits once its thinking is gone is no longer handed to the built-in summary for being too full. The size after a compaction was the tokens in use less what was moved out, and the tokens in use count earlier thinking, which no rebuilt message carries: measured against the next request it ran 52 to 83 % over, and on 2026-10-01 a compaction said "about 398639 of 967000 tokens in use" before a request of 231,902. Now the size is what Claude Code's breakdown puts outside the conversation plus the rebuilt conversation at the session's own tokens a character, never under one in three; measured, that came 17 % over to 2 % under. The goal of a compaction and what a summary could take away are counted the same way. When the breakdown cannot be relied on, as before a response after the last compaction, the decision is made as before and the line a compaction shows names no token count (ADR 0011).
+
 ## [0.5.2] - 2026-10-01
 
 ### Added
