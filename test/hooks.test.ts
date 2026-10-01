@@ -102,3 +102,18 @@ test('a clean-up keeps what kept parts name: it collects against the ids followe
   assert.ok(collecting.includes('collect(list, execOf($), dir, named, now)'), 'collected against them');
   assert.ok(!collecting.includes('collect(list, execOf($), dir, live.ids, now)'), 'not against the transcripts alone');
 });
+
+test('stored results are written through mv where it starts, the reason a write failed is said, and a summary can be skipped', () => {
+  assert.ok(hooks.includes('return { files: storingFilesOf($), now: () => Date.now() };'), 'the compaction writes through it');
+  assert.ok(hooks.includes('return keepThenSummarize(storingFilesOf($), where,'), 'keeping the conversation too');
+  assert.ok(hooks.includes("(why) => ({ skip: why })"), 'a skip is what the hook returns');
+  assert.ok(hooks.includes("`; could not write: ${report.writeErrors.join(', ')}`"), 'the reason is said');
+  const storing = hooks.slice(hooks.indexOf('function storingFilesOf('), hooks.indexOf('function runOf('));
+  assert.ok(storing.includes("started('mv', ['-f', '--', from, to])"), 'mv -f --');
+  assert.ok(storing.includes('$.process.run([`${place}/${program}`, ...args], { timeoutMs: 10_000 })'), 'from /bin, else /usr/bin, never through PATH');
+  assert.ok(storing.includes("there.kind === 'file'"), 'what stands at the name after the move is a file');
+  assert.ok(storing.includes("available: async () => (canMove ||= (await started('mv', [])) !== null),"), 'only that mv starts is remembered, never that it did not');
+  assert.ok(hooks.includes('let canMove = false;'), 'and it starts out not known');
+  assert.ok(storing.includes("started('mkdir', ['-p', '--', path])"), 'mkdir -p --');
+  assert.ok(storing.includes("started('rm', ['-f', '--', path])"), 'rm -f --');
+});

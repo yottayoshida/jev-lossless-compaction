@@ -49,6 +49,8 @@ export type Report = {
   window: number;
   /** Why results stayed: by what the store said, and `call-differs` for a call whose own text was another. */
   notMoved: Partial<Record<NotMoved['reason'] | 'call-differs', number>>;
+  /** What the host said when writes failed, each once, at most three: ENOSPC for a full disk. */
+  writeErrors: string[];
   ms: number;
 };
 
@@ -167,6 +169,7 @@ export async function compact(input: Input, config: Config, host: Host): Promise
 
   const moved = new Map<string, Moved>();
   const notMoved: Report['notMoved'] = {};
+  const writeErrors: string[] = [];
   if (stayed.unlike > 0) notMoved['call-differs'] = stayed.unlike;
   let saved = 0;
   const left = [...order];
@@ -187,6 +190,7 @@ export async function compact(input: Input, config: Config, host: Host): Promise
       const result = written[at] as Moved | NotMoved;
       if ('reason' in result) {
         notMoved[result.reason] = (notMoved[result.reason] ?? 0) + 1;
+        if (result.code !== undefined && !writeErrors.includes(result.code) && writeErrors.length < 3) writeErrors.push(result.code);
         return;
       }
       moved.set(candidate.id, result);
@@ -214,6 +218,7 @@ export async function compact(input: Input, config: Config, host: Host): Promise
       tokensAfter,
       window: input.window,
       notMoved,
+      writeErrors,
       ms: host.now() - started,
     },
   };
