@@ -9,6 +9,33 @@ what it is about with `find`, which asks [Jev](https://typesafe.ai) to choose.
 
 A recorded session, not a drawing: [how each figure was taken](docs/measurements.md).
 
+## Quick start
+
+```sh
+claude plugin marketplace add yottayoshida/lossless-compaction
+claude plugin install lossless-compaction@lossless-compaction
+```
+
+Then turn Claude Code's function hooks on, once, in `~/.claude/settings.json`.
+They are early access: unless your account already has them on, the plugin
+installs, shows in the list, and does nothing without this line.
+
+```json
+{ "env": { "CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1" } }
+```
+
+Start a new session. From then on `/compact` and automatic compaction go
+through the plugin, and a line starting `lossless-compaction:` says what each
+one did. No such line after a compaction means function hooks are off.
+
+`recall` needs nothing more. `find` is optional and needs a Jev key: set it
+with `/plugin configure lossless-compaction@lossless-compaction` inside
+Claude Code (for Jev on Cloudflare Workers AI, set `provider` to `cloudflare`
+there, and the account id next to the key).
+More ways to set it up — one repository only, the key from the environment,
+coming from `jev-lossless-compaction` — are in
+[docs/limits.md](docs/limits.md#setting-it-up).
+
 > **Before you install**
 >
 > - A compaction sends nothing anywhere. With a key set, `find` sends the Jev
@@ -16,14 +43,12 @@ A recorded session, not a drawing: [how each figure was taken](docs/measurements
 >   and, for every result moved out of the conversation, the call that made
 >   it and a 400-character digest of it, and for every part of the
 >   conversation kept before a summary, the head of what was said in it.
->   Shapes of secrets are blanked first,
->   which is a courtesy and not a guarantee. Without a key there is no `find`,
->   and nothing is sent.
+>   Shapes of secrets are blanked first, which is a courtesy and not a
+>   guarantee. Without a key there is no `find`, and nothing is sent.
 > - A repository's own settings files do not decide where results are written
 >   or where `find` sends: a key, proxy or place from them stops the plugin
 >   instead. See [what a repository can change](docs/limits.md#what-a-repository-can-change).
-> - It needs Claude Code's function hooks, which are early access and off by
->   default. It is not on npm; it installs from this repository.
+> - It is not on npm; it installs from this repository.
 
 ## Demo
 
@@ -49,32 +74,7 @@ on an unsupported kernel call, the agent called `find` and got it back:
 | "What was on line N of that file?", 20 asked | 16 answered | 0 answered          |
 | "Which result is about …?", 13 asked        | 13 answered | —                   |
 
-Every figure, with how it was taken: [docs/measurements.md](docs/measurements.md).
-
-## Quick start
-
-```sh
-# In your shell profile, or under "env" in a repository's .claude/settings.local.json:
-# function hooks are off without it.
-export CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1
-
-claude plugin marketplace add yottayoshida/lossless-compaction
-claude plugin install lossless-compaction@lossless-compaction
-```
-
-Then give it a key with
-`/plugin configure lossless-compaction@lossless-compaction` inside Claude
-Code. For Jev on Cloudflare Workers AI, set `provider` to `cloudflare` there,
-and the account id next to the key. With nothing set there, the key is read
-from the environment: `TYPESAFE_API_KEY`, or `CLOUDFLARE_API_TOKEN` and
-`CLOUDFLARE_ACCOUNT_ID`, unless a repository's settings set it. To use it in
-one repository only, add `--scope local` to the install and run it there;
-set the key without `--scope`.
-
-From then on `/compact` and automatic compaction go through the plugin.
-
-Coming from `jev-lossless-compaction` (0.3.0 and before)? An installed copy
-does not follow the rename: see [moving from the old name](docs/limits.md#moving-from-the-old-name).
+Every figure, with when and how it was taken: [docs/measurements.md](docs/measurements.md).
 
 ## What it does
 
@@ -100,61 +100,39 @@ does not follow the rename: see [moving from the old name](docs/limits.md#moving
 
 ## Limits
 
-- Claude Code's own summary still runs when moving out is not enough, when
-  nothing can be moved out, when the conversation holds an image, a document,
-  a block of a kind the plugin does not know or 4096 messages or more, and in
-  a subagent. Whenever it runs on the main conversation and the results'
-  place can be written to, what it summarizes is kept first, and `recall`
-  returns it unchanged by the ids left right after the summary — except
-  images, documents and thinking, and messages older than the 4096 Claude
-  Code shows. When that place is not an absolute path or cannot be made
-  private, nothing is kept, and the compaction says so; earlier tickets may
-  then be gone from the conversation, and the files remain.
-- A write that fails — the disk is full, say — loses nothing: a result is
-  ticketed only once all of it is written, a stored result or its entry is
-  never written over by a failed write (where `mv` can be run; not on
-  Windows), and when a failed write leaves nothing kept before Claude Code's
+- **Claude Code's own summary still runs** when moving out is not enough,
+  when nothing can be moved out, when the conversation holds an image, a
+  document, a block of a kind the plugin does not know or 4096 messages or
+  more, and in a subagent. On the main conversation, what it summarizes is
+  kept first, and `recall` returns it unchanged by the ids left right after
+  the summary — except images, documents and thinking, and messages older
+  than the 4096 Claude Code shows. When the results' place is not an absolute
+  path or cannot be made private, nothing is kept, and the compaction says
+  so.
+- **A write that fails loses nothing**: a result is ticketed only once all
+  of it is written, and when a failed write leaves nothing kept before the
   summary, the summary does not run and the compaction says why. There is no
-  limit on how much is kept ([ADR 0008](docs/adr/0008-no-limit-and-nothing-lost-to-a-failed-write.md)).
-- Files are plain text under `~/.claude/lossless-compaction/` — or under
-  `~/.claude/jev-lossless-compaction/` while that exists — in a directory the
-  plugin makes or closes to mode 700 before writing, or else writes nothing.
-  Once a week the transcripts are read; a file that neither they nor a part
-  kept before a summary names goes to a trash, and is removed a week later if
-  still named by none. A transcript
-  outside the places recorded, from another machine say, is not counted. A result
-  moved out by an earlier version is read back after the rename, by the same
-  id, from where it was written; a `storeDir` set under the old id has to be
-  set again under the new.
-- `find` offers the tickets it sees in the conversation, shows Jev the first
-  lines of each result, answers a subagent with nothing to find, and gives a
-  request to Jev up after twenty seconds.
-- Tokens are estimated at three characters each, so more may leave than the
-  target asks for.
+  limit on how much is kept.
+- **Files are plain text** under `~/.claude/lossless-compaction/`, in a
+  directory closed to mode 700 before anything is written. Once a week the
+  transcripts are read; a file that neither they nor a part kept before a
+  summary names goes to a trash, and is removed a week later if still named
+  by none.
+- **`find`** offers the tickets it sees in the conversation and in the parts
+  kept before a summary, shows Jev the first lines of each result, answers a
+  subagent with nothing to find, and gives a request to Jev up after twenty
+  seconds. Tokens are estimated at three characters each, so more may leave
+  than the target asks for.
 
-The full list: [docs/limits.md](docs/limits.md).
+Each of these in full, and the rest: [docs/limits.md](docs/limits.md).
 
 ## Docs
 
-- [ADR 0001](docs/adr/0001-move-out-and-order.md): why results are moved out
-  instead of deleted. [ADR 0002](docs/adr/0002-keep-the-newest-by-size.md):
-  why the newest results are kept by size.
-  [ADR 0003](docs/adr/0003-jev-picks-what-comes-back.md): why Jev chooses
-  what comes back, not what leaves.
-  [ADR 0004](docs/adr/0004-the-plugin-is-named-lossless-compaction.md): the
-  rename, and how what the old name wrote is still read.
-  [ADR 0005](docs/adr/0005-a-repository-does-not-decide-where-results-go.md):
-  why a repository's settings do not decide where results go.
-  [ADR 0006](docs/adr/0006-results-live-as-long-as-a-transcript-names-them.md):
-  why results are kept as long as a transcript names them.
-  [ADR 0007](docs/adr/0007-keep-what-the-summary-replaces.md): why what
-  Claude Code's summary replaces is kept first.
-  [ADR 0008](docs/adr/0008-no-limit-and-nothing-lost-to-a-failed-write.md):
-  why nothing is lost to a failed write, and there is no limit.
-- [Measurements](docs/measurements.md), [Limits](docs/limits.md),
+- [Limits](docs/limits.md), [Measurements](docs/measurements.md),
   [Development](docs/development.md), [CHANGELOG](CHANGELOG.md), and the
   settings with their defaults in
   [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json).
+- Why it is built this way: the decision records in [docs/adr/](docs/adr/).
 
 The idea of putting Jev beside a compaction comes from
 [fast-jev-compaction](https://github.com/tamaratran/fast-jev-compaction). This

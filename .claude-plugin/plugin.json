@@ -1,7 +1,7 @@
 {
   "name": "lossless-compaction",
   "version": "0.4.0",
-  "description": "Context compaction that moves old tool output to local files instead of deleting it.",
+  "description": "Lossless context compaction for Claude Code: old tool output moves to local files and comes back unchanged by id, or by what it is about with a Jev key.",
   "license": "MIT OR Apache-2.0",
   "author": {
     "name": "Iori Yoshida",

@@ -24,7 +24,7 @@
 <g class="sans">
   <text x="54" y="58" class="teal label">LOSSLESS-COMPACTION · CLAUDE CODE PLUGIN</text>
   <text x="54" y="101" class="ink heading">Move context out. Bring the exact result back.</text>
-  <text x="54" y="130" class="muted sub">No summary. No deletion. Old tool output becomes local files; lightweight tickets stay in the conversation.</text>
+  <text x="54" y="130" class="muted sub">No summary. Nothing in use is deleted. Old tool output becomes local files; tickets stay in the conversation.</text>
 
   <!-- conversation -->
   <g transform="translate(54 170)">
@@ -101,7 +101,7 @@
     <text x="315" y="41" fill="#9fbbb7" class="small">·</text>
     <text x="336" y="41" fill="#fffdf8" class="small">find: 13 / 13 questions</text>
     <text x="590" y="41" fill="#9fbbb7" class="small">·</text>
-    <text x="611" y="41" fill="#fffdf8" class="small">nothing deleted · no summary written</text>
+    <text x="611" y="41" fill="#fffdf8" class="small">nothing in use deleted · no summary</text>
   </g>
 </g>
 </svg>
