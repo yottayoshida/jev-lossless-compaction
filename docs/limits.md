@@ -4,12 +4,51 @@ What the plugin does not do, and what a repository or a version can change.
 
 ## When the built-in compaction runs instead
 
-The promise holds for a conversation whose last compaction was this plugin's.
 Claude Code's built-in compaction runs instead when the conversation holds an
 image, a document or any block of a kind the plugin does not know, has 4096
 messages or more, belongs to a subagent, has nothing that can be moved out,
-or is still too full afterwards and a summary could change that. After it,
-earlier tickets may be gone from the conversation. The files remain.
+or is still too full afterwards and a summary could change that.
+
+## What a summary replaces
+
+Before the built-in summary runs on the main conversation, the plugin keeps
+the conversation it summarizes (ADR 0007): every result of 400 bytes or more
+still in it is moved out as usual, a shorter one staying in the text, and the conversation is written as text in parts of at most
+40,000 bytes, each stored like a result. Right after the summary, one message
+names each part:
+
+```text
+[lossless-compaction] The conversation this summary replaces is kept, in 2 parts; recall a part by its id.
+[moved out] conversation before the summary, part 1 of 2, messages 1-40, 38211 bytes; recall with mcp__lossless-compaction__recall id …
+```
+
+A part writes each message as `--- user` or `--- assistant`, then its text,
+then for each call `[call <tool> <id>]` with a one-line form of its input
+and, below it, every field of the input as `<name>:` followed by its value
+with its own line breaks, then `[result <id>]` (`[result <id> error]` for a
+failed one) followed by the result or its ticket. An input value too long
+for a part leaves as a ticket named for the call and the field, such as
+`Write.content`, whose wording still says "result". A message too long for
+a part is cut at a line, and a line too long at a character. Read in order,
+the parts are the messages in order.
+
+What is not kept: images and documents, which leave `[image not kept]` or
+`[document not kept]`; thinking; messages older than the 4096 Claude Code
+shows a plugin; the conversation of a subagent. Nothing is kept when the
+place results are kept in is not an absolute path or cannot be read, or when
+a part cannot be written, and the compaction says
+so; the summary is then Claude Code's alone, as before, and earlier tickets
+may be gone from the conversation, the files remaining. A block of a kind
+the plugin does not know is kept as its JSON.
+
+`find` offers the parts and the results their tickets stand for, reading at
+most 64 parts, parts of an earlier summary included; of the results found in
+parts, it offers no more than make 1,200 tickets in all, and `recall` still
+reads the others by id. Whether the agent goes
+back to what was kept rather than trusting the summary is up to it.
+
+Every summary keeps the whole conversation, so the directory grows faster
+than moving out alone makes it grow.
 
 Every message is rebuilt, so older thinking blocks are not carried over, and
 a tool that was loaded on demand has to be loaded again. The built-in
@@ -137,6 +176,12 @@ has to be set again.
 the variables above change, results kept elsewhere are not found until they
 change back.
 
+A part kept before a summary (see above) names the results it holds, which
+no transcript names: the ids a collection keeps are those the transcripts
+name and every id written in a part they name, through the parts of earlier
+summaries. A part that cannot be read stops the collection before anything
+moves.
+
 ## What a repository can change
 
 A repository you open brings `.claude/settings.json` and can bring
@@ -189,8 +234,10 @@ little of its middle, and of a result over 256 KB only the first 8 KB. A
 subagent's call is answered with nothing to find: the plugin moves nothing
 out of a subagent's conversation. A result over about 50 KB comes back the
 way Claude Code returns any large tool output: saved to a file whose path is
-shown, which the agent reads. A request to Jev is given up after twenty
-seconds.
+shown, which the agent reads; what `recall` returns is unchanged, but a line
+of it longer than the agent's reading tool takes (Claude Code's `Read` cuts
+lines over 2,000 characters) may reach the agent cut. A request to Jev is
+given up after twenty seconds.
 
 When Claude Code loads tools on demand, the agent has to load `recall` or
 `find` by name before calling it. It did so on its own in the measured runs.
