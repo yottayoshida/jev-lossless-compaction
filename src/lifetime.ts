@@ -1,0 +1,376 @@
+// How long a moved-out result is kept: while a conversation Claude Code can
+// still resume holds its id, and a grace period after (ADR 0006).
+//
+// The conversations Claude Code can resume are its transcripts, one JSONL file
+// each under `<config>/projects/`; a fork, a rewound branch and a conversation
+// compacted before this version all keep the ids in them. So the plugin keeps
+// no list of its own: once a week it reads every 64-hex string out of the
+// transcripts, and a result whose id is in none of them, and that is over a
+// day old, moves to `trash/<day>/`. Seven days later, still in none of them,
+// it is removed; found again, it is put back. `recall` and a compaction put
+// back what they need from the trash first, so a result moved there while a
+// session still used it is not lost.
+
+import { idOf, readTicket } from './store.ts';
+import type { DirEntry, Exec, Files, Message } from './types.ts';
+
+const DAY = 24 * 60 * 60 * 1000;
+/** How often the transcripts are read. Measured: 81 s for 2.9 GB of them. */
+export const GC_EVERY_MS = 7 * DAY;
+/** How long a result stays in the trash, unreferenced, before it is removed. */
+export const GRACE_MS = 7 * DAY;
+/** A result younger than this is never moved: its ticket may not be in a transcript yet. */
+export const YOUNG_MS = DAY;
+/** No collection until this long after the first place transcripts were found in was recorded. */
+export const FIRST_WAIT_MS = 7 * DAY;
+/** One search of one project's transcripts may take this long. */
+export const SEARCH_WITHIN_MS = 5 * 60 * 1000;
+
+const ID = /^[0-9a-f]{64}$/;
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const BLOB = /^([0-9a-f]{64})\.txt$/;
+const TRASHED = /^([0-9a-f]{64})\.(?:txt|json)$/;
+
+export type List = (path: string) => Promise<DirEntry[]>;
+
+/**
+ * What is kept between sessions, in the store's own directory, so that every
+ * Claude Code configuration that shares a `storeDir` sees the places all of
+ * them keep transcripts in: one file per place under `roots/`, written once
+ * and never rewritten, and the time of the last collection.
+ */
+export type GcState = { roots: string[]; firstSeen: number; lastRun: number; tried: number };
+
+const rootFile = async (dir: string, root: string) => `${dir}/roots/${await idOf(root)}.json`;
+const lastRunFile = (dir: string) => `${dir}/gc.json`;
+
+async function readJson(files: Files, path: string): Promise<unknown> {
+  try {
+    return JSON.parse(await files.read(path)) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The places recorded in any of `dirs`, the earliest time one was, and the last collection. */
+export async function stateIn(files: Files, list: List, dirs: readonly string[]): Promise<GcState> {
+  const roots = new Set<string>();
+  let firstSeen = 0;
+  let lastRun = 0;
+  let tried = 0;
+  for (const dir of dirs) {
+    for (const entry of (await listed(list, `${dir}/roots`)) ?? []) {
+      if (entry.kind !== 'file' || entry.isLink || !entry.name.endsWith('.json')) continue;
+      const value = (await readJson(files, `${dir}/roots/${entry.name}`)) as { root?: unknown; at?: unknown } | undefined;
+      if (typeof value?.root !== 'string' || typeof value.at !== 'number') continue;
+      roots.add(value.root);
+      firstSeen = firstSeen === 0 ? value.at : Math.min(firstSeen, value.at);
+    }
+    const last = (await readJson(files, lastRunFile(dir))) as { lastRun?: unknown; tried?: unknown } | undefined;
+    if (typeof last?.lastRun === 'number') lastRun = Math.max(lastRun, last.lastRun);
+    if (typeof last?.tried === 'number') tried = Math.max(tried, last.tried);
+  }
+  return { roots: [...roots], firstSeen, lastRun, tried };
+}
+
+/** Records `root` in `dir` unless it is there; the first record starts the wait before any collection. */
+export async function noteRoot(files: Files, dir: string, root: string, now: number): Promise<void> {
+  const path = await rootFile(dir, root);
+  try {
+    await files.stat(path);
+    return;
+  } catch {
+    // Not recorded yet.
+  }
+  await files.write(path, JSON.stringify({ root, at: now }));
+}
+
+/**
+ * A collection is noted as tried when it starts, and as run when it ends. One
+ * that a short session cut off is tried again a day later, not a week: only
+ * a collection that went to the end waits the week out.
+ */
+export async function noteTried(files: Files, dir: string, state: GcState, now: number): Promise<void> {
+  await files.write(lastRunFile(dir), JSON.stringify({ lastRun: state.lastRun, tried: now }));
+}
+
+export async function noteRun(files: Files, dir: string, now: number): Promise<void> {
+  await files.write(lastRunFile(dir), JSON.stringify({ lastRun: now, tried: now }));
+}
+
+/** How long after a collection was tried, without ending, it is tried again. */
+export const RETRY_MS = DAY;
+
+/** Why no collection runs now, or null when one does. */
+export function whyNotNow(state: GcState, now: number): string | null {
+  if (state.roots.length === 0) return 'no place transcripts are kept in is known yet';
+  if (now - state.firstSeen < FIRST_WAIT_MS) return 'the first week after transcripts were found is waited out';
+  if (now - state.lastRun < GC_EVERY_MS) return 'it ran less than a week ago';
+  if (now - state.tried < RETRY_MS) return 'one was tried less than a day ago';
+  return null;
+}
+
+/** The ids of every ticket in a conversation, in any wording written so far. */
+export function ticketIds(messages: readonly Message[]): Set<string> {
+  const ids = new Set<string>();
+  for (const message of messages) {
+    for (const result of message.toolResults ?? []) {
+      const ticket = readTicket(result.text);
+      if (ticket) ids.add(ticket.id);
+    }
+    for (const use of message.toolUses) {
+      const ticket = use.text === undefined ? null : readTicket(use.text);
+      if (ticket) ids.add(ticket.id);
+    }
+  }
+  return ids;
+}
+
+async function listed(list: List, path: string): Promise<DirEntry[] | null> {
+  try {
+    return await list(path);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The place this session's transcript is kept in: `<config>/projects`, when
+ * one directory under it holds `<session>.jsonl`. Null when none does, so a
+ * layout other than the one measured records nothing and nothing is collected.
+ */
+export async function rootFor(files: Files, list: List, configDir: string, sessionId: string): Promise<string | null> {
+  if (!/^[0-9A-Za-z_-]{1,128}$/.test(sessionId)) return null;
+  const root = `${configDir}/projects`;
+  for (const entry of (await listed(list, root)) ?? []) {
+    if (entry.kind !== 'dir' || entry.isLink) continue;
+    try {
+      const stat = await files.stat(`${root}/${entry.name}/${sessionId}.jsonl`);
+      if (stat.kind === 'file') return root;
+    } catch {
+      // Not this one.
+    }
+  }
+  return null;
+}
+
+/** The 64-hex strings in what grep printed, one per line. */
+export function idsIn(stdout: string, into: Set<string> = new Set()): Set<string> {
+  for (const line of stdout.split('\n')) if (ID.test(line)) into.add(line);
+  return into;
+}
+
+const GREP = ['/usr/bin/grep', '/bin/grep'] as const;
+
+/**
+ * Every id in the transcripts under `roots`, one search per project directory,
+ * and the roots that are still there. A root that is gone is dropped: no
+ * conversation can be resumed from it. Anything else that keeps a project from
+ * being read in full stops it all, and nothing is collected.
+ */
+export async function liveIds(
+  files: Files,
+  list: List,
+  exec: Exec,
+  exists: (path: string) => Promise<boolean>,
+  roots: readonly string[],
+  sentinel: string,
+): Promise<{ ids: Set<string>; roots: string[] } | { stop: string }> {
+  const ids = new Set<string>();
+  const kept: string[] = [];
+  for (const root of roots) {
+    // Only a place that is not there is skipped; one that cannot be looked at stops it all.
+    if (!(await exists(root))) continue;
+    let there;
+    try {
+      there = await files.stat(root);
+    } catch {
+      return { stop: `${root} could not be looked at` };
+    }
+    if (there.kind !== 'dir' || there.isLink === true) return { stop: `${root} is not a directory` };
+    const projects = await listed(list, root);
+    if (projects === null) return { stop: `${root} could not be listed` };
+    kept.push(root);
+    for (const project of projects) {
+      // grep -r does not follow it: what is in it would not be counted. The host lists a link as `other`.
+      if (project.isLink) return { stop: `${root}/${project.name} is a link, which a search does not follow` };
+      if (project.kind !== 'dir') continue;
+      const found = await search(exec, `${root}/${project.name}`, sentinel);
+      if ('stop' in found) return found;
+      idsIn(found.stdout, ids);
+    }
+  }
+  if (kept.length === 0) return { stop: 'none of the places transcripts were found in is there' };
+  ids.delete(SENTINEL_ID);
+  return { ids, roots: kept };
+}
+
+/**
+ * An id no result has, in a file of its own that every search reads too: a
+ * search that ends without printing it did not read to the end, whatever its
+ * exit code says (a grep ended by a signal reads as 1, "nothing matched").
+ */
+export const SENTINEL_ID = '0'.repeat(64);
+export const sentinelOf = (dir: string) => `${dir}/sentinel.jsonl`;
+
+export async function writeSentinel(files: Files, dir: string): Promise<void> {
+  await files.write(sentinelOf(dir), `"${SENTINEL_ID}"\n`);
+}
+
+async function search(exec: Exec, dir: string, sentinel: string): Promise<{ stdout: string } | { stop: string }> {
+  let why = 'no grep could be run';
+  for (const grep of GREP) {
+    let result;
+    try {
+      result = await exec([grep, '-rahoE', '[0-9a-f]{64}', '--include=*.jsonl', '--', dir, sentinel], SEARCH_WITHIN_MS);
+    } catch (error) {
+      // Not there, or out of time: the host says which.
+      why = `grep did not run to the end on ${dir}: ${error instanceof Error ? error.message : String(error)}`;
+      continue;
+    }
+    // With the sentinel, something always matches: 0 is the only answer; 1 or 2 is a search that did not finish.
+    if (result.exitCode !== 0) return { stop: `grep did not read all of ${dir}` };
+    if (result.truncated) return { stop: `the ids in ${dir} are more than one search can return` };
+    if (!result.stdout.split('\n').includes(SENTINEL_ID)) return { stop: `grep did not read all of ${dir}` };
+    return { stdout: result.stdout };
+  }
+  return { stop: why };
+}
+
+/** One result in the trash: the day it was moved there and its id. */
+export type Trashed = { day: string; id: string };
+
+/** What a collection does, decided from what is on disk and what is in use. */
+export type GcPlan = { toTrash: string[]; toRestore: Trashed[]; toRemove: Trashed[] };
+
+export const dayOf = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
+
+/**
+ * Results over a day old that no transcript names go to the trash; in the
+ * trash, those named again go back, and those the trash has held for the
+ * grace period, by the day of the directory they are in, are removed. The
+ * day comes from the directory, not from the file: a move keeps a file's time.
+ */
+export function planGc(blobs: readonly DirEntry[], trashed: readonly Trashed[], live: ReadonlySet<string>, now: number): GcPlan {
+  const toTrash = blobs
+    .filter((entry) => entry.kind === 'file' && !entry.isLink && now - entry.mtimeMs >= YOUNG_MS)
+    .map((entry) => BLOB.exec(entry.name)?.[1])
+    .filter((id): id is string => id !== undefined && !live.has(id));
+  const toRestore = trashed.filter((item) => live.has(item.id));
+  const before = dayOf(now - GRACE_MS);
+  const toRemove = trashed.filter((item) => !live.has(item.id) && item.day < before);
+  return { toTrash, toRestore, toRemove };
+}
+
+/** What is in `<dir>/trash`, by day; null when it cannot be read. */
+export async function trashIn(list: List, dir: string): Promise<Trashed[] | null> {
+  const days = await listed(list, `${dir}/trash`);
+  if (days === null) return [];
+  const items: Trashed[] = [];
+  for (const day of days) {
+    if (day.kind !== 'dir' || day.isLink || !DATE.test(day.name)) continue;
+    const entries = await listed(list, `${dir}/trash/${day.name}`);
+    if (entries === null) return null;
+    // A blob or its entry alone counts: a move may have stopped between the two.
+    const ids = new Set<string>();
+    for (const entry of entries) {
+      const id = entry.kind === 'file' && !entry.isLink ? TRASHED.exec(entry.name)?.[1] : undefined;
+      if (id !== undefined) ids.add(id);
+    }
+    for (const id of ids) items.push({ day: day.name, id });
+  }
+  return items;
+}
+
+/** How many paths go to one command: far under the argument limit of macOS (about 1 MB) at about 150 bytes a path. */
+const PER_COMMAND = 2000;
+
+async function runIn(exec: Exec, program: string, flags: readonly string[], paths: readonly string[], last: readonly string[] = []): Promise<boolean> {
+  for (let at = 0; at < paths.length; at += PER_COMMAND) {
+    let ok = false;
+    for (const place of ['/bin', '/usr/bin']) {
+      try {
+        const { exitCode } = await exec([`${place}/${program}`, ...flags, '--', ...paths.slice(at, at + PER_COMMAND), ...last], 60_000);
+        // 1 is a path another session, or a recall, moved first: nothing to do for it.
+        ok = exitCode === 0 || exitCode === 1;
+        break;
+      } catch {
+        // The next place.
+      }
+    }
+    if (!ok) return false;
+  }
+  return true;
+}
+
+const blobAt = (dir: string, id: string) => `${dir}/blobs/${id}.txt`;
+const entryAt = (dir: string, id: string) => `${dir}/index/${id}.json`;
+const trashedAt = (dir: string, item: Trashed) => [`${dir}/trash/${item.day}/${item.id}.txt`, `${dir}/trash/${item.day}/${item.id}.json`];
+
+/** Puts back from the trash each of `ids` that is there. Resolves with how many were. */
+export async function restore(list: List, exec: Exec, dir: string, ids: ReadonlySet<string>): Promise<number> {
+  const trashed = await trashIn(list, dir);
+  if (!trashed) return 0;
+  const wanted = trashed.filter((item) => ids.has(item.id));
+  if (wanted.length === 0) return 0;
+  await putBack(exec, dir, wanted);
+  return wanted.length;
+}
+
+async function putBack(exec: Exec, dir: string, items: readonly Trashed[]): Promise<boolean> {
+  const blobs = items.map((item) => trashedAt(dir, item)[0] as string);
+  const entries = items.map((item) => trashedAt(dir, item)[1] as string);
+  return (await runIn(exec, 'mv', ['-n'], blobs, [`${dir}/blobs/`])) && (await runIn(exec, 'mv', ['-n'], entries, [`${dir}/index/`]));
+}
+
+export type Collected = { trashed: number; restored: number; removed: number } | { stop: string };
+
+const blobNames = async (list: List, dir: string) => new Set(((await listed(list, `${dir}/blobs`)) ?? []).map((entry) => entry.name));
+
+/**
+ * One collection of `dir` against the ids in use. What it reports is counted
+ * on disk afterwards, not taken from what was asked: a command's exit code of
+ * 1 says neither that it worked nor that it did not. A collection stopped
+ * partway leaves what it moved in the trash, which `recall` and the next
+ * collection put back when it is named.
+ */
+export async function collect(list: List, exec: Exec, dir: string, live: ReadonlySet<string>, now: number): Promise<Collected> {
+  const blobs = await listed(list, `${dir}/blobs`);
+  if (blobs === null) return { trashed: 0, restored: 0, removed: 0 };
+  const trashed = await trashIn(list, dir);
+  if (trashed === null) return { stop: `the trash of ${dir} could not be listed` };
+  const plan = planGc(blobs, trashed, live, now);
+  if (plan.toRestore.length > 0) {
+    if (!(await putBack(exec, dir, plan.toRestore))) return { stop: 'what is in use could not be put back' };
+    // What is left of them in the trash had a copy back in place already (`mv -n` kept it): the same text, by its name.
+    const back = await blobNames(list, dir);
+    const entries = new Set(((await listed(list, `${dir}/index`)) ?? []).map((entry) => entry.name));
+    // Each copy only once the one in place is there: an entry whose move failed stays in the trash, to be put back.
+    const doubled = plan.toRestore.flatMap((item) => {
+      const [blob, entry] = trashedAt(dir, item) as [string, string];
+      return [...(back.has(`${item.id}.txt`) ? [blob] : []), ...(entries.has(`${item.id}.json`) ? [entry] : [])];
+    });
+    if (!(await runIn(exec, 'rm', ['-f'], doubled))) return { stop: 'the trash could not be emptied' };
+  }
+  if (plan.toTrash.length > 0) {
+    const day = `${dir}/trash/${dayOf(now)}`;
+    if (!(await runIn(exec, 'mkdir', ['-p'], [day])) || (await listed(list, day)) === null) return { stop: 'the trash could not be made' };
+    const indexed = new Set(((await listed(list, `${dir}/index`)) ?? []).map((entry) => entry.name));
+    const entries = plan.toTrash.filter((id) => indexed.has(`${id}.json`)).map((id) => entryAt(dir, id));
+    // The entry first: a blob without one is not offered, a blob gone with its entry still there is.
+    if (!(await runIn(exec, 'mv', ['-n'], entries, [`${day}/`]))) return { stop: 'results could not be moved to the trash' };
+    if (!(await runIn(exec, 'mv', ['-n'], plan.toTrash.map((id) => blobAt(dir, id)), [`${day}/`]))) {
+      return { stop: 'results could not be moved to the trash' };
+    }
+  }
+  if (plan.toRemove.length > 0 && !(await runIn(exec, 'rm', ['-f'], plan.toRemove.flatMap((item) => trashedAt(dir, item))))) {
+    return { stop: 'the trash could not be emptied' };
+  }
+  const after = await blobNames(list, dir);
+  const left = new Set(((await trashIn(list, dir)) ?? []).map((item) => `${item.day}/${item.id}`));
+  return {
+    trashed: plan.toTrash.filter((id) => !after.has(`${id}.txt`)).length,
+    restored: plan.toRestore.filter((item) => after.has(`${item.id}.txt`)).length,
+    removed: plan.toRemove.filter((item) => !left.has(`${item.day}/${item.id}`)).length,
+  };
+}

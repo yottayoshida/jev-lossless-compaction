@@ -24,7 +24,22 @@ import { closeStore, type Run } from '../src/private.ts';
 import { goalOf, whyNotRebuilt } from '../src/select.ts';
 import { FIND, PLUGIN, RECALL, placesOf, recall, type StoreDirs } from '../src/store.ts';
 import { describeTaints, placeTaints, sendTaints, taintsFrom, type RepoSettings, type Seen, type Taint } from '../src/trust.ts';
-import type { FileStat, Files, HttpResponse, Message } from '../src/types.ts';
+import type { DirEntry, Exec, FileStat, Files, HttpResponse, Message } from '../src/types.ts';
+import {
+  collect,
+  liveIds,
+  noteRoot,
+  noteRun,
+  noteTried,
+  restore,
+  rootFor,
+  sentinelOf,
+  stateIn,
+  ticketIds,
+  whyNotNow,
+  writeSentinel,
+  type List,
+} from '../src/lifetime.ts';
 
 const FALLBACK_WINDOW = 200_000;
 
@@ -35,6 +50,8 @@ type WithFiles = {
     read: (path: string) => Promise<string>;
     write: (path: string, text: string) => Promise<void>;
     stat: (path: string) => Promise<FileStat>;
+    list: (path: string) => Promise<DirEntry[]>;
+    exists: (path: string) => Promise<boolean>;
   };
 };
 type WithHttp = {
@@ -46,10 +63,18 @@ type WithHttp = {
   };
   clock: { sleep: (ms: number, options: { signal: AbortSignal }) => Promise<void> };
 };
-type WithProcess = { process: { run: (argv: readonly string[], init: { timeoutMs: number }) => Promise<{ exitCode: number }> } };
+type WithProcess = {
+  process: {
+    run: (
+      argv: readonly string[],
+      init: { timeoutMs: number },
+    ) => Promise<{ exitCode: number; stdout: string; isStdoutTruncated?: boolean | undefined }>;
+  };
+};
 type WithSettings = { settings: { read: (args: { source: 'project' | 'local' | 'user' }) => Promise<unknown> } };
 type WithSession = {
   session: {
+    id: () => Promise<string>;
     messages: (args?: { as: 'api' }) => Promise<unknown>;
     usage: (args: { breakdown: 'summary' }) => Promise<{ context?: (Context & { tokens?: unknown }) | undefined }>;
   };
@@ -75,6 +100,17 @@ function filesOf($: WithFiles): Files {
 
 function runOf($: WithProcess): Run {
   return async (argv) => ({ exitCode: (await $.process.run(argv, { timeoutMs: 10_000 })).exitCode });
+}
+
+function listOf($: WithFiles): List {
+  return (path) => $.fs.list(path);
+}
+
+function execOf($: WithProcess): Exec {
+  return async (argv, timeoutMs) => {
+    const { exitCode, stdout, isStdoutTruncated } = await $.process.run(argv, { timeoutMs });
+    return { exitCode, stdout, truncated: isStdoutTruncated === true };
+  };
 }
 
 /** The directory written to, made or closed to its owner alone, else why not; the others read from, closed where they can be. */
@@ -165,6 +201,90 @@ async function providerOf($: WithEnv & WithSettings, options: PluginOptions): Pr
   return provider;
 }
 
+/** Sessions whose transcript's place is recorded, so that each is looked for once a process. */
+const noted = new Set<string>();
+
+/**
+ * Records where this session's transcript is kept, so that a collection counts
+ * the conversations there. Only from a place no repository decided: the
+ * variables it is built from are checked as for the store, `storeDir` or not.
+ */
+async function noteRootOf($: WithEnv & WithFiles & WithSettings & WithSession, store: StoreDirs, options: PluginOptions): Promise<void> {
+  try {
+    const sessionId = await $.session.id();
+    if (noted.has(sessionId)) return;
+    const env = await envOf($);
+    const taints = await taintsOf($, env, options);
+    if (taints === null || placeTaints(taints, {}).length > 0) return;
+    const trimmed = (value: string | undefined) => (value ?? '').trim().replace(/\/+$/, '');
+    const config = trimmed(env.CLAUDE_CONFIG_DIR) || (trimmed(env.HOME) && `${trimmed(env.HOME)}/.claude`);
+    if (!config.startsWith('/')) return;
+    const root = await rootFor(filesOf($), listOf($), config, sessionId);
+    if (root === null) return;
+    await noteRoot(filesOf($), store.write, root, Date.now());
+    noted.add(sessionId);
+  } catch {
+    // Not recorded this time; a later compaction tries again. Nothing is collected from a place not recorded.
+  }
+}
+
+/** Puts back from the trash what the conversation's tickets name, in every place results are read from. */
+async function restoreFor($: WithFiles & WithProcess, store: StoreDirs, ids: ReadonlySet<string>): Promise<number> {
+  let restored = 0;
+  for (const dir of store.read) {
+    try {
+      restored += await restore(listOf($), execOf($), dir, ids);
+    } catch {
+      // What cannot be put back is answered as not stored.
+    }
+  }
+  return restored;
+}
+
+/**
+ * At most once a week, results no transcript names go to the trash, and
+ * those the trash has held a week, still named by none, are removed (ADR
+ * 0006). Run after the session has started, without being waited for.
+ */
+async function collectOnce($: WithUi & WithEnv & WithFiles & WithSettings & WithProcess, options: PluginOptions): Promise<void> {
+  try {
+    const store = await storeOf($, options);
+    if (typeof store === 'string') return;
+    const files = filesOf($);
+    const list = listOf($);
+    const dirs: string[] = [];
+    for (const dir of store.read) {
+      const found = await files.stat(dir).catch(() => null);
+      if (found && found.kind === 'dir' && found.isLink !== true) dirs.push(dir);
+    }
+    if (dirs.length === 0) return;
+    const now = Date.now();
+    const state = await stateIn(files, list, dirs);
+    if (whyNotNow(state, now) !== null) return;
+    if ((await privateOf($, store)) !== null) return;
+    await noteTried(files, store.write, state, now);
+    await writeSentinel(files, store.write);
+    const live = await liveIds(files, list, execOf($), (path) => $.fs.exists(path), state.roots, sentinelOf(store.write));
+    if ('stop' in live) {
+      say($, `moved-out results are kept, not cleaned up: ${live.stop}`);
+      return;
+    }
+    let ended = true;
+    for (const dir of dirs) {
+      const done = await collect(list, execOf($), dir, live.ids, now);
+      if ('stop' in done) {
+        ended = false;
+        say($, `moved-out results in ${dir} are kept, not cleaned up: ${done.stop}`);
+      } else if (done.trashed + done.removed + done.restored > 0) {
+        say($, `cleaned up ${dir}: ${done.trashed} to the trash, ${done.removed} removed from it, ${done.restored} put back`);
+      }
+    }
+    if (ended) await noteRun(files, store.write, now);
+  } catch (error) {
+    say($, `moved-out results are kept, not cleaned up: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 function numberIn(value: unknown, fallback: number, min: number, max: number): number {
   return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max ? value : fallback;
 }
@@ -204,6 +324,9 @@ async function attempt(
     // Before anything is written: what cannot be made private is not written to.
     const unsafe = await privateOf($, store);
     if (unsafe !== null) return unsafe;
+    await noteRootOf($, store, options);
+    // A ticket whose result a collection moved to the trash meanwhile is put back, so that it stays a ticket of this store.
+    await restoreFor($, store, ticketIds(messages));
 
     // A summary is estimated by Claude Code itself: nothing is sent for it.
     const { context } = await $.session.usage({ breakdown: 'summary' });
@@ -274,6 +397,8 @@ export const register: Register = (on, options) => {
     } catch (error) {
       say($, `the find tool could not be registered: ${error instanceof Error ? error.message : String(error)}`);
     }
+    // Not waited for: reading every transcript can take a minute, and the session should not.
+    void collectOnce($, options);
     return next(e);
   });
 
@@ -281,7 +406,12 @@ export const register: Register = (on, options) => {
   on('tool.call', { tool: 'mcp__lossless-compaction__recall' }, async ($, e) => {
     const store = await storeOf($, options);
     if (typeof store === 'string') return { result: `[${PLUGIN}] Nothing is read: ${store}.` };
-    const found = await recall(filesOf($), store.read, (e as { id?: unknown }).id);
+    const id = (e as { id?: unknown }).id;
+    let found = await recall(filesOf($), store.read, id);
+    // Moved to the trash by a collection: put back, then read.
+    if ('error' in found && typeof id === 'string' && (await restoreFor($, store, new Set([id]))) > 0) {
+      found = await recall(filesOf($), store.read, id);
+    }
     return { result: 'text' in found ? found.text : `[${PLUGIN}] ${found.error}` };
   });
 
@@ -296,6 +426,7 @@ export const register: Register = (on, options) => {
       }
       const agentId = (e as { agentId?: string | undefined }).agentId;
       const messages = agentId === undefined ? ((await $.session.messages()) as readonly Message[]) : [];
+      await restoreFor($, store, ticketIds(messages));
       const result = await find({
         files: filesOf($),
         dirs: store.read,
