@@ -77,6 +77,47 @@ Files are plain text under `~/.claude/lossless-compaction/`, or under
 `CLAUDE_CONFIG_DIR` when that is set. A secret in a tool result stays there
 until no conversation holds it any more, as below, or until you delete it.
 
+A write that fails — the disk is full, say — loses nothing: a result is
+ticketed only once all of it is written, a stored result or its entry is
+never written over by a failed write, and when a failed write leaves nothing
+kept before Claude Code's summary, the summary does not run and the
+compaction says why (ADR 0008):
+
+- A stored result and its entry are written to `tmp/` first, read back, and
+  moved into place with `mv` (`/bin`, else `/usr/bin`; when the move fails,
+  `mkdir -p` makes the directory and it is moved once more, which is what
+  the first result in a new place takes), so the file at a result's name is
+  always whole. The host's own write cuts a file short when
+  the disk refuses it (measured), which is why. Where `mv` cannot be started
+  (Windows), they are written in place, and a write the disk refuses can
+  still cut short a result another write stored at the same moment. Each
+  move took about 4 ms on macOS; a stored result takes two.
+- What the system said is in the line the compaction prints:
+  `could not write: ENOSPC`. A result that could not be written stays in
+  the conversation as it was.
+- When nothing could be kept before Claude Code's summary because a write
+  failed, the compaction is skipped:
+  `nothing could be kept (could not write: ENOSPC), so the summary did not
+  run; free some space and compact again`; for a refusal other than a full
+  disk it names what the system said and asks for nothing to be freed. The conversation stays as it is,
+  and one that reaches its limit cannot go on until there is room. A place
+  that cannot be made private, because the disk is too full to make it, is
+  not that case: nothing is kept and the summary runs.
+- An entry, or a record of where transcripts are, that a refused write left
+  empty is written again the next time.
+- A part of a kept conversation written before a later one failed stays
+  until the clean-up; a file in `tmp/` that a process left when it stopped
+  partway stays until removed by hand.
+- There is no limit on how much is kept, by default or by setting: past a
+  limit nothing could be moved out, and the summary that followed could not
+  be undone. How much stays is what the conversations Claude Code keeps
+  (`cleanupPeriodDays`) name, below. On the machine this was measured on,
+  two days of use left 157 files, 4.9 MB, before every summary kept the
+  conversation (ADR 0007). The trash is on the same disk: space comes back
+  when it is emptied, up to about fifteen days after a result stops being
+  named. A full disk can keep the clean-up from running too, since it
+  writes a few small files first.
+
 ## How long results are kept
 
 A result is kept while a conversation Claude Code can still resume names
@@ -122,7 +163,9 @@ too, so they are counted without the plugin keeping a list of its own.
 - Any 64-hex string counts, a git object id or another hash as well; that
   keeps more, never less.
 - The trash and the removal run `mkdir`, `mv` and `rm` from `/bin` or
-  `/usr/bin` on the files under `blobs/`, `index/` and `trash/` only. A
+  `/usr/bin` on the files under `blobs/`, `index/` and `trash/` only; a
+  write runs `mv` from `tmp/` into `blobs/` and `index/`, `mkdir -p` on those
+  two, and `rm` on a part of its own in `tmp/` that it could not move. A
   guard that sits in `PATH` does not see them.
 - A copy of 0.4.0 or earlier, on the same store, does not put back from the
   trash: a result moved there while it ran is read again once a current copy
