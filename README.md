@@ -76,10 +76,12 @@ does not follow the rename: see [moving from the old name](docs/limits.md#moving
 
 ## What it does
 
-- **Nothing is deleted.** A tool result is written to a file named by the
-  SHA-256 of its content, read back, and compared. Only then is it replaced by
-  a ticket. The tool call itself stays in the conversation, and `recall`
-  checks the content against its name again before returning it.
+- **Nothing is deleted that a recorded transcript still names.** A tool
+  result is written to a file named by the SHA-256 of its content, read back,
+  and compared. Only then is it replaced by a ticket. The tool call itself
+  stays in the conversation, and `recall` checks the content against its name
+  again before returning it. A file is removed only when no transcript in a
+  place the plugin recorded named it at two weekly clean-ups a week apart.
 - **No summary is written, and nothing is sent.** A compaction takes the
   time of writing a few files. Rules decide the order results leave in: those
   a later call replaced first, then those sharing the least with what you are
@@ -102,8 +104,10 @@ does not follow the rename: see [moving from the old name](docs/limits.md#moving
   the conversation; the files remain.
 - Files are plain text under `~/.claude/lossless-compaction/` — or under
   `~/.claude/jev-lossless-compaction/` while that exists — in a directory the
-  plugin makes or closes to mode 700 before writing, or else writes nothing;
-  they are never cleaned up. A result
+  plugin makes or closes to mode 700 before writing, or else writes nothing.
+  Once a week the transcripts are read; a file none of them names goes to a
+  trash, and is removed a week later if still named by none. A transcript
+  outside the places recorded, from another machine say, is not counted. A result
   moved out by an earlier version is read back after the rename, by the same
   id, from where it was written; a `storeDir` set under the old id has to be
   set again under the new.
@@ -124,6 +128,10 @@ The full list: [docs/limits.md](docs/limits.md).
   what comes back, not what leaves.
   [ADR 0004](docs/adr/0004-the-plugin-is-named-lossless-compaction.md): the
   rename, and how what the old name wrote is still read.
+  [ADR 0005](docs/adr/0005-a-repository-does-not-decide-where-results-go.md):
+  why a repository's settings do not decide where results go.
+  [ADR 0006](docs/adr/0006-results-live-as-long-as-a-transcript-names-them.md):
+  why results are kept as long as a transcript names them.
 - [Measurements](docs/measurements.md), [Limits](docs/limits.md),
   [Development](docs/development.md), [CHANGELOG](CHANGELOG.md), and the
   settings with their defaults in

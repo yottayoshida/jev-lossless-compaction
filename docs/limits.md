@@ -35,8 +35,60 @@ installs, shows in the list, and does nothing.
 ## The files
 
 Files are plain text under `~/.claude/lossless-compaction/`, or under
-`CLAUDE_CONFIG_DIR` when that is set. The plugin never cleans them up. A
-secret in a tool result stays there until you delete it.
+`CLAUDE_CONFIG_DIR` when that is set. A secret in a tool result stays there
+until no conversation holds it any more, as below, or until you delete it.
+
+## How long results are kept
+
+A result is kept while a conversation Claude Code can still resume names
+it, and a week after (ADR 0006). The conversations Claude Code can resume
+are its transcripts under `<config>/projects/`; a forked conversation, a
+rewound branch and one compacted by an earlier version keep the ids in them
+too, so they are counted without the plugin keeping a list of its own.
+
+- The place transcripts are in is recorded at a compaction, in the store
+  (`roots/`), when a directory under `<config>/projects/` holds this
+  session's transcript. Nothing is collected until one is recorded, nor in
+  the week after the first was.
+- At most once a week, after a session starts and without holding it up, the
+  plugin reads every 64-hex string out of those transcripts (`grep` from
+  `/usr/bin`, else `/bin`; measured: 81 s for 2.9 GB). A result over a day
+  old that none of them names moves, with its index entry, to
+  `trash/<day>/`. One the trash has held over a week, still named by none,
+  is removed; one named again goes back.
+- `recall`, `find` and a compaction put back from the trash what the
+  conversation names before reading it. A result moved there while a session
+  used it is not lost.
+- A recorded place that is gone is skipped: nothing can be resumed from it.
+  A place on a disk that is not mounted at the time looks gone too, and what
+  only its transcripts name can go to the trash; it comes back from there if
+  the disk is back within the week.
+  One that is there but cannot be looked at or read in full, a project
+  directory that is a link (a search does not follow it), a search that does
+  not reach its end — every search also reads a file of the plugin's own that
+  holds one known id, and one that does not print it did not finish — a
+  search whose output is too long, all recorded places gone, or commands that
+  cannot be run, stop the collection before anything moves, and the line it
+  prints says why. A transcript that is itself a link inside a project
+  directory is not followed and not counted.
+- A collection stopped while moving leaves what it moved in the trash, where
+  `recall` and the next collection put it back when it is named. What it
+  reports is counted on disk afterwards.
+- A collection that a short session cuts off is tried again a day later;
+  only one that went to the end waits a week.
+- A transcript outside a recorded place — copied from another machine, or of
+  a `CLAUDE_CONFIG_DIR` that shares a `storeDir` and has not compacted since
+  — is not counted. Resuming it can find a result gone. Starting a session
+  and compacting once under each configuration records its place.
+- Any 64-hex string counts, a git object id or another hash as well; that
+  keeps more, never less.
+- The trash and the removal run `mkdir`, `mv` and `rm` from `/bin` or
+  `/usr/bin` on the files under `blobs/`, `index/` and `trash/` only. A
+  guard that sits in `PATH` does not see them.
+- A copy of 0.4.0 or earlier, on the same store, does not put back from the
+  trash: a result moved there while it ran is read again once a current copy
+  puts it back, which the next collection does for any result a transcript
+  names.
 
 Before a compaction writes anything, the plugin makes the directory it writes
 to readable by its owner alone: it runs `mkdir -m 700` when the directory is
