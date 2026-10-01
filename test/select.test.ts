@@ -204,7 +204,8 @@ test('a conversation is rebuilt only when every block in it is of a kind a rebui
 
   assert.equal(whyNotRebuilt(few, text), null);
   assert.match(whyNotRebuilt(few, pasted) ?? '', /: image$/);
-  assert.match(whyNotRebuilt(few, returned) ?? '', /: image$/);
+  // An image a tool returned leaves with its result (test/media.test.ts): it does not stop a rebuild here.
+  assert.equal(whyNotRebuilt(few, returned), null);
   assert.match(whyNotRebuilt(few, attached) ?? '', /: document$/);
   assert.match(whyNotRebuilt(few, [...attached, ...pasted]) ?? '', /: document, image$/);
   assert.match(whyNotRebuilt(few, unheard) ?? '', /: a_kind_from_next_year$/);

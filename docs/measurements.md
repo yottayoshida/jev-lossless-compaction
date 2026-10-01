@@ -152,6 +152,50 @@ source code that was moved out took. The session of #24, which held
 228,230 characters of thinking, was 72 % over; its breakdown was not
 recorded.
 
+## An image in a tool result
+
+On 2026-10-01, Claude Code 2.1.286 with Claude Haiku 4.5, in throwaway
+sessions with the installed copy of the plugin disabled.
+
+What a `session.compact` hook is handed for a `Read` of a PNG: the result's
+`text` is empty, and the tool's record holds the bytes on both sides of the
+call (`result.file.base64`, with `type` and the dimensions). Read with its
+blocks, the same result is a `tool_result` whose `content` is an `image`
+block with a `base64` source, and after it, where the host added one, a
+text block beginning `<system-reminder>`. Of the 621 images in the local
+transcripts of #25, every one stands in a tool result (618 results, 109 of
+them with text as well); none was pasted into a message, and there was no
+document.
+
+What a plugin's tool may return: an array holding
+`{ type: 'image', source: { type: 'base64', media_type, data } }` reached
+the model as an image (it named the colour of a plain blue one). The same
+bytes as an MCP result (`{ content: [...], isError }`) were refused as not
+a string, and as `{ type: 'image', data, mimeType }` in an array made the
+request fail with "an image in the conversation could not be processed".
+
+With this change loaded as the plugin (`claude --plugin-dir`):
+
+- A conversation of one image and one text file, compacted with `/compact`:
+  `moved 1 of 2 tool results out, 1 image with them`, where 0.5.2 said
+  `built-in compaction: … cannot carry: image`. The next turn was answered;
+  `recall` with the id in the line returned the image and the model said
+  what it showed; the session closed and resumed answered from the line.
+  Of the rows written after the compaction and before that `recall`, none
+  held the image's bytes. Compacted again after the `recall`, the recalled
+  result left under the same id (`moved 1 of 4 tool results out, 1 image
+  with them`), and the store held as many files as before.
+- Five PNG files of 1,000 by 700 pixels, which Claude Code held as JPEG
+  (131,028 characters in base64 for the one read back), between four text
+  files of 48,643 characters: `moved 8 of 9 tool
+  results out, 5 images with them (209371 -> 54171 chars, about 72046 of
+  167000 tokens in use)` in 68 ms, from 134,981 tokens. The next request
+  sent 55,699: the estimate was 29 % over. No row after the compaction held
+  an image's bytes. `recall` of the first returned it as an image, and the
+  model described it.
+
+Not measured: an image pasted into a message, and a document.
+
 ## Moving out tool inputs, counted in hand-overs
 
 On 2026-10-01, offline: no model was called and nothing was sent. The

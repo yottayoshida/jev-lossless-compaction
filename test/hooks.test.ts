@@ -91,8 +91,10 @@ test('every way the main conversation reaches the built-in summary keeps it firs
   assert.ok(handler.includes('return summarizeKeeping($, e, next, tried.keep);'), 'why the compaction did not run');
   assert.ok(handler.includes("summarizeKeeping($, e, next, { store, messages: e.messages as readonly Message[] })"), 'nothing moved out');
   assert.ok(handler.includes('summarizeKeeping($, { ...e, messages: outcome.messages }, next, { store, messages: outcome.messages })'), 'too much left');
-  assert.ok(hooks.includes('messages: messagesFromApi(api) ?? messages'), 'a conversation that cannot be rebuilt is kept, from its blocks or as handed');
-  assert.ok(hooks.includes("keep: store === null ? { unkept: 'the place to keep it in could not be read' } : { store, messages }"), 'a failure once the place is known still keeps it');
+  assert.ok(hooks.includes('asSent = messagesFromApi(api) ?? messages;'), 'a conversation that is not rebuilt is kept from its blocks, or as handed');
+  assert.ok(hooks.includes('return { why, keep: { store, messages: asSent } };'), 'when it cannot be rebuilt');
+  assert.ok(hooks.includes('if (outcome.abandoned !== undefined) return { why: outcome.abandoned, keep: { store, messages: asSent } };'), 'when a result that holds an image could not be moved out');
+  assert.ok(hooks.includes("keep: store === null ? { unkept: 'the place to keep it in could not be read' } : { store, messages: asSent }"), 'a failure once the place is known still keeps it');
 });
 
 test('a clean-up keeps what kept parts name: it collects against the ids followed through them, and stops when they cannot be read', () => {
@@ -122,4 +124,13 @@ test("a compaction is told what is not the conversation from Claude Code's break
   assert.ok(hooks.includes('count: countFrom(context?.breakdown, tokens, api),'), 'count');
   assert.ok(!hooks.includes('function summary('), 'no line of its own');
   assert.equal(hooks.split('reportLine(outcome.report)').length - 1, 3, 'every line a compaction shows');
+});
+
+test('a result that holds an image is told from the blocks, handed to the compaction, and comes back from recall as an image', () => {
+  assert.ok(hooks.includes('const media = mediaIn(api);'), 'read from the conversation with its blocks');
+  assert.ok(hooks.includes('media: media.results,'), 'handed to the compaction');
+  assert.ok(hooks.includes(': Math.ceil(charsOf(messages) / CHARS_PER_TOKEN) + media.images * IMAGE_TOKENS,'), 'a size made up from characters counts the images too, since the compaction takes them off');
+  assert.ok(hooks.includes('whyNotRebuilt(messages, api) ?? (media.why === null ? null :'), 'what cannot be carried stops the rebuild');
+  const handler = hooks.slice(hooks.indexOf(`{ tool: '${RECALL_TOOL}' }`), hooks.indexOf(`{ tool: '${FIND_TOOL}' }`));
+  assert.ok(handler.includes('return { result: found.parts === undefined ? found.text : blocksOf(found.parts) };'), 'text as before, and what holds an image as its blocks (src/media.ts decides their form)');
 });

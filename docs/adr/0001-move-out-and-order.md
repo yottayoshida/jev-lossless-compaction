@@ -64,7 +64,8 @@ Settled by running on a real Claude Code (2.1.284 and 2.1.285, 2026-09-29 and
    in it is of a kind known to survive that: text, tool calls and their
    results, thinking, and what a search for a tool returns. With an image, a
    document, or a kind not on that list, it is left to the built-in
-   compaction. So is a conversation of 4096 messages or more, which is as many
+   compaction. (Amended by ADR 0012: an image in a tool result leaves with
+   the result, and the conversation is rebuilt.) So is a conversation of 4096 messages or more, which is as many
    as the host shows a plugin: older ones may be missing from what it was
    handed.
 9. A result is read back through a tool the plugin registers, `recall`. A

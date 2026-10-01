@@ -95,7 +95,7 @@ Every figure, with when and how it was taken: [docs/measurements.md](docs/measur
   working on, then the oldest. The newest results stay, up to `keepTokens`
   tokens of them (20,000 by default); every older one is a candidate to
   leave, and a result a later call made obsolete is a candidate even when it
-  is the newest.
+  is the newest. A result that holds an image always leaves.
 - **`find` brings a result back by what it is about.** Asked in words,
   `find` returns the moved-out result of this conversation that the question
   is about, or lists the likeliest few when Jev is not sure which. Jev is
@@ -106,9 +106,9 @@ Every figure, with when and how it was taken: [docs/measurements.md](docs/measur
 ## Limits
 
 - **Claude Code's own summary still runs** when moving out is not enough,
-  when nothing can be moved out, when the conversation holds an image, a
-  document, a block of a kind the plugin does not know or 4096 messages or
-  more, and in a subagent. On the main conversation, what it summarizes is
+  when nothing can be moved out, when the conversation holds an image or a
+  document outside a tool result, a block of a kind the plugin does not know
+  or 4096 messages or more, and in a subagent. On the main conversation, what it summarizes is
   kept first, and `recall` returns it unchanged by the ids left right after
   the summary — except images, documents and thinking, and messages older
   than the 4096 Claude Code shows. When the results' place is not an absolute
@@ -124,7 +124,7 @@ Every figure, with when and how it was taken: [docs/measurements.md](docs/measur
   summary names goes to a trash, and is removed a week later if still named
   by none.
 - **`find`** offers the tickets it sees in the conversation and in the parts
-  kept before a summary, shows Jev the first lines of each result, answers a
+  kept before a summary, except those of results that hold an image, shows Jev the first lines of each result, answers a
   subagent with nothing to find, and gives a request to Jev up after twenty
   seconds. Tokens are estimated at three characters each, so more may leave
   than the target asks for.

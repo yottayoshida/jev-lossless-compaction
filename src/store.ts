@@ -4,6 +4,7 @@
 // the same name and the same ticket, so compacting twice writes nothing new and
 // changes nothing that an earlier compaction left in the conversation.
 
+import { decodeMedia, textOf, type MediaPart } from './media.ts';
 import type { Files } from './types.ts';
 
 export const PLUGIN = 'lossless-compaction';
@@ -341,7 +342,8 @@ export async function isStored(files: Files, dirs: string | readonly string[], t
   return false;
 }
 
-export type Recalled = { text: string } | { error: string };
+/** What is stored under an id. For a result that held images, `text` is its text without their bytes, and `parts` is all of it in order. */
+export type Recalled = { text: string; parts?: MediaPart[] } | { error: string };
 
 /** The text behind an id, from the first of `dirs` that holds it, checked against the id before it is handed over. */
 export async function recall(files: Files, dirs: string | readonly string[], id: unknown): Promise<Recalled> {
@@ -357,7 +359,10 @@ export async function recall(files: Files, dirs: string | readonly string[], id:
       return { error: 'The stored result could not be read.' };
     }
     if ((await idOf(text)) !== id) return { error: 'The stored result has changed on disk and is not returned.' };
-    return { text };
+    // Told by how the stored text begins, never by its entry: the bytes of an image
+    // are not handed on as text to anything that reads through here.
+    const media = decodeMedia(text);
+    return media === null ? { text } : { text: textOf(media), parts: media };
   }
   return { error: 'Nothing is stored under that id on this machine.' };
 }
