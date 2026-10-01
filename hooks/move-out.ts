@@ -20,6 +20,7 @@ import {
   type Report,
 } from '../src/compact.ts';
 import { find } from '../src/find.ts';
+import { closeStore, type Run } from '../src/private.ts';
 import { goalOf, whyNotRebuilt } from '../src/select.ts';
 import { FIND, PLUGIN, RECALL, placesOf, recall, type StoreDirs } from '../src/store.ts';
 import { describeTaints, placeTaints, sendTaints, taintsFrom, type RepoSettings, type Seen, type Taint } from '../src/trust.ts';
@@ -45,6 +46,7 @@ type WithHttp = {
   };
   clock: { sleep: (ms: number, options: { signal: AbortSignal }) => Promise<void> };
 };
+type WithProcess = { process: { run: (argv: readonly string[], init: { timeoutMs: number }) => Promise<{ exitCode: number }> } };
 type WithSettings = { settings: { read: (args: { source: 'project' | 'local' | 'user' }) => Promise<unknown> } };
 type WithSession = {
   session: {
@@ -69,6 +71,17 @@ function filesOf($: WithFiles): Files {
     write: (path, text) => $.fs.write(path, text),
     stat: (path) => $.fs.stat(path),
   };
+}
+
+function runOf($: WithProcess): Run {
+  return async (argv) => ({ exitCode: (await $.process.run(argv, { timeoutMs: 10_000 })).exitCode });
+}
+
+/** The directory written to, made or closed to its owner alone, else why not; the others read from, closed where they can be. */
+async function privateOf($: WithUi & WithFiles & WithProcess, store: StoreDirs): Promise<string | null> {
+  const { refused, warnings } = await closeStore(filesOf($), runOf($), store);
+  for (const warning of warnings) say($, `a directory results are read from could not be made private: ${warning}`);
+  return refused === null ? null : `the place results are kept in cannot be made private: ${refused}`;
 }
 
 function hostOf($: WithFiles): Host {
@@ -173,7 +186,11 @@ function summary(report: Report): string {
  * built-in compaction runs on the conversation as it is. Nothing is thrown,
  * so the caller calls `next` once whatever happened here.
  */
-async function attempt($: WithUi & WithEnv & WithFiles & WithSession & WithSettings, e: Compacting, options: PluginOptions): Promise<Outcome | string> {
+async function attempt(
+  $: WithUi & WithEnv & WithFiles & WithSession & WithSettings & WithProcess,
+  e: Compacting,
+  options: PluginOptions,
+): Promise<Outcome | string> {
   try {
     // First, so that it is said whatever else this compaction comes to.
     if (options['keepNewest'] !== undefined) {
@@ -184,6 +201,9 @@ async function attempt($: WithUi & WithEnv & WithFiles & WithSession & WithSetti
     const messages = e.messages as readonly Message[];
     const why = whyNotRebuilt(messages, await $.session.messages({ as: 'api' }));
     if (why !== null) return why;
+    // Before anything is written: what cannot be made private is not written to.
+    const unsafe = await privateOf($, store);
+    if (unsafe !== null) return unsafe;
 
     // A summary is estimated by Claude Code itself: nothing is sent for it.
     const { context } = await $.session.usage({ breakdown: 'summary' });

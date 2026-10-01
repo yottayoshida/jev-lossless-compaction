@@ -167,18 +167,25 @@ async function plainDirectory(files: Files, path: string): Promise<boolean> {
 /**
  * Writes `text` at `path` unless the same text is already there, then reads it
  * back. The host's write follows symbolic links, so a link is refused before
- * anything is written.
+ * anything is written. With `repair`, a file there that holds other text is
+ * written over: a blob is named by the hash of its text, so other text under
+ * that name is what a write that failed partway left.
  */
-async function writeOnce(files: Files, path: string, text: string): Promise<NotMoved | null> {
+async function writeOnce(files: Files, path: string, text: string, repair = false): Promise<NotMoved | null> {
   const found = await look(files, path);
   if (found === 'symlink') return { reason: 'symlink' };
   if (found === 'not-a-file') return { reason: 'not-a-file' };
-  if (found === 'missing') {
+  const write = async (): Promise<NotMoved | null> => {
     try {
       await files.write(path, text);
+      return null;
     } catch {
       return { reason: 'write-failed' };
     }
+  };
+  if (found === 'missing') {
+    const failed = await write();
+    if (failed) return failed;
   }
   let back;
   try {
@@ -186,7 +193,18 @@ async function writeOnce(files: Files, path: string, text: string): Promise<NotM
   } catch {
     return { reason: 'write-failed' };
   }
-  return back === text ? null : { reason: 'differs' };
+  if (back === text) return null;
+  if (!repair || found === 'missing') return { reason: 'differs' };
+  // Looked at again: what is written over is a plain file, or nothing, not a link put there meanwhile.
+  const again = await look(files, path);
+  if (again === 'symlink' || again === 'not-a-file') return { reason: again };
+  const failed = await write();
+  if (failed) return failed;
+  try {
+    return (await files.read(path)) === text ? null : { reason: 'differs' };
+  } catch {
+    return { reason: 'write-failed' };
+  }
 }
 
 /**
@@ -202,7 +220,7 @@ export async function moveOut(files: Files, dir: string, tool: string, text: str
     if (!(await plainDirectory(files, path))) return { reason: 'symlink' };
   }
   const id = await idOf(text);
-  const blob = await writeOnce(files, blobPath(dir, id), text);
+  const blob = await writeOnce(files, blobPath(dir, id), text, true);
   if (blob) return blob;
   const entry = await writeOnce(files, entryPath(dir, id), JSON.stringify({ bytes, tool }));
   // An entry written for another tool that returned the same text differs, and that is fine.
