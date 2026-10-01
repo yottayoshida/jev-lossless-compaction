@@ -26,10 +26,11 @@ installs, shows in the list, and moves nothing out without this line.
 
 Start a new session. From then on `/compact` and automatic compaction go
 through the plugin, and a line starting `lossless-compaction:` says what each
-one did. In a session where the plugin is enabled and is not running, no
-compaction goes by unsaid: a `/compact` is held the first time, with what to
-change, and one that goes ahead is followed by a line saying it was Claude
-Code's own ([what this does not reach](docs/limits.md#function-hooks)).
+one did. In a session where the plugin is enabled and is not running, a line
+says so at the first message you send, naming the setting to add; a `/compact`
+is held once, and a compaction that goes ahead is followed by a line saying it
+was Claude Code's own. A session already open when the plugin was installed or
+enabled is not told ([more of what this does not reach](docs/limits.md#function-hooks)).
 
 `recall` needs nothing more. `find` is optional and needs a Jev key: set it
 with `/plugin configure lossless-compaction@lossless-compaction` inside

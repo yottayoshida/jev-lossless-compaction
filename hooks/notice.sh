@@ -3,6 +3,7 @@
 #
 #   notice.sh before   PreCompact: a /compact is held the first time, with what to change.
 #   notice.sh after    SessionStart after a compaction: one line says it was Claude Code's own.
+#   notice.sh prompt   UserPromptSubmit: one line, once in a process, says so before any compaction.
 #
 # A classic hook runs whether or not function hooks are on. The module, when it
 # runs, sets LOSSLESS_COMPACTION_RUNNING to the id of its process; this file
@@ -24,10 +25,48 @@ fi
 
 setting='"CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1"'
 
+# Adds a line to one of the lists under the plugin's data directory, started
+# again past fifty lines, for its owner alone. Fails when it cannot be written.
+#   remember <file> <lines read> <last line ended: yes|no> <line>
+remember() {
+  umask 077
+  if [ "$2" -ge 50 ]; then
+    { printf '%s\n' "$4" > "$1"; } 2>/dev/null
+  else
+    # A last line without its newline gets one first, so the two are not joined.
+    newline=; [ "$3" = no ] && newline='
+'
+    { printf '%s%s\n' "$newline" "$4" >> "$1"; } 2>/dev/null
+  fi
+}
+
 if [ "${1:-}" = after ]; then
   # At startup this hook runs before the module has set the mark, so only after a compaction.
   case "$input" in *'"source":"compact"'*) ;; *) exit 0 ;; esac
   printf '%s\n' '{"systemMessage":"lossless-compaction is enabled but was not running: this compaction was Claude Code'"'"'s own summary. To have the plugin compact from now on, put \"CLAUDE_CODE_ENABLE_FUNCTION_HOOKS\": \"1\" under \"env\" in your user settings.json and start a new session; if it is there already, run claude --debug and look for lossless-compaction."}'
+  exit 0
+fi
+
+if [ "${1:-}" = prompt ]; then
+  # Once in a process: told lists the processes told. Without its own id, or a
+  # place to remember, a process would be told at every prompt; it is not told,
+  # and the two notices around a compaction still are.
+  [ -n "$pid" ] || exit 0
+  [ -n "${CLAUDE_PLUGIN_DATA:-}" ] || exit 0
+  told=$CLAUDE_PLUGIN_DATA/told
+  if [ -L "$told" ]; then exit 0; fi
+  if [ -e "$told" ] && [ ! -r "$told" ]; then exit 0; fi
+  lines=0
+  ended=yes
+  if [ -e "$told" ]; then
+    while read -r was_pid _ || { [ -n "$was_pid" ] && ended=no; }; do
+      lines=$((lines + 1))
+      if [ "$was_pid" = "$pid" ]; then exit 0; fi
+    done < "$told"
+  fi
+  remember "$told" "$lines" "$ended" "$pid" || exit 0
+  # A systemMessage is shown, and is not added to the conversation as plain stdout would be.
+  printf '%s\n' '{"systemMessage":"lossless-compaction is enabled but is not running in this session: a compaction here would be Claude Code'"'"'s own summary, which cannot be undone. To have the plugin compact, put \"CLAUDE_CODE_ENABLE_FUNCTION_HOOKS\": \"1\" under \"env\" in your user settings.json and start a new session; if it is there already, run claude --debug and look for lossless-compaction."}'
   exit 0
 fi
 
@@ -61,17 +100,8 @@ if [ -e "$held" ]; then
 fi
 if [ "$before" -ge 2 ]; then exit 0; fi
 
-# One file, started again past fifty lines. What cannot be remembered is not held.
-umask 077
-entry="$pid ${session:--}"
-if [ "$lines" -ge 50 ]; then
-  { printf '%s\n' "$entry" > "$held"; } 2>/dev/null || exit 0
-else
-  # A last line without its newline gets one first, so the two are not joined.
-  newline=; [ "$ended" = no ] && newline='
-'
-  { printf '%s%s\n' "$newline" "$entry" >> "$held"; } 2>/dev/null || exit 0
-fi
+# What cannot be remembered is not held.
+remember "$held" "$lines" "$ended" "$pid ${session:--}" || exit 0
 
 if [ "$before" -ge 1 ]; then
   # The second time for this conversation, and the last: the next process goes through.
