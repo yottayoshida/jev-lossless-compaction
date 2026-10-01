@@ -107,10 +107,15 @@ does not follow the rename: see [moving from the old name](docs/limits.md#moving
   place can be written to, what it summarizes is kept first, and `recall`
   returns it unchanged by the ids left right after the summary — except
   images, documents and thinking, and messages older than the 4096 Claude
-  Code shows. When that place is not an absolute path, cannot be made
-  private, or a write fails, nothing is kept, and the compaction says so;
-  earlier tickets may then be gone from the conversation, and the files
-  remain.
+  Code shows. When that place is not an absolute path or cannot be made
+  private, nothing is kept, and the compaction says so; earlier tickets may
+  then be gone from the conversation, and the files remain.
+- A write that fails — the disk is full, say — loses nothing: a result is
+  ticketed only once all of it is written, a stored result or its entry is
+  never written over by a failed write (where `mv` can be run; not on
+  Windows), and when a failed write leaves nothing kept before Claude Code's
+  summary, the summary does not run and the compaction says why. There is no
+  limit on how much is kept ([ADR 0008](docs/adr/0008-no-limit-and-nothing-lost-to-a-failed-write.md)).
 - Files are plain text under `~/.claude/lossless-compaction/` — or under
   `~/.claude/jev-lossless-compaction/` while that exists — in a directory the
   plugin makes or closes to mode 700 before writing, or else writes nothing.
@@ -144,6 +149,8 @@ The full list: [docs/limits.md](docs/limits.md).
   why results are kept as long as a transcript names them.
   [ADR 0007](docs/adr/0007-keep-what-the-summary-replaces.md): why what
   Claude Code's summary replaces is kept first.
+  [ADR 0008](docs/adr/0008-no-limit-and-nothing-lost-to-a-failed-write.md):
+  why nothing is lost to a failed write, and there is no limit.
 - [Measurements](docs/measurements.md), [Limits](docs/limits.md),
   [Development](docs/development.md), [CHANGELOG](CHANGELOG.md), and the
   settings with their defaults in
