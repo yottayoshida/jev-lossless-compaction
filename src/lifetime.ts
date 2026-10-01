@@ -76,12 +76,9 @@ export async function stateIn(files: Files, list: List, dirs: readonly string[])
 /** Records `root` in `dir` unless it is there; the first record starts the wait before any collection. */
 export async function noteRoot(files: Files, dir: string, root: string, now: number): Promise<void> {
   const path = await rootFile(dir, root);
-  try {
-    await files.stat(path);
-    return;
-  } catch {
-    // Not recorded yet.
-  }
+  // Recorded only once it reads back: a write the disk refused leaves an empty file (ADR 0008).
+  const there = (await readJson(files, path)) as { root?: unknown } | undefined;
+  if (there?.root === root) return;
   await files.write(path, JSON.stringify({ root, at: now }));
 }
 

@@ -74,6 +74,8 @@ export type Moved = Ticket & { text: string };
 
 export type NotMoved = {
   reason: 'tool-name' | 'too-large' | 'symlink' | 'not-a-file' | 'differs' | 'write-failed';
+  /** For a failed write, what the host said: an error code such as ENOSPC where it gave one. */
+  code?: string;
 };
 
 const UTF8 = new TextEncoder();
@@ -188,48 +190,96 @@ async function plainDirectory(files: Files, path: string): Promise<boolean> {
   return stat.isLink !== true && stat.kind === 'dir';
 }
 
+/** What the host said when a write failed: its error code, or the first line of its message without paths. */
+export function codeOf(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  const code = /failed: (E[A-Z0-9]+)\s*$/.exec(message)?.[1] ?? /^(E[A-Z0-9]{2,})\b/.exec(message)?.[1];
+  if (code !== undefined) return code;
+  return (message.split('\n')[0] ?? '').replace(/(?:[A-Za-z]:)?[\\/][^\s'")]*/g, '<path>').slice(0, 120) || 'unknown';
+}
+
+const failed = (error: unknown): NotMoved => ({ reason: 'write-failed', code: codeOf(error) });
+
 /**
- * Writes `text` at `path` unless the same text is already there, then reads it
- * back. The host's write follows symbolic links, so a link is refused before
- * anything is written. With `repair`, a file there that holds other text is
- * written over: a blob is named by the hash of its text, so other text under
- * that name is what a write that failed partway left.
+ * Puts `text` at `path`. With a mover, it is written beside it under `tmp/`,
+ * read back, and moved into place, so that what stands at `path` is always
+ * whole: the host's write cuts a file short when it fails (ADR 0008). Without
+ * one, it is written in place.
  */
-async function writeOnce(files: Files, path: string, text: string, repair = false): Promise<NotMoved | null> {
-  const found = await look(files, path);
-  if (found === 'symlink') return { reason: 'symlink' };
-  if (found === 'not-a-file') return { reason: 'not-a-file' };
-  const write = async (): Promise<NotMoved | null> => {
+async function put(files: Files, path: string, text: string, tmp: string): Promise<NotMoved | null> {
+  const mover = files.move !== undefined && (await files.move.available()) ? files.move : null;
+  if (mover === null) {
     try {
       await files.write(path, text);
       return null;
-    } catch {
-      return { reason: 'write-failed' };
+    } catch (error) {
+      return failed(error);
     }
-  };
+  }
+  const name = path.slice(path.lastIndexOf('/') + 1);
+  const part = `${tmp}/${name}.${crypto.randomUUID()}.part`;
+  try {
+    await files.write(part, text);
+    if ((await files.read(part)) !== text) {
+      await mover.remove(part);
+      return { reason: 'differs' };
+    }
+  } catch (error) {
+    await mover.remove(part);
+    return failed(error);
+  }
+  if (await mover.rename(part, path)) return null;
+  // A move makes no directory, and the host's write only made the one the part is in: make it, and move once more.
+  await mover.makeDir(path.slice(0, path.lastIndexOf('/')));
+  if (await mover.rename(part, path)) return null;
+  await mover.remove(part);
+  return { reason: 'write-failed', code: 'the move into place failed' };
+}
+
+/**
+ * Writes `text` at `path` unless the same text is already there, then reads it
+ * back. The host's write follows symbolic links, so a link is refused before
+ * anything is written. A file there that `repair` says is broken is written
+ * over: a blob is named by the hash of its text, so other text under that name
+ * is what a write that failed partway left; an entry that is not JSON is the
+ * same.
+ */
+async function writeOnce(files: Files, path: string, text: string, tmp: string, repair: (there: string) => boolean): Promise<NotMoved | null> {
+  const found = await look(files, path);
+  if (found === 'symlink') return { reason: 'symlink' };
+  if (found === 'not-a-file') return { reason: 'not-a-file' };
   if (found === 'missing') {
-    const failed = await write();
-    if (failed) return failed;
+    const notPut = await put(files, path, text, tmp);
+    if (notPut) return notPut;
   }
   let back;
   try {
     back = await files.read(path);
-  } catch {
-    return { reason: 'write-failed' };
+  } catch (error) {
+    return failed(error);
   }
   if (back === text) return null;
-  if (!repair || found === 'missing') return { reason: 'differs' };
+  if (found === 'missing' || !repair(back)) return { reason: 'differs' };
   // Looked at again: what is written over is a plain file, or nothing, not a link put there meanwhile.
   const again = await look(files, path);
   if (again === 'symlink' || again === 'not-a-file') return { reason: again };
-  const failed = await write();
-  if (failed) return failed;
+  const notPut = await put(files, path, text, tmp);
+  if (notPut) return notPut;
   try {
     return (await files.read(path)) === text ? null : { reason: 'differs' };
-  } catch {
-    return { reason: 'write-failed' };
+  } catch (error) {
+    return failed(error);
   }
 }
+
+const notJson = (text: string): boolean => {
+  try {
+    JSON.parse(text);
+    return false;
+  } catch {
+    return true;
+  }
+};
 
 /**
  * Stores one tool result and returns the ticket that replaces it, or why the
@@ -240,13 +290,14 @@ export async function moveOut(files: Files, dir: string, tool: string, text: str
   if (!TOOL_NAME.test(tool)) return { reason: 'tool-name' };
   const bytes = bytesOf(text);
   if (bytes > MAX_BYTES) return { reason: 'too-large' };
-  for (const path of [dir, `${dir}/blobs`, `${dir}/index`]) {
+  for (const path of [dir, `${dir}/blobs`, `${dir}/index`, `${dir}/tmp`]) {
     if (!(await plainDirectory(files, path))) return { reason: 'symlink' };
   }
   const id = await idOf(text);
-  const blob = await writeOnce(files, blobPath(dir, id), text, true);
+  const tmp = `${dir}/tmp`;
+  const blob = await writeOnce(files, blobPath(dir, id), text, tmp, () => true);
   if (blob) return blob;
-  const entry = await writeOnce(files, entryPath(dir, id), JSON.stringify({ bytes, tool }));
+  const entry = await writeOnce(files, entryPath(dir, id), JSON.stringify({ bytes, tool }), tmp, notJson);
   // An entry written for another tool that returned the same text differs, and that is fine.
   if (entry && entry.reason !== 'differs') return entry;
   return { tool, bytes, id, text: ticketText({ tool, bytes, id }) };

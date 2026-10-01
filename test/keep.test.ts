@@ -152,6 +152,7 @@ test('a part that cannot be written keeps nothing', async () => {
   assert.ok('failed' in done);
 });
 
+const skipped = (why: string) => ({ skip: why }) as never;
 const summary = { role: 'user' as const, text: 'This session is being continued from a previous conversation.', toolUses: [], handle: 's' };
 const after = { role: 'assistant' as const, text: 'done', toolUses: [], handle: 'a' };
 
@@ -164,7 +165,7 @@ test('the conversation is kept before the summary runs, the summary runs once, a
     runs += 1;
     writtenWhenRun = files.writes.length;
     return { messages: [summary, after] };
-  });
+  }, skipped);
   assert.equal(runs, 1);
   assert.ok(writtenWhenRun > 0, 'written before the summary ran');
   assert.equal(r.messages.length, 3);
@@ -189,7 +190,7 @@ test('when nothing can be kept, the summary runs once and is handed back as it w
     const r = await keepThenSummarize(files, keep, (text) => said.push(text), async () => {
       runs += 1;
       return back;
-    });
+    }, skipped);
     assert.equal(runs, 1, name);
     assert.equal(r, back, name);
     assert.match(said.join('\n'), /nothing of the conversation is kept before the built-in summary/, name);
@@ -199,10 +200,10 @@ test('when nothing can be kept, the summary runs once and is handed back as it w
 test('a skip, or a compaction with no messages, is handed back as it is, and a skip is not reported as kept', async () => {
   const skip: { skip: string; messages?: undefined } = { skip: 'blocked by a PreCompact hook' };
   const said: string[] = [];
-  assert.equal(await keepThenSummarize(new MemoryFiles(), { dir: DIR, messages: coding() }, (text) => said.push(text), async () => skip), skip);
+  assert.equal(await keepThenSummarize(new MemoryFiles(), { dir: DIR, messages: coding() }, (text) => said.push(text), async () => skip, skipped), skip);
   assert.match(said.join('\n'), /no summary ran, so nothing was added/);
   assert.doesNotMatch(said.join('\n'), /^kept the conversation/m);
-  const empty = await keepThenSummarize(new MemoryFiles(), { dir: DIR, messages: coding() }, () => {}, async () => ({ messages: [] }));
+  const empty = await keepThenSummarize(new MemoryFiles(), { dir: DIR, messages: coding() }, () => {}, async () => ({ messages: [] }), skipped);
   assert.deepEqual(empty.messages, []);
 });
 

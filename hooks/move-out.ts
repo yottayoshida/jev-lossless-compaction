@@ -99,6 +99,48 @@ function filesOf($: WithFiles): Files {
   };
 }
 
+const PLACES = ['/bin', '/usr/bin'] as const;
+// That `mv` can be started on this host, once it has been (ADR 0008). That it could not is not kept:
+// a start refused once, by load or by another hook, is asked again at the next write.
+let canMove = false;
+
+/**
+ * The files a stored result is written through: as `filesOf`, and moved into
+ * place with `mv` where the host can start it, so that a write the disk
+ * refuses never cuts short what is already there (ADR 0008).
+ */
+function storingFilesOf($: WithFiles & WithProcess): Files {
+  // The exit code of `program` from the first place it can be started in; null when it can be started in neither.
+  const started = async (program: string, args: readonly string[]): Promise<number | null> => {
+    for (const place of PLACES) {
+      try {
+        return (await $.process.run([`${place}/${program}`, ...args], { timeoutMs: 10_000 })).exitCode;
+      } catch {
+        // The next place.
+      }
+    }
+    return null;
+  };
+  return {
+    ...filesOf($),
+    move: {
+      // Started at all is enough: without operands `mv` only prints its usage.
+      available: async () => (canMove ||= (await started('mv', [])) !== null),
+      rename: async (from, to) => {
+        if ((await started('mv', ['-f', '--', from, to])) !== 0) return false;
+        const there = await $.fs.stat(to).catch(() => null);
+        if (there !== null && there.kind === 'file' && there.isLink !== true) return true;
+        // A directory at `to` takes `from` inside it and still exits 0: take it out again.
+        await started('rm', ['-f', '--', `${to}/${from.slice(from.lastIndexOf('/') + 1)}`]);
+        return false;
+      },
+      makeDir: async (path) => void (await started('mkdir', ['-p', '--', path])),
+      // What cannot be removed stays in tmp/.
+      remove: async (path) => void (await started('rm', ['-f', '--', path])),
+    },
+  };
+}
+
 function runOf($: WithProcess): Run {
   return async (argv) => ({ exitCode: (await $.process.run(argv, { timeoutMs: 10_000 })).exitCode });
 }
@@ -121,8 +163,8 @@ async function privateOf($: WithUi & WithFiles & WithProcess, store: StoreDirs):
   return refused === null ? null : `the place results are kept in cannot be made private: ${refused}`;
 }
 
-function hostOf($: WithFiles): Host {
-  return { files: filesOf($), now: () => Date.now() };
+function hostOf($: WithFiles & WithProcess): Host {
+  return { files: storingFilesOf($), now: () => Date.now() };
 }
 
 // Each name spelled out: Claude Code reads which variables a module reads off its source.
@@ -304,7 +346,8 @@ function summary(report: Report): string {
   return (
     `moved ${report.moved} of ${report.results} tool results out ` +
     `(${report.charsBefore} -> ${report.charsAfter} chars, about ${report.tokensAfter} of ${report.window} tokens in use) ` +
-    `in ${took}${stayed === '' ? '' : `; left in place: ${stayed}`}`
+    `in ${took}${stayed === '' ? '' : `; left in place: ${stayed}`}` +
+    (report.writeErrors.length === 0 ? '' : `; could not write: ${report.writeErrors.join(', ')}`)
   );
 }
 
@@ -379,13 +422,13 @@ async function attempt(
 
 /** Hands `handed` to the built-in compaction, having kept what `keep` names first (src/keep.ts decides). */
 async function summarizeKeeping(
-  $: WithUi & WithFiles,
+  $: WithUi & WithFiles & WithProcess,
   handed: SessionCompactInput,
   next: (e: SessionCompactInput) => Promise<SessionCompactResult>,
   keep: HandedOver['keep'],
 ): Promise<SessionCompactResult> {
   const where = 'unkept' in keep ? keep : { dir: keep.store.write, messages: keep.messages };
-  return keepThenSummarize(filesOf($), where, (text) => say($, text), () => next(handed));
+  return keepThenSummarize(storingFilesOf($), where, (text) => say($, text), () => next(handed), (why) => ({ skip: why }));
 }
 
 export const register: Register = (on, options) => {

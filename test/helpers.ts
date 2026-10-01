@@ -74,6 +74,68 @@ export class MemoryFiles implements Files {
   }
 }
 
+/** The error the host throws for a write the disk refused, as measured (ADR 0008). */
+export const enospc = (path: string) => new Error(`lossless-compaction: $.fs.write(${path}) failed: ENOSPC`);
+
+/**
+ * A disk that writes as the host's was measured to: a write first cuts the
+ * file to nothing, then, after the other writes in flight have had a turn,
+ * puts the text there. A write `full` says no to puts half of it and throws
+ * ENOSPC, as a full disk did. With `moves`, it can also move a file into place
+ * in one step, as `mv` does; without, it is a host with no `mv`.
+ */
+export class DiskFiles extends MemoryFiles {
+  /** Says which writes the disk refuses, by path and by the count of writes so far. */
+  full: (path: string, count: number) => boolean = () => false;
+  /** Says which writes a broken disk stores other text for, without saying so. */
+  garble: (path: string, count: number) => boolean = () => false;
+  readonly renamed: [string, string][] = [];
+  readonly removed: string[] = [];
+  #count = 0;
+
+  constructor(moves: boolean, renameWorks = true) {
+    super();
+    if (moves) {
+      this.move = {
+        available: async () => true,
+        rename: async (from, to) => {
+          this.renamed.push([from, to]);
+          const text = this.files.get(from);
+          // As `mv`: it makes no directory, so the one `to` is in has to be there.
+          if (!renameWorks || text === undefined || !this.dirs.has(to.slice(0, to.lastIndexOf('/')))) return false;
+          this.files.delete(from);
+          this.files.set(to, text);
+          return true;
+        },
+        remove: async (path) => {
+          this.removed.push(path);
+          this.files.delete(path);
+        },
+        makeDir: async (path) => {
+          if (!renameWorks) return;
+          for (let cut = path.length; cut > 0; cut = path.lastIndexOf('/', cut - 1)) this.dirs.add(path.slice(0, cut));
+        },
+      };
+    }
+  }
+
+  move: Files['move'];
+
+  override async write(path: string, text: string): Promise<void> {
+    this.#count += 1;
+    const refused = this.full(path, this.#count);
+    const garbled = this.garble(path, this.#count);
+    await super.write(path, '');
+    // A write that goes wrong is the slow one: it gets to the disk after the others have read theirs back.
+    await new Promise((resolve) => setTimeout(resolve, refused || garbled ? 20 : 1));
+    if (refused) {
+      this.files.set(path, text.slice(0, Math.floor(text.length / 2)));
+      throw enospc(path);
+    }
+    this.files.set(path, garbled ? `${text}!` : text);
+  }
+}
+
 export type Sent = { url: string; headers: Record<string, string>; body: unknown };
 
 /** An endpoint that records what it was sent and answers with `answer`. */

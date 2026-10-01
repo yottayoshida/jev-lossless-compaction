@@ -139,7 +139,7 @@ export function cut(text: string, limit: number): string[] {
   return pieces;
 }
 
-type Kept = { text: string; parts: number } | { failed: NotMoved['reason'] };
+type Kept = { text: string; parts: number } | { failed: NotMoved['reason']; code?: string } | { nothing: true };
 
 /**
  * Moves out, as a compaction does, every result and every long input of one
@@ -205,12 +205,12 @@ export async function keepConversation(files: Files, dir: string, messages: read
       parts.push({ text: piece.text, first: piece.at, last: piece.at, bytes: piece.bytes });
     }
   }
-  if (parts.length === 0) return { failed: 'write-failed' };
+  if (parts.length === 0) return { nothing: true };
 
   const lines = [`${KEPT}, in ${parts.length} part${parts.length === 1 ? '' : 's'}; recall a part by its id.`];
   for (const [index, part] of parts.entries()) {
     const moved = await moveOut(files, dir, PART, part.text);
-    if ('reason' in moved) return { failed: moved.reason };
+    if ('reason' in moved) return { failed: moved.reason, ...(moved.code === undefined ? {} : { code: moved.code }) };
     lines.push(partTicketText({ part: index + 1, parts: parts.length, first: part.first, last: part.last, bytes: moved.bytes, id: moved.id }));
   }
   return { text: lines.join('\n'), parts: parts.length };
@@ -259,15 +259,18 @@ export type ToKeep = { dir: string; messages: readonly Message[] } | { unkept: s
 
 /**
  * Keeps what `keep` names, then runs `summarize` — the built-in compaction —
- * exactly once, and puts the tickets of what was kept right after the summary
- * it hands back. What goes wrong in keeping is said, and the summary is then
- * handed back as the built-in compaction made it; so is a skip.
+ * at most once, and puts the tickets of what was kept right after the summary
+ * it hands back. When a write the host refused leaves nothing kept, the
+ * summary does not run: `skip` says why, and the conversation stays as it is
+ * (ADR 0008). Anything else that goes wrong in keeping is said, and the
+ * summary is then handed back as the built-in compaction made it; so is a skip.
  */
 export async function keepThenSummarize<R extends { messages?: readonly unknown[] | undefined }>(
   files: Files,
   keep: ToKeep,
   say: (text: string) => void,
   summarize: () => Promise<R>,
+  skip: (why: string) => R,
 ): Promise<R> {
   const unkept = (why: string) => say(`nothing of the conversation is kept before the built-in summary: ${why}`);
   let kept: { text: string; parts: number } | null = null;
@@ -276,7 +279,17 @@ export async function keepThenSummarize<R extends { messages?: readonly unknown[
   } else {
     try {
       const done = await keepConversation(files, keep.dir, keep.messages);
+      if ('failed' in done && done.failed === 'write-failed') {
+        const code = done.code ?? 'unknown';
+        // Only a full disk is helped by making room; any other refusal is named and left to the reader.
+        const advice = code === 'ENOSPC' || code === 'EDQUOT' ? 'free some space and compact again' : 'compact again once the place results are kept in can be written to';
+        const why = `nothing could be kept (could not write: ${code}), so the summary did not run; ${advice}`;
+        // `say` names the plugin itself; the notice a skip shows does not.
+        say(why);
+        return skip(`${PLUGIN}: ${why}`);
+      }
       if ('failed' in done) unkept(`a part could not be written (${done.failed})`);
+      else if ('nothing' in done) unkept('there is nothing to keep');
       else kept = done;
     } catch (error) {
       unkept(error instanceof Error ? error.message : String(error));
