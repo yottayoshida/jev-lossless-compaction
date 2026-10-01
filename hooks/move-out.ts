@@ -5,7 +5,7 @@
 // only ever handed to a function declared at the top of it, and every host call
 // is spelled out as `$.noun.verb(...)`.
 
-import type { PluginOptions, Register } from 'claude-code';
+import type { PluginOptions, Register, SessionCompactInput, SessionCompactResult } from 'claude-code';
 
 import { providerFrom, type Provider } from '../src/ask.ts';
 import {
@@ -20,6 +20,7 @@ import {
   type Report,
 } from '../src/compact.ts';
 import { find } from '../src/find.ts';
+import { keepThenSummarize, messagesFromApi, namedThroughParts } from '../src/keep.ts';
 import { closeStore, type Run } from '../src/private.ts';
 import { goalOf, whyNotRebuilt } from '../src/select.ts';
 import { FIND, PLUGIN, RECALL, placesOf, recall, type StoreDirs } from '../src/store.ts';
@@ -269,9 +270,15 @@ async function collectOnce($: WithUi & WithEnv & WithFiles & WithSettings & With
       say($, `moved-out results are kept, not cleaned up: ${live.stop}`);
       return;
     }
+    // A result kept with a summarized conversation is named in its part, not in a transcript (ADR 0007).
+    const named = await namedThroughParts(files, dirs, live.ids);
+    if ('stop' in named) {
+      say($, `moved-out results are kept, not cleaned up: ${named.stop}`);
+      return;
+    }
     let ended = true;
     for (const dir of dirs) {
-      const done = await collect(list, execOf($), dir, live.ids, now);
+      const done = await collect(list, execOf($), dir, named, now);
       if ('stop' in done) {
         ended = false;
         say($, `moved-out results in ${dir} are kept, not cleaned up: ${done.stop}`);
@@ -302,31 +309,46 @@ function summary(report: Report): string {
 }
 
 /**
- * One compaction, up to what would be handed back. A string says why the
- * built-in compaction runs on the conversation as it is. Nothing is thrown,
- * so the caller calls `next` once whatever happened here.
+ * Why the built-in compaction runs on the conversation as it is, and what of
+ * it can be kept first, or why nothing of it can be.
+ */
+type HandedOver = { why: string; keep: { store: StoreDirs; messages: readonly Message[] } | { unkept: string } };
+
+/**
+ * One compaction, up to what would be handed back, or why the built-in
+ * compaction runs instead. Nothing is thrown, so the caller calls `next` once
+ * whatever happened here.
  */
 async function attempt(
   $: WithUi & WithEnv & WithFiles & WithSession & WithSettings & WithProcess,
   e: Compacting,
   options: PluginOptions,
-): Promise<Outcome | string> {
+): Promise<{ outcome: Outcome; store: StoreDirs } | HandedOver> {
+  // Outside the try: once the place is known to be private, a failure further on still keeps the conversation.
+  let store: StoreDirs | null = null;
+  const messages = e.messages as readonly Message[];
   try {
     // First, so that it is said whatever else this compaction comes to.
     if (options['keepNewest'] !== undefined) {
       say($, 'the keepNewest setting is gone: the newest results are kept by size now, set keepTokens instead');
     }
-    const store = await storeOf($, options);
-    if (typeof store === 'string') return store;
-    const messages = e.messages as readonly Message[];
-    const why = whyNotRebuilt(messages, await $.session.messages({ as: 'api' }));
-    if (why !== null) return why;
-    // Before anything is written: what cannot be made private is not written to.
-    const unsafe = await privateOf($, store);
-    if (unsafe !== null) return unsafe;
+    const place = await storeOf($, options);
+    if (typeof place === 'string') return { why: place, keep: { unkept: 'there is no place to keep it in' } };
+    // Before anything is written: what cannot be made private is not written to, the conversation included.
+    const unsafe = await privateOf($, place);
+    if (unsafe !== null) return { why: unsafe, keep: { unkept: 'the place to keep it in could not be made private' } };
+    store = place;
+    // Before a summary can run: a kept conversation is named by this session's transcript, which a collection must read.
     await noteRootOf($, store, options);
     // A ticket whose result a collection moved to the trash meanwhile is put back, so that it stays a ticket of this store.
     await restoreFor($, store, ticketIds(messages));
+    const api = await $.session.messages({ as: 'api' });
+    const why = whyNotRebuilt(messages, api);
+    if (why !== null) {
+      // Not rebuilt is not lost: the text of what it holds is kept all the same, from its
+      // blocks where they can be read, else from the messages the hook was handed.
+      return { why, keep: { store, messages: messagesFromApi(api) ?? messages } };
+    }
 
     // A summary is estimated by Claude Code itself: nothing is sent for it.
     const { context } = await $.session.usage({ breakdown: 'summary' });
@@ -338,7 +360,7 @@ async function attempt(
       targetPercent: numberIn(options['targetPercent'], 40, 1, 99),
       maxAfterPercent: numberIn(options['maxAfterPercent'], 75, 1, 100),
     };
-    return await compact(
+    const outcome = await compact(
       {
         messages,
         tokens: typeof tokens === 'number' && tokens > 0 ? tokens : Math.ceil(charsOf(messages) / CHARS_PER_TOKEN),
@@ -348,9 +370,22 @@ async function attempt(
       config,
       hostOf($),
     );
+    return { outcome, store };
   } catch (error) {
-    return error instanceof Error ? error.message : String(error);
+    const why = error instanceof Error ? error.message : String(error);
+    return { why, keep: store === null ? { unkept: 'the place to keep it in could not be read' } : { store, messages } };
   }
+}
+
+/** Hands `handed` to the built-in compaction, having kept what `keep` names first (src/keep.ts decides). */
+async function summarizeKeeping(
+  $: WithUi & WithFiles,
+  handed: SessionCompactInput,
+  next: (e: SessionCompactInput) => Promise<SessionCompactResult>,
+  keep: HandedOver['keep'],
+): Promise<SessionCompactResult> {
+  const where = 'unkept' in keep ? keep : { dir: keep.store.write, messages: keep.messages };
+  return keepThenSummarize(filesOf($), where, (text) => say($, text), () => next(handed));
 }
 
 export const register: Register = (on, options) => {
@@ -359,8 +394,9 @@ export const register: Register = (on, options) => {
       await $.tool.register({
         name: RECALL,
         description:
-          `Returns, unchanged, a tool result that ${PLUGIN} moved out of the conversation. ` +
-          "Call it with the id written in the line that stands in the result's place.",
+          `Returns, unchanged, a tool result that ${PLUGIN} moved out of the conversation, or a part of the ` +
+          'conversation it kept before a summary replaced it. ' +
+          "Call it with the id written in the line that stands in the result's place, or in the lines right after the summary.",
         inputSchema: {
           type: 'object',
           properties: {
@@ -381,8 +417,8 @@ export const register: Register = (on, options) => {
         await $.tool.register({
           name: FIND,
           description:
-            `Finds, among the tool results that ${PLUGIN} moved out of this conversation, the one a question is about, ` +
-            'and returns it unchanged. Ask in words what the result contains or is about; a phrase of twelve characters ' +
+            `Finds, among the tool results that ${PLUGIN} moved out of this conversation and the parts of it kept before ` +
+            'a summary replaced them, the one a question is about, and returns it unchanged. Ask in words what the result contains or is about; a phrase of twelve characters ' +
             'or more in double quotes is looked for as written. When Jev is not sure which result it is, the likeliest few ' +
             'are listed with the ids to recall them by; when none of them seems to be about it, it says so.',
           inputSchema: {
@@ -450,18 +486,19 @@ export const register: Register = (on, options) => {
     // A subagent may have no tool to read a result back with.
     if (e.agentId !== undefined) return next(e);
 
-    const outcome = await attempt($, e, options);
-    if (typeof outcome === 'string') {
-      say($, `built-in compaction: ${outcome}`);
-      return next(e);
+    const tried = await attempt($, e, options);
+    if ('why' in tried) {
+      say($, `built-in compaction: ${tried.why}`);
+      return summarizeKeeping($, e, next, tried.keep);
     }
+    const { outcome, store } = tried;
     if (outcome.report.moved === 0) {
       say($, `built-in compaction: nothing could be moved out (${summary(outcome.report)})`);
-      return next(e);
+      return summarizeKeeping($, e, next, { store, messages: e.messages as readonly Message[] });
     }
     if (!outcome.enough) {
       say($, `built-in compaction on what is left, too much is still in use: ${summary(outcome.report)}`);
-      return next({ ...e, messages: outcome.messages });
+      return summarizeKeeping($, { ...e, messages: outcome.messages }, next, { store, messages: outcome.messages });
     }
     say($, summary(outcome.report));
     return { messages: outcome.messages };

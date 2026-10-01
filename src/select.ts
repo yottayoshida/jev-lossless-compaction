@@ -1,6 +1,7 @@
 // Which tool results may leave the conversation, and the order they leave in
 // when nothing but rules decides it.
 
+import { PLUGIN } from './store.ts';
 import type { Message, ToolUse } from './types.ts';
 
 export type Candidate = {
@@ -233,7 +234,8 @@ export function goalOf(messages: readonly Message[], instructions: string | unde
   const said = messages
     .filter((message) => message.role === 'user' && (message.toolResults?.length ?? 0) === 0)
     .map((message) => message.text.replace(HOST_TEXT, '').trim())
-    .filter((text) => text !== '' && !text.startsWith('/'))
+    // A line this plugin put after a summary is not what the person asked for.
+    .filter((text) => text !== '' && !text.startsWith('/') && !text.startsWith(`[${PLUGIN}]`))
     .slice(-3);
   return [instructions?.trim() ?? '', ...said].filter((text) => text !== '').join('\n\n');
 }

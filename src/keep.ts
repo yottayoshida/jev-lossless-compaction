@@ -1,0 +1,301 @@
+// What Claude Code's own summary replaces, kept before it runs (ADR 0007).
+//
+// The conversation is written as text, in parts small enough for `recall` to
+// hand back whole, and a message holding a ticket for each part is put right
+// after the summary.
+
+import { inputLine } from './ask.ts';
+import { PART, PLUGIN, bytesOf, isPart, moveOut, partTicketText, readTicket, recall, type NotMoved } from './store.ts';
+import type { Files, Message, ToolResult, ToolUse } from './types.ts';
+
+/**
+ * The largest part, in UTF-8 bytes. `recall` output over about 50 KB is saved
+ * by Claude Code to a file that the agent reads, and lines are cut when read.
+ */
+export const PART_BYTES = 40_000;
+/** A result or an input shorter than this stays in the part's text: its ticket would be about as long. */
+export const INLINE_BYTES = 400;
+/** The first line of the message put after the summary; `goalOf` does not count a message that starts with it. */
+export const KEPT = `[${PLUGIN}] The conversation this summary replaces is kept`;
+
+/**
+ * The conversation as Claude Code hands it with its blocks, read into the
+ * shape the plugin keeps: an image or a document leaves a line saying it was
+ * not kept, thinking is left out, and a block of any other kind is written as
+ * its JSON. Null when it is not a list of messages.
+ */
+export function messagesFromApi(api: unknown): Message[] | null {
+  if (!Array.isArray(api)) return null;
+  const out: Message[] = [];
+  for (const raw of api) {
+    if (typeof raw !== 'object' || raw === null) return null;
+    const { role, content } = raw as { role?: unknown; content?: unknown };
+    if (role !== 'user' && role !== 'assistant') return null;
+    const message: Message = { role, text: '', toolUses: [] };
+    const texts: string[] = [];
+    const results: ToolResult[] = [];
+    for (const block of typeof content === 'string' ? [{ type: 'text', text: content }] : Array.isArray(content) ? content : []) {
+      const b = (typeof block === 'object' && block !== null ? block : {}) as Record<string, unknown>;
+      switch (b['type']) {
+        case 'text':
+          texts.push(String(b['text'] ?? ''));
+          break;
+        case 'thinking':
+        case 'redacted_thinking':
+          break;
+        case 'image':
+        case 'document':
+          texts.push(`[${String(b['type'])} not kept]`);
+          break;
+        case 'tool_use':
+          message.toolUses.push({
+            tool_use_id: String(b['id'] ?? ''),
+            tool: String(b['name'] ?? 'tool'),
+            input: (typeof b['input'] === 'object' && b['input'] !== null ? b['input'] : {}) as Record<string, unknown>,
+          });
+          break;
+        case 'tool_result':
+          results.push({ tool_use_id: String(b['tool_use_id'] ?? ''), text: resultText(b['content']), isError: b['is_error'] === true });
+          break;
+        default:
+          texts.push(JSON.stringify(block));
+      }
+    }
+    message.text = texts.join('\n');
+    if (results.length > 0) message.toolResults = results;
+    out.push(message);
+  }
+  return out;
+}
+
+function resultText(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return content === undefined ? '' : JSON.stringify(content);
+  return content
+    .map((block) => {
+      const b = (typeof block === 'object' && block !== null ? block : {}) as Record<string, unknown>;
+      if (b['type'] === 'text') return String(b['text'] ?? '');
+      if (b['type'] === 'image' || b['type'] === 'document') return `[${String(b['type'])} not kept]`;
+      return JSON.stringify(block);
+    })
+    .join('\n');
+}
+
+const valueText = (value: unknown) => (typeof value === 'string' ? value : JSON.stringify(value));
+
+/** One message as it is kept: every text, input value and result as it was, between fixed lines. */
+export function messageText(message: Message): string {
+  const lines = [`--- ${message.role}`];
+  if (message.text !== '') lines.push(message.text);
+  for (const use of message.toolUses) {
+    lines.push(`[call ${use.tool} ${use.tool_use_id}] ${inputLine(use.input)}`);
+    for (const [name, value] of Object.entries(use.input)) lines.push(`${name}:`, valueText(value));
+  }
+  for (const result of message.toolResults ?? []) {
+    lines.push(`[result ${result.tool_use_id}${result.isError ? ' error' : ''}]`, result.text);
+  }
+  return lines.join('\n');
+}
+
+/** The UTF-8 length of one character, as a code point tells it. */
+function utf8Bytes(character: string): number {
+  const point = character.codePointAt(0) ?? 0;
+  return point < 0x80 ? 1 : point < 0x800 ? 2 : point < 0x10000 ? 3 : 4;
+}
+
+/** Cuts `text` into pieces of at most `limit` bytes, at a line where it can and never inside a character. */
+export function cut(text: string, limit: number): string[] {
+  const pieces: string[] = [];
+  let piece = '';
+  let size = 0;
+  const flush = () => {
+    if (piece !== '') pieces.push(piece);
+    piece = '';
+    size = 0;
+  };
+  const lines = text.split('\n');
+  lines.forEach((line, index) => {
+    const withBreak = index < lines.length - 1 ? `${line}\n` : line;
+    const bytes = bytesOf(withBreak);
+    if (size + bytes <= limit) {
+      piece += withBreak;
+      size += bytes;
+      return;
+    }
+    flush();
+    if (bytes <= limit) {
+      piece = withBreak;
+      size = bytes;
+      return;
+    }
+    for (const character of withBreak) {
+      const b = utf8Bytes(character);
+      if (size + b > limit) flush();
+      piece += character;
+      size += b;
+    }
+  });
+  flush();
+  return pieces;
+}
+
+type Kept = { text: string; parts: number } | { failed: NotMoved['reason'] };
+
+/**
+ * Moves out, as a compaction does, every result and every long input of one
+ * message that is still in it, and returns the message with tickets in their
+ * place. What cannot be moved out stays as it was: it is kept in the part.
+ */
+async function withTickets(files: Files, dir: string, message: Message, tools: ReadonlyMap<string, string>, inputs: boolean): Promise<Message> {
+  const toolResults = [];
+  for (const result of message.toolResults ?? []) {
+    if (readTicket(result.text) || bytesOf(result.text) < INLINE_BYTES) {
+      toolResults.push(result);
+      continue;
+    }
+    const moved = await moveOut(files, dir, tools.get(result.tool_use_id) ?? 'tool', result.text);
+    toolResults.push('reason' in moved ? result : { ...result, text: moved.text });
+  }
+  const toolUses: ToolUse[] = [];
+  for (const use of message.toolUses) {
+    if (!inputs) {
+      toolUses.push(use);
+      continue;
+    }
+    const input: Record<string, unknown> = {};
+    for (const [name, value] of Object.entries(use.input)) {
+      input[name] = value;
+      if (typeof value !== 'string' || bytesOf(value) < INLINE_BYTES) continue;
+      const moved = await moveOut(files, dir, `${use.tool}.${name}`, value);
+      if (!('reason' in moved)) input[name] = moved.text;
+    }
+    toolUses.push({ ...use, input });
+  }
+  const out: Message = { ...message, toolUses };
+  if (message.toolResults) out.toolResults = toolResults;
+  return out;
+}
+
+/**
+ * Keeps `messages` in parts of at most PART_BYTES and returns the text of the
+ * message that stands after the summary, or why nothing was kept. A part that
+ * cannot be written keeps nothing: a ticket would point at what is not there.
+ */
+export async function keepConversation(files: Files, dir: string, messages: readonly Message[]): Promise<Kept> {
+  const tools = new Map(messages.flatMap((message) => message.toolUses).map((use) => [use.tool_use_id, use.tool]));
+  // Pieces of text, each with the number of the message it comes from, one based.
+  // Every message ends in a line break, so the parts read in order are the messages in order.
+  const pieces: { text: string; at: number; bytes: number }[] = [];
+  for (const [index, message] of messages.entries()) {
+    const ticketed = await withTickets(files, dir, message, tools, false);
+    let text = `${messageText(ticketed)}\n`;
+    // Its results are tickets by now; only its inputs are left to move out.
+    if (bytesOf(text) > PART_BYTES) text = `${messageText(await withTickets(files, dir, ticketed, tools, true))}\n`;
+    for (const piece of cut(text, PART_BYTES)) pieces.push({ text: piece, at: index + 1, bytes: bytesOf(piece) });
+  }
+
+  const parts: { text: string; first: number; last: number; bytes: number }[] = [];
+  for (const piece of pieces) {
+    const last = parts.at(-1);
+    if (last && last.bytes + piece.bytes <= PART_BYTES) {
+      last.text += piece.text;
+      last.last = piece.at;
+      last.bytes += piece.bytes;
+    } else {
+      parts.push({ text: piece.text, first: piece.at, last: piece.at, bytes: piece.bytes });
+    }
+  }
+  if (parts.length === 0) return { failed: 'write-failed' };
+
+  const lines = [`${KEPT}, in ${parts.length} part${parts.length === 1 ? '' : 's'}; recall a part by its id.`];
+  for (const [index, part] of parts.entries()) {
+    const moved = await moveOut(files, dir, PART, part.text);
+    if ('reason' in moved) return { failed: moved.reason };
+    lines.push(partTicketText({ part: index + 1, parts: parts.length, first: part.first, last: part.last, bytes: moved.bytes, id: moved.id }));
+  }
+  return { text: lines.join('\n'), parts: parts.length };
+}
+
+/**
+ * The conversation Claude Code's compaction handed back, with the message
+ * that holds the tickets right after its first message, the summary. A
+ * conversation with nothing in it is handed back as it is.
+ */
+export function afterSummary<T>(messages: readonly T[], text: string): (T | Message)[] {
+  if (messages.length === 0) return [...messages];
+  const [summary, ...rest] = messages;
+  return [summary as T, { role: 'user', text, toolUses: [] }, ...rest];
+}
+
+const ID = /[0-9a-f]{64}/g;
+
+/**
+ * The ids a collection must keep: those the transcripts name, and every id
+ * written in a kept part they name, through the parts of earlier summaries.
+ * A part's results are named in the part alone, not in any transcript. A part
+ * that cannot be read stops the collection, as a transcript that cannot be
+ * read does.
+ */
+export async function namedThroughParts(files: Files, dirs: readonly string[], live: ReadonlySet<string>): Promise<Set<string> | { stop: string }> {
+  const named = new Set(live);
+  const queue = [...live];
+  for (let id = queue.pop(); id !== undefined; id = queue.pop()) {
+    const part = await isPart(files, dirs, id);
+    if (part === null) return { stop: `the entry of ${id} could not be read` };
+    if (!part) continue;
+    const got = await recall(files, dirs, id);
+    if ('error' in got) return { stop: `a kept part, ${id}, could not be read: ${got.error}` };
+    for (const inner of got.text.match(ID) ?? []) {
+      if (named.has(inner)) continue;
+      named.add(inner);
+      queue.push(inner);
+    }
+  }
+  return named;
+}
+
+/** What to keep before a summary, or why nothing can be. */
+export type ToKeep = { dir: string; messages: readonly Message[] } | { unkept: string };
+
+/**
+ * Keeps what `keep` names, then runs `summarize` — the built-in compaction —
+ * exactly once, and puts the tickets of what was kept right after the summary
+ * it hands back. What goes wrong in keeping is said, and the summary is then
+ * handed back as the built-in compaction made it; so is a skip.
+ */
+export async function keepThenSummarize<R extends { messages?: readonly unknown[] | undefined }>(
+  files: Files,
+  keep: ToKeep,
+  say: (text: string) => void,
+  summarize: () => Promise<R>,
+): Promise<R> {
+  const unkept = (why: string) => say(`nothing of the conversation is kept before the built-in summary: ${why}`);
+  let kept: { text: string; parts: number } | null = null;
+  if ('unkept' in keep) {
+    unkept(keep.unkept);
+  } else {
+    try {
+      const done = await keepConversation(files, keep.dir, keep.messages);
+      if ('failed' in done) unkept(`a part could not be written (${done.failed})`);
+      else kept = done;
+    } catch (error) {
+      unkept(error instanceof Error ? error.message : String(error));
+    }
+  }
+  const r = await summarize();
+  if (kept === null) return r;
+  const parts = `${kept.parts} part${kept.parts === 1 ? '' : 's'}`;
+  if (r.messages === undefined) {
+    say(`the conversation was kept in ${parts}, but no summary ran, so nothing was added to it`);
+    return r;
+  }
+  try {
+    const messages = afterSummary(r.messages, kept.text);
+    say(`kept the conversation in ${parts} before the built-in summary`);
+    return { ...r, messages };
+  } catch {
+    // Handing back what the built-in compaction made is better than a second summary.
+    say(`the conversation was kept in ${parts}, but its tickets could not be put after the summary`);
+    return r;
+  }
+}

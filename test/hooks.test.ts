@@ -44,17 +44,25 @@ test("where results are kept and where find sends both go through the repository
   assert.ok(hooks.includes('placeTaints(taints, options)'), 'the place');
   assert.ok(hooks.includes('sendTaints(taints, options)'), 'the sending');
   // Each of recall, find, the compaction and the clean-up takes the place from storeOf and gives up on its reason.
-  assert.equal(hooks.split("if (typeof store === 'string')").length - 1, 4, 'four callers');
+  const givingUp = hooks.split("if (typeof store === 'string')").length - 1;
+  // The compaction calls it `place` until the place is known to be private (it keeps the conversation after that).
+  assert.equal(givingUp + (hooks.split("if (typeof place === 'string')").length - 1), 4, 'four callers');
   const collecting = hooks.slice(hooks.indexOf('async function collectOnce('), hooks.indexOf('function numberIn('));
   assert.ok(collecting.includes("const store = await storeOf($, options);\n    if (typeof store === 'string') return;"), 'the clean-up too');
 });
 
 test('a compaction makes the place private before anything is written, and gives up when it cannot', () => {
   const attempt = hooks.slice(hooks.indexOf('async function attempt('), hooks.indexOf('export const register'));
-  const made = attempt.indexOf('await privateOf($, store)');
+  const made = attempt.indexOf('await privateOf($, place)');
   assert.ok(made > 0, 'privateOf is called');
   assert.ok(made < attempt.indexOf('await compact('), 'before the compaction writes');
-  assert.ok(attempt.includes('if (unsafe !== null) return unsafe;'), 'and gives up on its reason');
+  assert.ok(made < attempt.indexOf('whyNotRebuilt('), 'and before a conversation that is not rebuilt is kept');
+  assert.ok(
+    attempt.includes("if (unsafe !== null) return { why: unsafe, keep: { unkept: 'the place to keep it in could not be made private' } };"),
+    'and gives up on its reason, keeping nothing',
+  );
+  assert.ok(made < attempt.indexOf('store = place;'), 'the conversation is kept only in a place made private');
+  assert.ok(attempt.indexOf('await noteRootOf($, store, options);') < attempt.indexOf('whyNotRebuilt('), "this session's transcript is noted before any summary");
   assert.ok(hooks.includes('$.process.run(argv, { timeoutMs: 10_000 })'), 'commands run through the host');
 });
 
@@ -73,4 +81,24 @@ test('the clean-up runs after the session starts, unwaited, and recall, find and
 test('a compaction imports nothing that sends: compact.ts does not reach ask.ts', () => {
   assert.ok(!compaction.includes("from './ask.ts'"));
   assert.ok(!compaction.includes('http'));
+});
+
+test('every way the main conversation reaches the built-in summary keeps it first; only a subagent goes straight on', () => {
+  const handler = hooks.slice(hooks.indexOf("on('session.compact'"));
+  assert.deepEqual(handler.match(/return next\(e\)/g), ['return next(e)'], 'the subagent branch alone');
+  assert.ok(handler.includes('if (e.agentId !== undefined) return next(e);'), 'and it is the subagent branch');
+  assert.equal(handler.match(/return summarizeKeeping\(\$, /g)?.length, 3, 'the three branches that hand over');
+  assert.ok(handler.includes('return summarizeKeeping($, e, next, tried.keep);'), 'why the compaction did not run');
+  assert.ok(handler.includes("summarizeKeeping($, e, next, { store, messages: e.messages as readonly Message[] })"), 'nothing moved out');
+  assert.ok(handler.includes('summarizeKeeping($, { ...e, messages: outcome.messages }, next, { store, messages: outcome.messages })'), 'too much left');
+  assert.ok(hooks.includes('messages: messagesFromApi(api) ?? messages'), 'a conversation that cannot be rebuilt is kept, from its blocks or as handed');
+  assert.ok(hooks.includes("keep: store === null ? { unkept: 'the place to keep it in could not be read' } : { store, messages }"), 'a failure once the place is known still keeps it');
+});
+
+test('a clean-up keeps what kept parts name: it collects against the ids followed through them, and stops when they cannot be read', () => {
+  const collecting = hooks.slice(hooks.indexOf('async function collectOnce('), hooks.indexOf('function numberIn('));
+  assert.ok(collecting.includes('const named = await namedThroughParts(files, dirs, live.ids);'), 'followed');
+  assert.ok(collecting.includes("if ('stop' in named) {"), 'stops');
+  assert.ok(collecting.includes('collect(list, execOf($), dir, named, now)'), 'collected against them');
+  assert.ok(!collecting.includes('collect(list, execOf($), dir, live.ids, now)'), 'not against the transcripts alone');
 });
