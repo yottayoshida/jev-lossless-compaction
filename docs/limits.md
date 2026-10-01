@@ -36,9 +36,11 @@ What is not kept: images and documents, which leave `[image not kept]` or
 `[document not kept]`; thinking; messages older than the 4096 Claude Code
 shows a plugin; the conversation of a subagent. Nothing is kept when the
 place results are kept in is not an absolute path or cannot be read, or when
-a part cannot be written, and the compaction says
-so; the summary is then Claude Code's alone, as before, and earlier tickets
-may be gone from the conversation, the files remaining. A block of a kind
+a part cannot be written for a reason other than a write the
+system refused, and the compaction says so; the summary is then Claude
+Code's alone, as before, and earlier tickets may be gone from the
+conversation, the files remaining. A write the system refused stops the
+summary instead: see [the files](#the-files). A block of a kind
 the plugin does not know is kept as its JSON.
 
 `find` offers the parts and the results their tickets stand for, reading at
@@ -67,9 +69,35 @@ the newest.
 
 ## Function hooks
 
-The plugin needs Claude Code's function hooks, which are early access and off
-by default. Without `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1` the plugin
-installs, shows in the list, and does nothing.
+The plugin needs Claude Code's function hooks, which are early access.
+Whether they are on is decided by `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS` — `1`,
+`true`, `yes` or `on` turns them on, `0`, `false`, `no` or `off` turns them
+off — and, when it is not set, by Claude Code's own rollout for your account.
+With them off the plugin installs, shows in the list, and does nothing, and
+says nothing: a compaction then prints no line starting
+`lossless-compaction:`, and there is no `recall` tool. Measured on Claude
+Code 2.1.286: on one account they were off without the variable, and `1` in
+`~/.claude/settings.json` under `env`, or in the shell, turned them on.
+
+## Setting it up
+
+The README's quick start puts the variable in `~/.claude/settings.json`
+(under `CLAUDE_CONFIG_DIR` when that is set). It can also be exported in your
+shell profile, `export CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1`, or set under
+`env` in one repository's `.claude/settings.local.json`.
+
+To use the plugin in one repository only, add `--scope local` to the install
+and run it there; set the key without `--scope`.
+
+The key for `find` is set with
+`/plugin configure lossless-compaction@lossless-compaction`. With nothing set
+there, it is read from the environment: `TYPESAFE_API_KEY`, or
+`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, unless a repository's
+settings set it.
+
+Coming from `jev-lossless-compaction` (0.3.0 and before), an installed copy
+does not follow the rename: see [moving from the old
+name](#moving-from-the-old-name).
 
 ## The files
 

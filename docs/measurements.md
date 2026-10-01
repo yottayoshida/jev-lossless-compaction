@@ -1,7 +1,7 @@
 # Measurements
 
 Every figure the README quotes, with how it was taken. Except for the last
-section, they were recorded when the plugin was named
+two sections, they were recorded when the plugin was named
 `jev-lossless-compaction`, and the lines quoted are as they appeared then.
 One run each unless said otherwise, all on 2026-09-30, Claude Code 2.1.285
 with Claude Haiku 4.5.
