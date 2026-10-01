@@ -73,11 +73,69 @@ The plugin needs Claude Code's function hooks, which are early access.
 Whether they are on is decided by `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS` — `1`,
 `true`, `yes` or `on` turns them on, `0`, `false`, `no` or `off` turns them
 off — and, when it is not set, by Claude Code's own rollout for your account.
-With them off the plugin installs, shows in the list, and does nothing, and
-says nothing: a compaction then prints no line starting
-`lossless-compaction:`, and there is no `recall` tool. Measured on Claude
-Code 2.1.286: on one account they were off without the variable, and `1` in
-`~/.claude/settings.json` under `env`, or in the shell, turned them on.
+With them off the plugin installs, shows in the list, and moves nothing
+out: there is no `recall` tool, and a compaction is Claude Code's own.
+Measured on Claude Code 2.1.286: on one account they were off without the
+variable, and `1` in `~/.claude/settings.json` under `env` turned them on;
+a value there wins over one set in the shell.
+
+A compaction in such a session does not go by unsaid. When the module runs,
+it sets `LOSSLESS_COMPACTION_RUNNING` to the id of its process. Two classic
+hooks, which run whether or not function hooks are on, compare it with the
+id Claude Code hands them:
+
+- Before a `/compact` without the mark, the compaction is held: nothing is
+  compacted, and a line says that the plugin is not running, which setting
+  to add, how to reopen the conversation, and that running `/compact` again
+  in that session goes ahead with the built-in summary. A process is held
+  once. The conversation reopened in another process is held once more, so
+  that a setting that did not take is noticed before the summary runs, and
+  from the third process on it goes through: `claude -p --resume … "/compact"`
+  is a new process each time. What was held is one line each in `held` under
+  the plugin's data directory (`~/.claude/plugins/data/`), written for its
+  owner alone and started again past fifty lines, after which an earlier
+  conversation is held again.
+- After a compaction that went ahead without the mark, a `/compact` run
+  again or an automatic one, a line says it was Claude Code's own.
+  An automatic compaction is never held: stopped, it would leave the
+  conversation to overflow.
+
+Not reached:
+
+- A session that was already open when the plugin was installed or enabled.
+  Its hooks are not loaded there either.
+- A setup that turns all hooks off.
+- A module that ran and was unloaded later in the same process: the mark
+  stays.
+- A system without `/bin/sh` or `/usr/bin/sh`: the mark is then `any`, which
+  a `claude` started from the session inherits and counts as its own.
+- A Claude Code that hands a classic hook no `CLAUDE_PID`: nothing is held,
+  and any mark counts.
+- A `held` that cannot be written, cannot be read, or is a link: nothing is
+  held; the line after the compaction is still said.
+- A process id used again by a later session, as where every run gets the
+  same id: its first `/compact` is not held. After `/clear`, the new
+  conversation is in a process already held, and is not held either.
+- `LOSSLESS_COMPACTION_RUNNING` set by hand, or by the `env` of a
+  repository's settings: `any`, or the process's own id, counts as the
+  plugin's mark and silences both hooks, which leaves a session as it was
+  before them. It is not among the values in
+  [What a repository can change](#what-a-repository-can-change), since it
+  decides neither where results are written nor where `find` sends.
+
+The other way round, where `sh` is started through something that stands
+between it and Claude Code, the id the module reads would not be the one the
+hooks are handed, and a running session would be told it is not; this was
+not met, and was measured on one machine.
+
+Someone who keeps function hooks off with the plugin enabled is held as
+above in every conversation; `LOSSLESS_COMPACTION_RUNNING` set to `any` in
+their own settings' `env` ends it. The variable is in the environment of
+everything the session starts, as every variable a plugin sets is. Measured
+on Claude Code
+2.1.286, interactively and with `-p`: the held `/compact`, the line after
+one that went ahead, and an automatic compaction with
+`CLAUDE_CODE_AUTO_COMPACT_WINDOW` lowered.
 
 ## Setting it up
 
