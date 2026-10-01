@@ -27,7 +27,8 @@ enough — which is where the built-in summary already runs.
 
 Moving out long `Write` and `Edit` inputs as well was estimated on 79 local
 segments at a median 7% less than 0.4.0 leaves (12% with `Bash` commands,
-which `find` needs to tell results apart).
+which `find` needs to tell results apart). (Measured again on 2026-10-01,
+counted in hand-overs: see Alternatives Considered.)
 
 A `session.compact` hook's `next(e)` resolves to the built-in compaction's
 messages, and a message without Claude Code's handle may be added to them.
@@ -57,6 +58,20 @@ messages, and a message without Claude Code's handle may be added to them.
   moving out, which the measurements above do not favour.
 - Moving out `Write` and `Edit` inputs at every compaction: 7% by the
   estimate, and it does not change what is lost when the summary runs.
+  Counted in hand-overs on 2026-10-01 (#25, `docs/measurements.md`), it
+  stays set aside: of 102 automatic compactions put together from local
+  transcripts, none would have been handed to the built-in summary for
+  being too full, so there was none to save; 15 were handed over for a
+  block that is not rebuilt, and 2 for having nothing to move out, and
+  those 2 held no long input. The one compaction that was handed over for
+  being too full (the 82 % above; not among the 102) held no long input
+  either. It would have left less in use, in the one project whose
+  conversations held long inputs (a median 41 % of the window where it was
+  49 %, the fullest conversation 68 % where it was 73 %). To be taken up
+  again when a compaction says "too much is still in use" on a
+  conversation holding long inputs, or when compactions by the plugin in a
+  row are measured on one that holds them: the one such run in those
+  transcripts, 19 compactions, held none.
 - One text of the whole conversation: `recall` output over about 50 KB is
   saved to a file the agent reads, and lines over 2,000 characters are cut
   when read.

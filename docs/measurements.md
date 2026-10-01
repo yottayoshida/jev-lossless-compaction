@@ -152,6 +152,110 @@ source code that was moved out took. The session of #24, which held
 228,230 characters of thinking, was 72 % over; its breakdown was not
 recorded.
 
+## Moving out tool inputs, counted in hand-overs
+
+On 2026-10-01, offline: no model was called and nothing was sent. The
+transcripts Claude Code keeps on one machine held 492 compactions, 227 of
+them distinct (a forked session copies the ones before it). For 84 of
+those, 81 of them run by hand in forks made for other measurements, the
+message before the compaction is in no file, and the conversation cannot be
+put together. That leaves 143: 102 automatic ones from 56 sessions in 5
+projects, 75 of them in one project, and 41 run by hand.
+
+Each conversation was put together as it stood before the compaction: the
+messages back to the compaction before it, with what that one left in
+place put after its summary. (In the 42 conversations where that applies,
+the first request plus the characters over three comes to a median 79 % of
+the tokens Claude Code recorded with them and 78 % without; left out, two
+more of the 102 have nothing to move out.) It was then given to `compact()`
+as it is at the default settings, with the tokens Claude Code recorded
+before the compaction. The window is the one the plugin stated where it ran
+(29 conversations), 967,000 where the session went over 200,000 tokens, and
+167,000 otherwise. For 7 automatic ones (and 12 run by hand) the window is
+not known; those 7 were compacted at 67,000 to 77,000 tokens. What is not the conversation is taken as the session's
+first request, which was 6 to 10 % over the breakdown's figure in the three
+sessions where both are known; the tokens a character are the rest over the
+conversation's characters, at no less than one in three (21 of the 102 are
+at that floor). Where the plugin itself ran, its line gave the same number
+of results and characters before as this reconstruction in 17 of 29
+conversations: 13 of one session with the small window and 4 short ones
+made for measuring. In the other 12 the characters were off by 0.2 to
+8.4 % in ten, and by 30 % and 41 % in two; six of the 12 were run by hand,
+all with the large window, and six are of the session with the small one.
+How many results were moved out is not compared: the versions that ran then
+moved fewer.
+
+What the 102 automatic compactions come to:
+
+| | Conversations |
+| --- | ---: |
+| Compacted by moving results out | 85 |
+| Handed over: holds an image, a document or another block that is not rebuilt | 15 |
+| Handed over: nothing could be moved out | 2 |
+| Handed over: still too full afterwards | 0 |
+
+No conversation was handed over for being too full, so moving inputs out
+had none to save. The two with nothing to move out held no input of
+`minChars` or more either. Measuring against the tokens before each
+compaction as the window instead changes no row.
+
+Three automatic compactions are not among the 102, the message before them
+being in no file. Put together from the order of the rows instead, two held
+a block that is not rebuilt. The third is the one compaction where the
+plugin itself said "too much is still in use" (2026-09-30: 3 of 39 results
+moved out, about 136,867 of 167,000 tokens by the estimate of that
+version, the 82 % in ADR 0007). Its 39 results and 238,392 characters
+agree with the line (39 and 236,225), and it held no input of `minChars`
+or more: the one hand-over for being too full that there is, moving inputs
+out would not have changed. Whether `compact()` as it is would hand it over
+is not told: Claude Code recorded fewer tokens for it than the session's
+first request, so the size afterwards cannot be counted the way it is
+above.
+
+Of the 41 run by hand, 28
+were compacted, 3 held a block that is not rebuilt, and 10 had nothing to
+move out, 9 of them with no tool result at all; none of those 10 held a
+long input.
+
+How near the 85 came to 75 % of the window, and what moving inputs out
+would leave: `Write`, `Edit`, `MultiEdit` and `NotebookEdit` inputs of
+`minChars` or more, older than the newest `keepTokens` of the conversation,
+each counted as a ticket's length.
+
+| | As it is | `Write`, `Edit` moved | and `Bash` |
+| --- | ---: | ---: | ---: |
+| Fullest afterwards, share of the window | 72.8 % | 68.0 % | 66.9 % |
+| Median, share of the window | 50.0 % | 43.3 % | 39.7 % |
+| Conversations over half the window | 43 | 27 | 23 |
+| 967,000-token window (61): median share | 48.4 % | 41.4 % | 38.1 % |
+| 167,000-token window (24): median share | 58.3 % | 58.3 % | 58.3 % |
+
+In the 61 with the large window, inputs were a median 57.5 % of the
+characters left; in the 24 with the small one, 6.8 %, and no input was long
+enough to move. All 60 conversations in which an input would have been
+moved are of one project (40 sessions), as are 60 of the 61 with the large
+window: what the two right-hand columns take off comes from that project
+alone (a median 41.4 % over its 60 conversations, where it was 48.5 %).
+
+Nineteen of the 24 with the small window are one session that the plugin
+itself compacted again and again, each starting from what its last
+compaction left. Over them the results in the conversation went from 6 to
+117, the share of the window in use afterwards from 53 % to as much as
+67 %, and inputs from 1 % to 12 % of what was left, none of them long.
+
+Why results stay, over the 34,631 results of the 102 conversations: 29,617
+are under `minChars`, 1,155 are among the newest `keepTokens`, 804 failed,
+and all 3,055 others were candidates. A ticket an earlier compaction left
+is counted with the short ones here, since the store was empty.
+
+What this does not show. Of the 61 conversations with the large window, 34
+start at the beginning of a session and 27 from what the built-in summary
+left: none comes after compactions by the plugin in a row, where inputs
+that are never moved out add up, and the one run of those there is held no
+long input. And the size afterwards is an
+estimate: with what is not the conversation taken from the first request,
+as here, a conversation near the line can fall on either side of it.
+
 ## When Claude Code's summary runs
 
 On 2026-10-01, Claude Code 2.1.286 with Claude Haiku 4.5, before the
