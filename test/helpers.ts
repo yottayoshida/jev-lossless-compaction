@@ -89,6 +89,8 @@ export class DiskFiles extends MemoryFiles {
   full: (path: string, count: number) => boolean = () => false;
   /** Says which writes a broken disk stores other text for, without saying so. */
   garble: (path: string, count: number) => boolean = () => false;
+  /** When a write that goes wrong gets to the disk. A test resolves it once the write it races has finished. */
+  later: Promise<void> = Promise.resolve();
   readonly renamed: [string, string][] = [];
   readonly removed: string[] = [];
   #count = 0;
@@ -126,8 +128,9 @@ export class DiskFiles extends MemoryFiles {
     const refused = this.full(path, this.#count);
     const garbled = this.garble(path, this.#count);
     await super.write(path, '');
-    // A write that goes wrong is the slow one: it gets to the disk after the others have read theirs back.
-    await new Promise((resolve) => setTimeout(resolve, refused || garbled ? 20 : 1));
+    // A write that goes wrong is the slow one: it gets to the disk once `later` says the others are done,
+    // not after a time, which a busy machine does not keep.
+    await (refused || garbled ? this.later : new Promise((resolve) => setTimeout(resolve, 1)));
     if (refused) {
       this.files.set(path, text.slice(0, Math.floor(text.length / 2)));
       throw enospc(path);
