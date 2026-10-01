@@ -24,3 +24,5 @@ Why the plugin is built the way it is, one record a decision.
   that the plugin is enabled and not running.
 - [0011](0011-the-size-after-is-what-stays.md): why the size after a
   compaction is counted from what stays.
+- [0012](0012-an-image-in-a-result-is-moved-out.md): why an image in a tool
+  result is moved out with the result.

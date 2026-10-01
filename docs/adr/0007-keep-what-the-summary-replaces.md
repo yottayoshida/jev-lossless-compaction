@@ -8,7 +8,8 @@
 The plugin hands a conversation to Claude Code's own summary when moving
 results out is not enough, when nothing can be moved out, and when the
 conversation cannot be rebuilt (an image, a document, a block of another
-kind, 4096 messages or more). Each time, the summary replaces the
+kind, 4096 messages or more; since ADR 0012 an image in a tool result no
+longer is a reason). Each time, the summary replaces the
 conversation, and the tickets in it may go with it: the one compaction that
 loses what the plugin exists to keep. In a real session (sideeye, Opus 4.6,
 a 200k window, 2026-09-30) one of twenty-one compactions went that way, with

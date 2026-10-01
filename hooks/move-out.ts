@@ -22,6 +22,7 @@ import {
 } from '../src/compact.ts';
 import { find } from '../src/find.ts';
 import { keepThenSummarize, messagesFromApi, namedThroughParts } from '../src/keep.ts';
+import { IMAGE_TOKENS, blocksOf, mediaIn } from '../src/media.ts';
 import { ownProcessId } from '../src/mark.ts';
 import { closeStore, type Run } from '../src/private.ts';
 import { goalOf, whyNotRebuilt } from '../src/select.ts';
@@ -369,6 +370,9 @@ async function attempt(
   // Outside the try: once the place is known to be private, a failure further on still keeps the conversation.
   let store: StoreDirs | null = null;
   const messages = e.messages as readonly Message[];
+  // What is kept when the conversation goes to the built-in summary untouched: read with
+  // its blocks once that can be done, so that an image is named where it stood.
+  let asSent: readonly Message[] = messages;
   try {
     // First, so that it is said whatever else this compaction comes to.
     if (options['keepNewest'] !== undefined) {
@@ -385,11 +389,13 @@ async function attempt(
     // A ticket whose result a collection moved to the trash meanwhile is put back, so that it stays a ticket of this store.
     await restoreFor($, store, ticketIds(messages));
     const api = await $.session.messages({ as: 'api' });
-    const why = whyNotRebuilt(messages, api);
+    asSent = messagesFromApi(api) ?? messages;
+    const media = mediaIn(api);
+    const why = whyNotRebuilt(messages, api) ?? (media.why === null ? null : `the conversation holds what a rebuilt message cannot carry: ${media.why}`);
     if (why !== null) {
       // Not rebuilt is not lost: the text of what it holds is kept all the same, from its
       // blocks where they can be read, else from the messages the hook was handed.
-      return { why, keep: { store, messages: messagesFromApi(api) ?? messages } };
+      return { why, keep: { store, messages: asSent } };
     }
 
     // A summary is estimated by Claude Code itself: nothing is sent for it.
@@ -405,18 +411,22 @@ async function attempt(
     const outcome = await compact(
       {
         messages,
-        tokens: typeof tokens === 'number' && tokens > 0 ? tokens : Math.ceil(charsOf(messages) / CHARS_PER_TOKEN),
+        // Made up from characters when Claude Code gives none: images, which are no characters, at their rough figure.
+        tokens: typeof tokens === 'number' && tokens > 0 ? tokens : Math.ceil(charsOf(messages) / CHARS_PER_TOKEN) + media.images * IMAGE_TOKENS,
         count: countFrom(context?.breakdown, tokens, api),
         window: windowFrom(context, FALLBACK_WINDOW),
         goal: goalOf(messages, e.instructions),
+        media: media.results,
       },
       config,
       hostOf($),
     );
+    // A result that holds an image could not be moved out: nothing was rebuilt.
+    if (outcome.abandoned !== undefined) return { why: outcome.abandoned, keep: { store, messages: asSent } };
     return { outcome, store };
   } catch (error) {
     const why = error instanceof Error ? error.message : String(error);
-    return { why, keep: store === null ? { unkept: 'the place to keep it in could not be read' } : { store, messages } };
+    return { why, keep: store === null ? { unkept: 'the place to keep it in could not be read' } : { store, messages: asSent } };
   }
 }
 
@@ -492,7 +502,9 @@ export const register: Register = (on, options) => {
     if ('error' in found && typeof id === 'string' && (await restoreFor($, store, new Set([id]))) > 0) {
       found = await recall(filesOf($), store.read, id);
     }
-    return { result: 'text' in found ? found.text : `[${PLUGIN}] ${found.error}` };
+    if ('error' in found) return { result: `[${PLUGIN}] ${found.error}` };
+    // An image goes back as an image: as text its bytes would fill the conversation.
+    return { result: found.parts === undefined ? found.text : blocksOf(found.parts) };
   });
 
   // Spelled out, not imported: a test holds it to FIND_TOOL.

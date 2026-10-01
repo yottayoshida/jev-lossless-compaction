@@ -1,5 +1,6 @@
 // One compaction: choose what leaves, move it out, hand the conversation back.
 
+import { IMAGE_TOKENS, encodeMedia, type MediaPart } from './media.ts';
 import { ruleOrder, select, type Candidate } from './select.ts';
 import { isStored, moveOut, readTicket, ticketText, type Moved, type NotMoved, type StoreDirs, type Ticket } from './store.ts';
 import type { Files, Message, ToolResult, ToolUse } from './types.ts';
@@ -41,12 +42,19 @@ export type Input = {
   window: number;
   /** What the person is working on, in their words. */
   goal: string;
+  /**
+   * The tool results that hold an image, by the id of their call, see `mediaIn`.
+   * Each is moved out whatever its age or size: a rebuilt message cannot carry it.
+   */
+  media?: ReadonlyMap<string, readonly MediaPart[]>;
 };
 
 export type Report = {
   results: number;
   candidates: number;
   moved: number;
+  /** The images that left with their results; those results are among `moved`. */
+  images: number;
   charsBefore: number;
   charsAfter: number;
   /** Estimated from characters: the context after, in tokens, and the size it was measured against. */
@@ -73,6 +81,11 @@ export type Outcome = {
    * what is left could change that: the built-in compaction should run on `messages`.
    */
   enough: boolean;
+  /**
+   * Why nothing was rebuilt: a result that holds an image could not be moved
+   * out. `messages` are then the ones handed in, untouched, handles and all.
+   */
+  abandoned?: string;
   report: Report;
 };
 
@@ -170,7 +183,22 @@ function rebuild(messages: readonly Message[], moved: ReadonlyMap<string, Moved>
  */
 export type Count = { fixedTokens: number; tokensPerChar: number };
 
-/** The characters of a conversation read with its blocks: every text a block holds, its signature and input too. */
+const MEDIA = new Set(['image', 'document']);
+
+/** How many images a conversation read with its blocks holds, wherever they stand. */
+export function imagesOf(api: unknown): number {
+  let total = 0;
+  const visit = (node: unknown): void => {
+    if (Array.isArray(node)) return node.forEach(visit);
+    if (typeof node !== 'object' || node === null) return;
+    if ((node as { type?: unknown }).type === 'image') total += 1;
+    else visit((node as { content?: unknown }).content);
+  };
+  if (Array.isArray(api)) for (const message of api) visit((message as { content?: unknown } | null)?.content);
+  return total;
+}
+
+/** The characters of a conversation read with its blocks: every text a block holds, its signature and input too, and no image. */
 export function apiChars(api: unknown): number {
   let total = 0;
   const visit = (node: unknown): void => {
@@ -180,6 +208,9 @@ export function apiChars(api: unknown): number {
     }
     if (Array.isArray(node)) return node.forEach(visit);
     if (typeof node !== 'object' || node === null) return;
+    // The bytes of an image are not characters of the conversation: counted, they would
+    // bring the tokens a character down to the floor for every conversation holding one.
+    if (MEDIA.has((node as { type?: unknown }).type as string)) return;
     for (const [key, value] of Object.entries(node)) {
       if (key === 'type') continue;
       if (key === 'content' || typeof value === 'string') visit(value);
@@ -218,17 +249,75 @@ export function countFrom(breakdown: Breakdown | undefined, tokens: unknown, api
   if (!(fixedTokens > 0 && fixedTokens < tokens)) return undefined;
   const chars = apiChars(api);
   const floor = 1 / CHARS_PER_TOKEN;
-  return { fixedTokens, tokensPerChar: chars > 0 ? Math.max(floor, conversation.tokens / chars) : floor };
+  // Images are left out on both sides: their bytes are not among the characters, so
+  // their tokens are taken off the row. Left in the row alone, the figure would say
+  // a conversation of screenshots is still too full once every one of them is gone.
+  const text = Math.max(0, conversation.tokens - imagesOf(api) * IMAGE_TOKENS);
+  return { fixedTokens, tokensPerChar: chars > 0 ? Math.max(floor, text / chars) : floor };
 }
 
 export async function compact(input: Input, config: Config, host: Host): Promise<Outcome> {
   const started = host.now();
   const { files } = host;
   const stored = await storedTickets(files, config.store.read, input.messages);
+  const resultCount = input.messages.reduce((sum, message) => sum + (message.toolResults?.length ?? 0), 0);
+
+  // First, and whatever else is decided: every result that holds an image. Each is
+  // stored whole, text and images, and becomes one ticket. If one of them cannot be,
+  // nothing is rebuilt, since a rebuilt message would lose the image without a word.
+  const moved = new Map<string, Moved>();
+  const held = input.media ?? new Map<string, readonly MediaPart[]>();
+  let images = 0;
+  if (held.size > 0) {
+    const tools = new Map(input.messages.flatMap((message) => message.toolUses.map((use) => [use.tool_use_id, use.tool] as const)));
+    const here = new Set(input.messages.flatMap((message) => (message.toolResults ?? []).map((result) => result.tool_use_id)));
+    const abandon = (why: string): Outcome => ({
+      messages: [...input.messages],
+      enough: false,
+      abandoned: why,
+      report: {
+        results: resultCount,
+        candidates: 0,
+        moved: 0,
+        images: 0,
+        charsBefore: charsOf(input.messages),
+        charsAfter: charsOf(input.messages),
+        tokensAfter: input.tokens,
+        counted: false,
+        window: input.window,
+        notMoved: {},
+        writeErrors: [],
+        ms: host.now() - started,
+      },
+    });
+    // Whatever the hook's messages say of them: what holds an image as it was sent is moved out.
+    const ids = [...held.keys()];
+    if (ids.some((id) => !here.has(id))) return abandon('a tool result that holds an image is not among the messages shown');
+    // The same image returned twice is one text: the first of each is written side by side
+    // with the others, and the rest after, when the text is there and only the ticket is made.
+    // Two writes of one file at a time can spoil each other.
+    const texts = new Map(ids.map((id) => [id, encodeMedia(held.get(id) as readonly MediaPart[])]));
+    const first = new Map<string, string>();
+    for (const id of ids) if (!first.has(texts.get(id) as string)) first.set(texts.get(id) as string, id);
+    const leading = [...first.values()];
+    const store = (id: string) => moveOut(files, config.store.write, tools.get(id) ?? 'tool', texts.get(id) as string);
+    const written = await inParallel(leading, WRITES_IN_FLIGHT, store);
+    const firsts = new Map(leading.map((id, at) => [id, written[at] as Moved | NotMoved]));
+    for (const id of ids) {
+      const result = firsts.get(id) ?? (await store(id));
+      if ('reason' in result) {
+        return abandon(`a tool result that holds an image could not be moved out (${result.code ?? result.reason})`);
+      }
+      moved.set(id, result);
+      images += (held.get(id) as readonly MediaPart[]).filter((part) => part.type === 'image').length;
+    }
+  }
+
   const { candidates, left: stayed } = select(
     input.messages,
     { keepChars: config.keepTokens * CHARS_PER_TOKEN, minChars: config.minChars },
-    new Set(stored.keys()),
+    // A result that left above is no more a candidate than one that is a ticket already.
+    new Set([...stored.keys(), ...moved.keys()]),
   );
 
   // What is in use, counted from what stays when what is not the conversation is
@@ -248,11 +337,13 @@ export async function compact(input: Input, config: Config, host: Host): Promise
   // obsolete first, then those sharing the least with the goal, then the oldest.
   const order = ruleOrder(candidates, input.goal);
 
-  const moved = new Map<string, Moved>();
   const notMoved: Report['notMoved'] = {};
   const writeErrors: string[] = [];
   if (stayed.unlike > 0) notMoved['call-differs'] = stayed.unlike;
-  let saved = 0;
+  // Counted from what stays, images are in neither size. Where a size is `tokens` less
+  // what left, the images that left above are taken off as well, at the same rough figure:
+  // `tokens` holds them, as Claude Code's own figure or as the caller made it up.
+  let saved = count === undefined ? images * IMAGE_TOKENS * CHARS_PER_TOKEN : 0;
   const left = [...order];
   while (saved / CHARS_PER_TOKEN < need && left.length > 0) {
     // As many as the estimate says are still needed, written side by side. Each
@@ -291,9 +382,10 @@ export async function compact(input: Input, config: Config, host: Host): Promise
     messages,
     enough: moved.size > 0 && (over <= 0 || charsAfter * perChar < over),
     report: {
-      results: input.messages.reduce((sum, message) => sum + (message.toolResults?.length ?? 0), 0),
+      results: resultCount,
       candidates: candidates.length,
       moved: moved.size,
+      images,
       charsBefore,
       charsAfter,
       tokensAfter,
@@ -313,7 +405,8 @@ export function reportLine(report: Report): string {
     .map(([reason, count]) => `${count} ${reason}`)
     .join(', ');
   return (
-    `moved ${report.moved} of ${report.results} tool results out ` +
+    `moved ${report.moved} of ${report.results} tool results out` +
+    (report.images === 0 ? ' ' : `, ${report.images} ${report.images === 1 ? 'image' : 'images'} with them ` ) +
     `(${report.charsBefore} -> ${report.charsAfter} chars` +
     (report.counted ? `, about ${report.tokensAfter} of ${report.window} tokens in use) ` : ') ') +
     `in ${took}${stayed === '' ? '' : `; left in place: ${stayed}`}` +

@@ -5,19 +5,24 @@ What the plugin does not do, and what a repository or a version can change.
 ## When the built-in compaction runs instead
 
 Claude Code's built-in compaction runs instead when the conversation holds an
-image, a document or any block of a kind the plugin does not know, has 4096
-messages or more, belongs to a subagent, has nothing that can be moved out,
-or is still too full afterwards and a summary could change that.
+image or a document outside a tool result, or any block of a kind the plugin
+does not know, has 4096 messages or more, belongs to a subagent, has nothing
+that can be moved out, or is still too full afterwards and a summary could
+change that. An image in a tool result is moved out with the result: a line
+stands in its place, and the conversation is compacted by the plugin (see
+[images](#images)).
 
 How full it is afterwards is counted from what stays: what Claude Code's
 breakdown says is not the conversation (the system prompt, the tools'
 definitions and the like), plus the rebuilt conversation at the session's
 own tokens a character — what the breakdown's `Messages` row comes to over
 the conversation as it was sent — and at no less than one in three.
-Thinking is not in it, since no rebuilt message carries any. Measured
-against the next request, that came within 17 %, mostly high; it comes out
-low when what stays is denser than the session on average, such as
-Japanese left after source code was moved out.
+Thinking is not in it, since no rebuilt message carries any, and neither
+are images (their bytes are not among the characters, and about 1,500
+tokens an image are taken off the `Messages` row). Measured against the
+next request, that came within 17 % in three sessions and 29 % over in a
+fourth: mostly high. It comes out low when what stays is denser than the
+session on average, such as Japanese left after source code was moved out.
 When the breakdown cannot be relied on, the line a compaction shows names
 no token count, and what was in use less what was moved out is measured
 instead: that still counts the thinking, and with no response since the
@@ -47,8 +52,10 @@ for a part leaves as a ticket named for the call and the field, such as
 a part is cut at a line, and a line too long at a character. Read in order,
 the parts are the messages in order.
 
-What is not kept: images and documents, which leave `[image not kept]` or
-`[document not kept]`; thinking; messages older than the 4096 Claude Code
+What is not kept: images and documents still in the conversation, which
+leave `[image not kept]` or `[document not kept]` (an image the plugin moved
+out with its result is a ticket by then, and is kept as one); thinking;
+messages older than the 4096 Claude Code
 shows a plugin; the conversation of a subagent. Nothing is kept when the
 place results are kept in is not an absolute path or cannot be read, or when
 a part cannot be written for a reason other than a write the
@@ -81,6 +88,40 @@ together add up to at most `keepTokens` tokens (three characters to a token,
 20,000 by default); every older one is a candidate to leave, whatever message
 it is in. A result a later call made obsolete is a candidate even when it is
 the newest.
+
+## Images
+
+A tool result that holds an image — a screenshot a tool returned, an image
+file read with `Read` — is moved out at every compaction, whatever its age
+or size and before any other result: a rebuilt message cannot carry an
+image, so the newest one leaves too. The result's text and its images are
+stored together, in the order the result held them, and one line stands in
+the result's place, worded as any other. What the host added after the
+result's own blocks is not stored. `recall` returns the text and the
+images in that order, as images and with nothing added; the bytes of an
+image are never returned as text. Recalled and compacted again, the result
+comes to the same stored text and nothing is written a second time. A
+tool's output that is, to the character, a stored result holding an image
+— the store's own file printed by a command — is returned as that image
+too, and is not offered by `find`.
+
+When such a result cannot be stored — it is over about 4 MB with its images
+in base64, the write fails, or the store refuses it for any other reason
+it refuses a result — nothing is rebuilt, and the conversation goes to the
+built-in compaction as it was, which the line says. So does a conversation
+with an image that is not held as its bytes, whose bytes do not begin as a
+PNG, JPEG, GIF or WebP does, or next to a block that is not text; with an
+image pasted into a message; and with a document. No pasted image and no
+document was in the transcripts this was measured on. If the compaction
+says `cannot carry: image` or `document` for yours, that is the next thing
+to build.
+
+`find` does not offer a result that holds an image: nothing of it is sent
+to Jev, its text included. `recall` reads it by the id in its line.
+
+Images make the store grow faster: 621 of them in two months of one
+person's transcripts came to 120.8 MB in base64. They are kept and cleaned
+up as results are.
 
 ## Function hooks
 

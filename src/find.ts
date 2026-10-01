@@ -201,6 +201,8 @@ export async function find(input: FindInput): Promise<string> {
     if (!(await isStored(files, dirs, ticket.line))) continue;
     const got = await recall(files, dirs, ticket.id);
     if ('error' in got) continue;
+    // A result that holds an image is not offered: nothing of it is sent to Jev, its text included.
+    if (got.parts !== undefined) continue;
     const holds = phrases.length > 0 && phrases.every((phrase) => got.text.includes(phrase));
     entries.push({ ticket, option: `${describe(ticket)}. It reads: ${digest(shown(got.text), DIGEST_CHARS)}`, holds });
   }
