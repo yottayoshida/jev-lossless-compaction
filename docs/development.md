@@ -35,8 +35,32 @@ the first time it loads the plugin as above.
 
 Run `npm run validate` after every change to `src/` or `hooks/`. When the hook
 file or anything it imports does not parse, Claude Code still lists the plugin
-as installed but loads no hook from it and says nothing: `/compact` quietly
-runs the built-in compaction, and the `recall` tool is missing from the tools.
+as installed but loads no hook from it: the `recall` tool is missing from the
+tools, and a `/compact` is held by `hooks/notice.sh`.
+
+`hooks/notice.sh` leans on two things Claude Code's type declarations do not
+promise: a classic hook sees a variable the module set with `$.env.set`, and
+it is handed `CLAUDE_PID`; and it reads its input by its text
+(`"trigger":"manual"`, `"source":"compact"`, `"session_id":"…"`, as 2.1.286
+writes them). No test in CI can see any of these. With every version, two
+runs, each a new conversation that has used no tool, so that the module hands
+it to the built-in compaction and `PreCompact` runs (when the module compacts
+by itself, that hook does not run at all):
+
+```sh
+# The module runs: /compact is not held, and no "was not running" line follows.
+env -u LOSSLESS_COMPACTION_RUNNING claude --plugin-dir . --settings on.json --debug
+# The module does not run, with another process's mark handed down: /compact is
+# held, and run again in that session it is followed by the line.
+env LOSSLESS_COMPACTION_RUNNING=99999 claude --plugin-dir . --settings off.json
+```
+
+`on.json` is `{ "enabledPlugins": { "lossless-compaction@lossless-compaction":
+false } }`, so that an installed copy does not run next to the working tree;
+`off.json` adds `"env": { "CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "0" }`, since a
+value in settings wins over one set in the shell. The second run's mark is
+not its own, so being held there shows the hook telling a mark handed down
+from its own.
 
 ## What Claude Code requires of the hook file
 

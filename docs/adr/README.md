@@ -20,3 +20,5 @@ Why the plugin is built the way it is, one record a decision.
   is lost to a failed write, and there is no limit.
 - [0009](0009-an-account-id-is-enough-to-choose-cloudflare.md): why an
   account id is enough to choose Cloudflare.
+- [0010](0010-a-mark-says-the-plugin-is-running.md): how a session learns
+  that the plugin is enabled and not running.

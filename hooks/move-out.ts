@@ -21,6 +21,7 @@ import {
 } from '../src/compact.ts';
 import { find } from '../src/find.ts';
 import { keepThenSummarize, messagesFromApi, namedThroughParts } from '../src/keep.ts';
+import { ownProcessId } from '../src/mark.ts';
 import { closeStore, type Run } from '../src/private.ts';
 import { goalOf, whyNotRebuilt } from '../src/select.ts';
 import { FIND, PLUGIN, RECALL, placesOf, recall, type StoreDirs } from '../src/store.ts';
@@ -46,6 +47,7 @@ const FALLBACK_WINDOW = 200_000;
 
 type WithUi = { ui: { log: (text: string) => void; toast: (text: string) => void } };
 type WithEnv = { env: { get: (name: string) => Promise<string | undefined> } };
+type WithEnvSet = { env: { set: (name: string, value: string) => Promise<unknown> } };
 type WithFiles = {
   fs: {
     read: (path: string) => Promise<string>;
@@ -154,6 +156,15 @@ function execOf($: WithProcess): Exec {
     const { exitCode, stdout, isStdoutTruncated } = await $.process.run(argv, { timeoutMs });
     return { exitCode, stdout, truncated: isStdoutTruncated === true };
   };
+}
+
+/** Tells the classic hooks of this process that the plugin runs in it (ADR 0010). */
+async function markRunning($: WithEnvSet & WithProcess): Promise<void> {
+  try {
+    await $.env.set('LOSSLESS_COMPACTION_RUNNING', await ownProcessId(execOf($), PLACES));
+  } catch {
+    // Without the mark a /compact is held the first time; what the plugin does is as before.
+  }
 }
 
 /** The directory written to, made or closed to its owner alone, else why not; the others read from, closed where they can be. */
@@ -433,6 +444,7 @@ async function summarizeKeeping(
 
 export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
+    await markRunning($);
     try {
       await $.tool.register({
         name: RECALL,

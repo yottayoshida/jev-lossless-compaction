@@ -1,3 +1,14 @@
 {
-  "modules": ["./move-out.ts"]
+  "modules": ["./move-out.ts"],
+  "hooks": {
+    "PreCompact": [
+      { "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/notice.sh\" before", "timeout": 5 }] }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/notice.sh\" after", "timeout": 5 }]
+      }
+    ]
+  }
 }

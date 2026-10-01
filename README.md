@@ -18,7 +18,7 @@ claude plugin install lossless-compaction@lossless-compaction
 
 Then turn Claude Code's function hooks on, once, in `~/.claude/settings.json`.
 They are early access: unless your account already has them on, the plugin
-installs, shows in the list, and does nothing without this line.
+installs, shows in the list, and moves nothing out without this line.
 
 ```json
 { "env": { "CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1" } }
@@ -26,7 +26,10 @@ installs, shows in the list, and does nothing without this line.
 
 Start a new session. From then on `/compact` and automatic compaction go
 through the plugin, and a line starting `lossless-compaction:` says what each
-one did. No such line after a compaction means function hooks are off.
+one did. In a session where the plugin is enabled and is not running, no
+compaction goes by unsaid: a `/compact` is held the first time, with what to
+change, and one that goes ahead is followed by a line saying it was Claude
+Code's own ([what this does not reach](docs/limits.md#function-hooks)).
 
 `recall` needs nothing more. `find` is optional and needs a Jev key: set it
 with `/plugin configure lossless-compaction@lossless-compaction` inside
