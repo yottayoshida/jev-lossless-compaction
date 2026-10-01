@@ -12,12 +12,13 @@ import {
   CHARS_PER_TOKEN,
   charsOf,
   compact,
+  countFrom,
+  reportLine,
   windowFrom,
   type Config,
   type Context,
   type Host,
   type Outcome,
-  type Report,
 } from '../src/compact.ts';
 import { find } from '../src/find.ts';
 import { keepThenSummarize, messagesFromApi, namedThroughParts } from '../src/keep.ts';
@@ -349,19 +350,6 @@ function numberIn(value: unknown, fallback: number, min: number, max: number): n
   return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max ? value : fallback;
 }
 
-function summary(report: Report): string {
-  const took = report.ms < 1000 ? `${report.ms} ms` : `${(report.ms / 1000).toFixed(1)} s`;
-  const stayed = Object.entries(report.notMoved)
-    .map(([reason, count]) => `${count} ${reason}`)
-    .join(', ');
-  return (
-    `moved ${report.moved} of ${report.results} tool results out ` +
-    `(${report.charsBefore} -> ${report.charsAfter} chars, about ${report.tokensAfter} of ${report.window} tokens in use) ` +
-    `in ${took}${stayed === '' ? '' : `; left in place: ${stayed}`}` +
-    (report.writeErrors.length === 0 ? '' : `; could not write: ${report.writeErrors.join(', ')}`)
-  );
-}
-
 /**
  * Why the built-in compaction runs on the conversation as it is, and what of
  * it can be kept first, or why nothing of it can be.
@@ -418,6 +406,7 @@ async function attempt(
       {
         messages,
         tokens: typeof tokens === 'number' && tokens > 0 ? tokens : Math.ceil(charsOf(messages) / CHARS_PER_TOKEN),
+        count: countFrom(context?.breakdown, tokens, api),
         window: windowFrom(context, FALLBACK_WINDOW),
         goal: goalOf(messages, e.instructions),
       },
@@ -548,14 +537,14 @@ export const register: Register = (on, options) => {
     }
     const { outcome, store } = tried;
     if (outcome.report.moved === 0) {
-      say($, `built-in compaction: nothing could be moved out (${summary(outcome.report)})`);
+      say($, `built-in compaction: nothing could be moved out (${reportLine(outcome.report)})`);
       return summarizeKeeping($, e, next, { store, messages: e.messages as readonly Message[] });
     }
     if (!outcome.enough) {
-      say($, `built-in compaction on what is left, too much is still in use: ${summary(outcome.report)}`);
+      say($, `built-in compaction on what is left, too much is still in use: ${reportLine(outcome.report)}`);
       return summarizeKeeping($, { ...e, messages: outcome.messages }, next, { store, messages: outcome.messages });
     }
-    say($, summary(outcome.report));
+    say($, reportLine(outcome.report));
     return { messages: outcome.messages };
   });
 };

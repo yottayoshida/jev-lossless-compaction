@@ -124,6 +124,34 @@ a copy of that conversation not compacted again, returned it at probability
 `recall` of an old ticket's id returned the result, and the new directory
 stayed empty.
 
+## The size after a compaction
+
+On 2026-10-01, Claude Code 2.1.286 with Claude Opus 5.5 at medium effort, a
+967,000-token window. Three new sessions each read source files or Markdown
+with `Read`, one at a time, then ran `/compact`, then sent one line asking
+for a one-word answer. The size estimated at the compaction is set against
+the input tokens of that answer, cache reads and writes included. The
+estimate counted from what stays is what Claude Code's breakdown put outside
+the conversation (42,495 tokens in each: the rows in use other than
+`Messages`, and the tokens in use less `Messages` came within 3 of it) plus
+the rebuilt conversation, at three characters a token and at the session's
+own tokens a character (the `Messages` row over the characters of the
+conversation as sent: 0.375 and 0.450).
+
+| Session | Next request | Before (`tokens` less moved out) | At 3 characters a token | At the session's figure |
+| ------- | -----------: | -------------------------------: | ----------------------: | ----------------------: |
+| Eight source files, one word on each | 53,305 | 91,829 (+72 %) | 60,088 (+12.7 %) | 62,278 (+16.8 %) |
+| Twelve Markdown files, a summary in Japanese of each | 67,682 | 103,021 (+52 %) | 60,003 (−11.3 %) | 66,102 (−2.3 %) |
+| Eight source files, a sentence on each | 53,513 | 97,740 (+83 %) | 60,207 (+12.5 %) | — |
+
+The third session's breakdown was not recorded; its figure at three
+characters a token takes the 42,495 of the other two. The sessions held little thinking (908 and 27,834
+characters, signatures included, in the two recorded). The figure before
+was off with almost none: three characters a token underestimates what
+source code that was moved out took. The session of #24, which held
+228,230 characters of thinking, was 72 % over; its breakdown was not
+recorded.
+
 ## When Claude Code's summary runs
 
 On 2026-10-01, Claude Code 2.1.286 with Claude Haiku 4.5, before the

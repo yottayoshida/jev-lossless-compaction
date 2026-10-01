@@ -32,6 +32,11 @@ export type Input = {
   messages: readonly Message[];
   /** Tokens in the context now: the conversation, the system prompt and the tools' definitions. */
   tokens: number;
+  /**
+   * How to count a size from what stays, see `countFrom`. Absent when it cannot be
+   * told, and sizes are estimated from `tokens` alone.
+   */
+  count?: Count;
   /** The size the context may reach, see `windowFrom`. */
   window: number;
   /** What the person is working on, in their words. */
@@ -46,6 +51,12 @@ export type Report = {
   charsAfter: number;
   /** Estimated from characters: the context after, in tokens, and the size it was measured against. */
   tokensAfter: number;
+  /**
+   * Whether `tokensAfter` is counted from what stays. When false it is `tokens` less
+   * what was moved out, which still counts the thinking every compaction drops, and
+   * is not a figure to show.
+   */
+  counted: boolean;
   window: number;
   /** Why results stayed: by what the store said, and `call-differs` for a call whose own text was another. */
   notMoved: Partial<Record<NotMoved['reason'] | 'call-differs', number>>;
@@ -67,15 +78,19 @@ export type Outcome = {
 
 // ponytail: tokens are estimated as characters / 3. Results of reading source code
 // measured 2.2 to 2.3 characters a token, prose in English runs near 4, Japanese at a
-// character or less. Guessing too high a figure is the worse mistake: what was saved
-// is underestimated, and a compaction that did enough is handed to the built-in one.
-// The host counts no text for a plugin, and the `Messages` row of its breakdown takes
-// up what its other rows got wrong, so neither removes the guess.
+// character or less. Where a size is `tokens` less what was moved out, too high a
+// figure is the worse mistake: what was saved is underestimated, and a compaction that
+// did enough is handed to the built-in one. Where a size is counted from what stays,
+// the session's own figure is used when it is lower (`countFrom`), and this one is
+// only the floor. The host counts no text for a plugin.
 export const CHARS_PER_TOKEN = 3;
 const WRITES_IN_FLIGHT = 16;
 
+/** What Claude Code says of the context, as far as `countFrom` reads it. */
+export type Breakdown = { categories?: unknown; apiUsage?: unknown };
+
 /** What Claude Code says of the context, cut down to what a compaction measures against. */
-export type Context = { window?: unknown; breakdown?: { autoCompactThreshold?: unknown } };
+export type Context = { window?: unknown; breakdown?: { autoCompactThreshold?: unknown } & Breakdown };
 
 /**
  * The size the context may reach: where Claude Code compacts on its own when
@@ -149,6 +164,63 @@ function rebuild(messages: readonly Message[], moved: ReadonlyMap<string, Moved>
   return out;
 }
 
+/**
+ * A size counted from what stays: what is not the conversation, and how many tokens
+ * the conversation's characters come to.
+ */
+export type Count = { fixedTokens: number; tokensPerChar: number };
+
+/** The characters of a conversation read with its blocks: every text a block holds, its signature and input too. */
+export function apiChars(api: unknown): number {
+  let total = 0;
+  const visit = (node: unknown): void => {
+    if (typeof node === 'string') {
+      total += node.length;
+      return;
+    }
+    if (Array.isArray(node)) return node.forEach(visit);
+    if (typeof node !== 'object' || node === null) return;
+    for (const [key, value] of Object.entries(node)) {
+      if (key === 'type') continue;
+      if (key === 'content' || typeof value === 'string') visit(value);
+      else total += JSON.stringify(value ?? '').length;
+    }
+  };
+  if (Array.isArray(api)) for (const message of api) visit((message as { content?: unknown } | null)?.content);
+  return total;
+}
+
+/**
+ * How to count a size from what stays, from Claude Code's breakdown. What is not
+ * the conversation is every row in use but `Messages`. The conversation counts at the
+ * tokens a character the `Messages` row comes to over the conversation as it was
+ * sent (`api`), and at no less than one in three: Japanese runs near a token a
+ * character, and counted at three characters a token a conversation that is still
+ * too full would be said to fit.
+ *
+ * Undefined unless it can be relied on: `tokens` is Claude Code's own figure, the
+ * breakdown carries the last response's usage, which its `Messages` row is
+ * reconciled to, there is such a row, and what is left lies between nothing and
+ * `tokens`.
+ */
+export function countFrom(breakdown: Breakdown | undefined, tokens: unknown, api: unknown): Count | undefined {
+  if (typeof tokens !== 'number' || !Number.isFinite(tokens) || tokens <= 0) return undefined;
+  if (typeof breakdown?.apiUsage !== 'object' || breakdown.apiUsage === null || !Array.isArray(breakdown.categories)) return undefined;
+  const used = breakdown.categories.filter(
+    (row): row is { name: string; tokens: number } =>
+      typeof row === 'object' && row !== null && (row as { kind?: unknown }).kind === 'used' &&
+      typeof (row as { name?: unknown }).name === 'string' &&
+      typeof (row as { tokens?: unknown }).tokens === 'number' && Number.isFinite((row as { tokens: number }).tokens),
+  );
+  const conversation = used.find((row) => row.name === 'Messages');
+  if (conversation === undefined) return undefined;
+  const fixedTokens = used.filter((row) => row !== conversation).reduce((sum, row) => sum + row.tokens, 0);
+  if (!(fixedTokens > 0 && fixedTokens < tokens)) return undefined;
+  const chars = apiChars(api);
+  const floor = 1 / CHARS_PER_TOKEN;
+  return { fixedTokens, tokensPerChar: chars > 0 ? Math.max(floor, conversation.tokens / chars) : floor };
+}
+
 export async function compact(input: Input, config: Config, host: Host): Promise<Outcome> {
   const started = host.now();
   const { files } = host;
@@ -159,10 +231,19 @@ export async function compact(input: Input, config: Config, host: Host): Promise
     new Set(stored.keys()),
   );
 
+  // What is in use, counted from what stays when what is not the conversation is
+  // known. Every message is rebuilt and carries no thinking, so the thinking in
+  // `tokens` is gone afterwards whatever is moved out: counted from `tokens`, a
+  // conversation that fits could be handed to the built-in summary (#24).
+  const { count } = input;
+  const perChar = count?.tokensPerChar ?? 1 / CHARS_PER_TOKEN;
+  const charsBefore = charsOf(input.messages);
+  const before = count === undefined ? input.tokens : count.fixedTokens + charsBefore * perChar;
   // At most the target, and never more than half of what is there now: a
-  // compaction that was asked for should leave room to work in.
-  const target = Math.min((input.window * config.targetPercent) / 100, input.tokens / 2);
-  const need = input.tokens - target;
+  // compaction that was asked for should leave room to work in. Both measured the
+  // same way, so that something is always needed.
+  const target = Math.min((input.window * config.targetPercent) / 100, before / 2);
+  const need = before - target;
   // The order results leave in is decided by rules alone: those a later call made
   // obsolete first, then those sharing the least with the goal, then the oldest.
   const order = ruleOrder(candidates, input.goal);
@@ -201,25 +282,41 @@ export async function compact(input: Input, config: Config, host: Host): Promise
   const messages = rebuild(input.messages, moved, stored);
   // What is measured against the window is everything in it: the system prompt and the
   // tools' definitions too, which no compaction makes smaller.
-  const tokensAfter = Math.round(input.tokens - saved / CHARS_PER_TOKEN);
   const charsAfter = charsOf(messages);
+  const tokensAfter = Math.round(count === undefined ? input.tokens - saved / CHARS_PER_TOKEN : count.fixedTokens + charsAfter * perChar);
   // How far over what may stay in use. A summary can take away no more than the
   // conversation that is left: when that does not cover it, handing over gains nothing.
   const over = tokensAfter - (input.window * config.maxAfterPercent) / 100;
   return {
     messages,
-    enough: moved.size > 0 && (over <= 0 || charsAfter / CHARS_PER_TOKEN < over),
+    enough: moved.size > 0 && (over <= 0 || charsAfter * perChar < over),
     report: {
       results: input.messages.reduce((sum, message) => sum + (message.toolResults?.length ?? 0), 0),
       candidates: candidates.length,
       moved: moved.size,
-      charsBefore: charsOf(input.messages),
+      charsBefore,
       charsAfter,
       tokensAfter,
+      counted: count !== undefined,
       window: input.window,
       notMoved,
       writeErrors,
       ms: host.now() - started,
     },
   };
+}
+
+/** The line a compaction shows. A size of the context is named only when it was counted from what stays. */
+export function reportLine(report: Report): string {
+  const took = report.ms < 1000 ? `${report.ms} ms` : `${(report.ms / 1000).toFixed(1)} s`;
+  const stayed = Object.entries(report.notMoved)
+    .map(([reason, count]) => `${count} ${reason}`)
+    .join(', ');
+  return (
+    `moved ${report.moved} of ${report.results} tool results out ` +
+    `(${report.charsBefore} -> ${report.charsAfter} chars` +
+    (report.counted ? `, about ${report.tokensAfter} of ${report.window} tokens in use) ` : ') ') +
+    `in ${took}${stayed === '' ? '' : `; left in place: ${stayed}`}` +
+    (report.writeErrors.length === 0 ? '' : `; could not write: ${report.writeErrors.join(', ')}`)
+  );
 }

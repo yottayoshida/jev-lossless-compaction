@@ -107,7 +107,7 @@ test('stored results are written through mv where it starts, the reason a write 
   assert.ok(hooks.includes('return { files: storingFilesOf($), now: () => Date.now() };'), 'the compaction writes through it');
   assert.ok(hooks.includes('return keepThenSummarize(storingFilesOf($), where,'), 'keeping the conversation too');
   assert.ok(hooks.includes("(why) => ({ skip: why })"), 'a skip is what the hook returns');
-  assert.ok(hooks.includes("`; could not write: ${report.writeErrors.join(', ')}`"), 'the reason is said');
+  assert.ok(compaction.includes("`; could not write: ${report.writeErrors.join(', ')}`"), 'the reason is said');
   const storing = hooks.slice(hooks.indexOf('function storingFilesOf('), hooks.indexOf('function runOf('));
   assert.ok(storing.includes("started('mv', ['-f', '--', from, to])"), 'mv -f --');
   assert.ok(storing.includes('$.process.run([`${place}/${program}`, ...args], { timeoutMs: 10_000 })'), 'from /bin, else /usr/bin, never through PATH');
@@ -116,4 +116,10 @@ test('stored results are written through mv where it starts, the reason a write 
   assert.ok(hooks.includes('let canMove = false;'), 'and it starts out not known');
   assert.ok(storing.includes("started('mkdir', ['-p', '--', path])"), 'mkdir -p --');
   assert.ok(storing.includes("started('rm', ['-f', '--', path])"), 'rm -f --');
+});
+
+test("a compaction is told what is not the conversation from Claude Code's breakdown, and the line comes from src/", () => {
+  assert.ok(hooks.includes('count: countFrom(context?.breakdown, tokens, api),'), 'count');
+  assert.ok(!hooks.includes('function summary('), 'no line of its own');
+  assert.equal(hooks.split('reportLine(outcome.report)').length - 1, 3, 'every line a compaction shows');
 });

@@ -22,3 +22,5 @@ Why the plugin is built the way it is, one record a decision.
   account id is enough to choose Cloudflare.
 - [0010](0010-a-mark-says-the-plugin-is-running.md): how a session learns
   that the plugin is enabled and not running.
+- [0011](0011-the-size-after-is-what-stays.md): why the size after a
+  compaction is counted from what stays.
