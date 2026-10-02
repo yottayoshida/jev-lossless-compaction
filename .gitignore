@@ -8,7 +8,9 @@ dist/
 *.pem
 *.key
 
-# recorded agent sessions and anything derived from them stay on the machine
+# recorded agent sessions and anything derived from them stay on the machine;
+# the benchmark's made-up conversations (bench/bases/, test/fixtures/bench/) are
+# built to be published and hold nothing of anyone's work
 local/
 
 # editor and OS

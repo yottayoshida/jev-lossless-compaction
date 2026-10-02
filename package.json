@@ -13,6 +13,7 @@
     "typecheck:hooks": "tsc -p tsconfig.hooks.json",
     "test": "node --test \"test/**/*.test.ts\"",
     "test:hooks": "claude plugin test hooks",
+    "bench": "node bench/main.ts",
     "validate": "claude plugin validate .claude-plugin/plugin.json"
   },
   "devDependencies": {

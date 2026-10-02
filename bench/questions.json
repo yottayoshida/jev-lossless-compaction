@@ -1,0 +1,647 @@
+[
+  {
+    "trace": "results",
+    "version": 1,
+    "shape": "results-heavy: twelve files of about 17,000 characters read, nothing written",
+    "said": 7,
+    "filesBeforeCompaction": [
+      "removed: report.sh",
+      "regenerated: changing-1.log"
+    ],
+    "questions": [
+      {
+        "id": "gone-1",
+        "kind": "exact-gone",
+        "ask": "What did report.sh print for batch 07? Give the whole line.",
+        "reference": "batch 07: 8 warnings, checksum 5384f20e",
+        "needles": [
+          "batch 07: 8 warnings, checksum 5384f20e"
+        ]
+      },
+      {
+        "id": "gone-2",
+        "kind": "exact-gone",
+        "ask": "What was the checksum on the line report.sh printed for batch 93?",
+        "reference": "batch 93: 5 warnings, checksum 7a27d384",
+        "needles": [
+          "7a27d384"
+        ]
+      },
+      {
+        "id": "unchanged",
+        "kind": "exact-unchanged",
+        "ask": "What does the line for record 91-0061 in kept-1.log say?",
+        "reference": "record 91-0061: station 6303 reported 985 units at step 61",
+        "needles": [
+          "station 6303 reported 985 units"
+        ]
+      },
+      {
+        "id": "then",
+        "kind": "exact-then",
+        "ask": "changing-1.log has been regenerated since you read it. What did its line for record 81-0044 say when you read it, before that?",
+        "reference": "record 81-0044: station 19 reported 448 units at step 44",
+        "needles": [
+          "station 19 reported 448 units"
+        ]
+      },
+      {
+        "id": "now",
+        "kind": "exact-now",
+        "ask": "changing-1.log has been regenerated since you read it. What does its line for record 81-0044 say now?",
+        "reference": "record 81-0044: station 19 reported 50 units at step 44",
+        "needles": [
+          "station 19 reported 50 units"
+        ]
+      },
+      {
+        "id": "next",
+        "kind": "continuity",
+        "ask": "Without starting on it yet: what is the next step, and which files does it involve?",
+        "reference": "Read log13.txt to log16.txt and list the stations reporting more than 990 units in each.",
+        "rubric": "Right if it says the next step is reading log13 to log16 (those four files) and listing stations over 990 units. Wrong if it names other files or another task, or does not know.",
+        "right": "Next is reading log13.txt through log16.txt and listing, for each, the stations that reported over 990 units.",
+        "wrong": "Next is to re-read logs 1 to 4 and compute the average units per station."
+      },
+      {
+        "id": "decided",
+        "kind": "continuity",
+        "ask": "What did we decide about when to flag a station, and what is still open?",
+        "reference": "Flag a station only when it reports more than 990 units in two different logs. Still open: whether log7.txt, which looked truncated, must be fetched again.",
+        "rubric": "Right if it gives both: the two-different-logs rule for flagging (over 990 units), and that log7.txt possibly being truncated is the open point. Wrong if either is missing or different.",
+        "right": "A station is flagged only if it is over 990 units in two different logs; open is whether the truncated-looking log7.txt needs fetching again.",
+        "wrong": "A station is flagged as soon as it is over 990 units in any one log; nothing is open."
+      },
+      {
+        "id": "rule-1",
+        "kind": "constraint",
+        "ask": "Where are we supposed to write findings?",
+        "reference": "Findings go in findings.md and nowhere else.",
+        "rubric": "Right if it names findings.md as the place for findings. Wrong if it names another file or says there is no rule.",
+        "right": "In findings.md, and only there.",
+        "wrong": "In a notes.txt file next to each log."
+      },
+      {
+        "id": "rule-2",
+        "kind": "constraint",
+        "ask": "How do we write a station id in our notes?",
+        "reference": "With the prefix ST-, as in ST-1325.",
+        "rubric": "Right if it says station ids take the prefix ST-. Wrong if it gives another form or says there is no rule.",
+        "right": "Always with the ST- prefix, for example ST-1325.",
+        "wrong": "As the bare number, exactly as the log prints it."
+      }
+    ],
+    "finds": [
+      {
+        "id": "find-report",
+        "ask": "Which earlier result held a line reading \"d8923051\"?",
+        "target": "batch 58: 2 warnings, checksum d8923051"
+      },
+      {
+        "id": "find-kept",
+        "ask": "Which earlier result listed a station that reported 618 units at step 17?",
+        "target": "record 91-0017: station 6922 reported 618 units at step 17"
+      },
+      {
+        "id": "find-log-a",
+        "ask": "Which earlier result listed a station that reported 664 units at step 150?",
+        "target": "record 2-0150: station 1325 reported 664 units at step 150"
+      },
+      {
+        "id": "find-log-b",
+        "ask": "Which earlier result held the record numbered 9-0203?",
+        "target": "record 9-0203: station 3083 reported 320 units at step 203"
+      }
+    ]
+  },
+  {
+    "trace": "writes",
+    "version": 1,
+    "shape": "write- and edit-heavy: eight source files written from dictation and two edited; the bulk is tool inputs",
+    "said": 14,
+    "filesBeforeCompaction": [
+      "removed: report.sh",
+      "regenerated: changing-2.log"
+    ],
+    "questions": [
+      {
+        "id": "gone-1",
+        "kind": "exact-gone",
+        "ask": "What did report.sh print for batch 07? Give the whole line.",
+        "reference": "batch 07: 0 warnings, checksum 53859045",
+        "needles": [
+          "batch 07: 0 warnings, checksum 53859045"
+        ]
+      },
+      {
+        "id": "gone-2",
+        "kind": "exact-gone",
+        "ask": "What was the checksum on the line report.sh printed for batch 93?",
+        "reference": "batch 93: 8 warnings, checksum 7a2871bb",
+        "needles": [
+          "7a2871bb"
+        ]
+      },
+      {
+        "id": "unchanged",
+        "kind": "exact-unchanged",
+        "ask": "What does the line for record 92-0061 in kept-2.log say?",
+        "reference": "record 92-0061: station 6434 reported 986 units at step 61",
+        "needles": [
+          "station 6434 reported 986 units"
+        ]
+      },
+      {
+        "id": "then",
+        "kind": "exact-then",
+        "ask": "changing-2.log has been regenerated since you read it. What did its line for record 82-0044 say when you read it, before that?",
+        "reference": "record 82-0044: station 150 reported 449 units at step 44",
+        "needles": [
+          "station 150 reported 449 units"
+        ]
+      },
+      {
+        "id": "now",
+        "kind": "exact-now",
+        "ask": "changing-2.log has been regenerated since you read it. What does its line for record 82-0044 say now?",
+        "reference": "record 82-0044: station 150 reported 55 units at step 44",
+        "needles": [
+          "station 150 reported 55 units"
+        ]
+      },
+      {
+        "id": "next",
+        "kind": "continuity",
+        "ask": "Without starting on it yet: what is the next step, and which files does it involve?",
+        "reference": "Add lib/index.ts re-exporting modules m1 to m8.",
+        "rubric": "Right if it says the next step is adding lib/index.ts that re-exports m1 to m8. Wrong if it names another file or task, or does not know.",
+        "right": "Add lib/index.ts, which re-exports lib/m1.ts through lib/m8.ts.",
+        "wrong": "Write tests for m1 in test/m1.test.ts."
+      },
+      {
+        "id": "decided",
+        "kind": "continuity",
+        "ask": "What did we decide about how the limits are laid out, and what is still open?",
+        "reference": "Keep one function per step rather than a table of limits, because reviewers read the per-step comments. Still open: whether limits above 4000 are intended.",
+        "rubric": "Right if it gives both: one function per step instead of a table, and that limits above 4000 being intended is the open point. Wrong if either is missing or different.",
+        "right": "One function per step, not a table of limits, since reviewers read the per-step comments; open is whether the limits over 4000 are intended.",
+        "wrong": "We moved all limits into one table; nothing is open."
+      },
+      {
+        "id": "rule-1",
+        "kind": "constraint",
+        "ask": "Is there a package we must not use? Which one?",
+        "reference": "leftpad-lite must never be added or imported.",
+        "rubric": "Right if it names leftpad-lite as the package not to use. Wrong if it names another or says there is none.",
+        "right": "Yes: leftpad-lite must not be added or imported.",
+        "wrong": "No, any package from the registry is fine."
+      },
+      {
+        "id": "rule-2",
+        "kind": "constraint",
+        "ask": "Which directory must new files never go under?",
+        "reference": "Never under vendor/; new files go under lib/.",
+        "rubric": "Right if it says vendor/ is where new files must not go (lib/ is where they go). Wrong otherwise.",
+        "right": "Never under vendor/. They belong under lib/.",
+        "wrong": "Never under lib/; put them in the repository root."
+      }
+    ],
+    "finds": [
+      {
+        "id": "find-report",
+        "ask": "Which earlier result held a line reading \"d892ce88\"?",
+        "target": "batch 58: 5 warnings, checksum d892ce88"
+      },
+      {
+        "id": "find-kept",
+        "ask": "Which earlier result listed a station that reported 619 units at step 17?",
+        "target": "record 92-0017: station 7053 reported 619 units at step 17"
+      },
+      {
+        "id": "find-edit",
+        "ask": "Which earlier result confirmed a change to the limit 1234?",
+        "target": "1234"
+      }
+    ]
+  },
+  {
+    "trace": "prose",
+    "version": 1,
+    "shape": "prose-heavy: six documents of about 21,000 characters pasted into messages; few tool results",
+    "said": 10,
+    "filesBeforeCompaction": [
+      "removed: report.sh",
+      "regenerated: changing-3.log"
+    ],
+    "questions": [
+      {
+        "id": "gone-1",
+        "kind": "exact-gone",
+        "ask": "What did report.sh print for batch 07? Give the whole line.",
+        "reference": "batch 07: 3 warnings, checksum 53862e7c",
+        "needles": [
+          "batch 07: 3 warnings, checksum 53862e7c"
+        ]
+      },
+      {
+        "id": "gone-2",
+        "kind": "exact-gone",
+        "ask": "What was the checksum on the line report.sh printed for batch 93?",
+        "reference": "batch 93: 0 warnings, checksum 7a290ff2",
+        "needles": [
+          "7a290ff2"
+        ]
+      },
+      {
+        "id": "unchanged",
+        "kind": "exact-unchanged",
+        "ask": "What does the line for record 93-0061 in kept-3.log say?",
+        "reference": "record 93-0061: station 6565 reported 987 units at step 61",
+        "needles": [
+          "station 6565 reported 987 units"
+        ]
+      },
+      {
+        "id": "then",
+        "kind": "exact-then",
+        "ask": "changing-3.log has been regenerated since you read it. What did its line for record 83-0044 say when you read it, before that?",
+        "reference": "record 83-0044: station 281 reported 450 units at step 44",
+        "needles": [
+          "station 281 reported 450 units"
+        ]
+      },
+      {
+        "id": "now",
+        "kind": "exact-now",
+        "ask": "changing-3.log has been regenerated since you read it. What does its line for record 83-0044 say now?",
+        "reference": "record 83-0044: station 281 reported 60 units at step 44",
+        "needles": [
+          "station 281 reported 60 units"
+        ]
+      },
+      {
+        "id": "next",
+        "kind": "continuity",
+        "ask": "Without starting on it yet: what is the next step, and which file does it involve?",
+        "reference": "Draft the queue section of DESIGN.md.",
+        "rubric": "Right if it says the next step is drafting the queue section of DESIGN.md. Wrong if it names another file or task, or does not know.",
+        "right": "Drafting the queue section in DESIGN.md.",
+        "wrong": "Implementing the quota service in quota.ts."
+      },
+      {
+        "id": "decided",
+        "kind": "continuity",
+        "ask": "What did we decide about the replay worker, and what is still open?",
+        "reference": "The replay worker gets its own queue instead of sharing the ingest queue, so a slow replay does not hold up ingest. Still open: who owns the alert for the high-water mark.",
+        "rubric": "Right if it gives both: the replay worker gets its own queue (not the shared ingest queue), and the owner of the high-water-mark alert is open. Wrong if either is missing or different.",
+        "right": "The replay worker gets a queue of its own rather than sharing ingest; open is who owns the high-water-mark alert.",
+        "wrong": "The replay worker shares the ingest queue; nothing is open."
+      },
+      {
+        "id": "rule-1",
+        "kind": "constraint",
+        "ask": "Which port does the service listen on?",
+        "reference": "Port 8443, never 8080.",
+        "rubric": "Right if it says 8443. Wrong if it says 8080 or another port, or does not know.",
+        "right": "On port 8443, and never 8080.",
+        "wrong": "On port 8080."
+      },
+      {
+        "id": "rule-2",
+        "kind": "constraint",
+        "ask": "Who reviews changes that touch quotas?",
+        "reference": "Dana Whitlock.",
+        "rubric": "Right if it names Dana Whitlock. Wrong if it names someone else or does not know.",
+        "right": "Dana Whitlock reviews anything touching quotas.",
+        "wrong": "Any two maintainers can review them."
+      }
+    ],
+    "finds": [
+      {
+        "id": "find-report",
+        "ask": "Which earlier result held a line reading \"d8936cbf\"?",
+        "target": "batch 58: 8 warnings, checksum d8936cbf"
+      },
+      {
+        "id": "find-kept",
+        "ask": "Which earlier result listed a station that reported 620 units at step 17?",
+        "target": "record 93-0017: station 7184 reported 620 units at step 17"
+      }
+    ]
+  },
+  {
+    "trace": "short",
+    "version": 1,
+    "shape": "many short results: thirty small command outputs, and a status file read five times while it changes",
+    "said": 9,
+    "filesBeforeCompaction": [
+      "removed: report.sh",
+      "regenerated: changing-4.log"
+    ],
+    "questions": [
+      {
+        "id": "gone-1",
+        "kind": "exact-gone",
+        "ask": "What did report.sh print for batch 07? Give the whole line.",
+        "reference": "batch 07: 6 warnings, checksum 5386ccb3",
+        "needles": [
+          "batch 07: 6 warnings, checksum 5386ccb3"
+        ]
+      },
+      {
+        "id": "gone-2",
+        "kind": "exact-gone",
+        "ask": "What was the checksum on the line report.sh printed for batch 93?",
+        "reference": "batch 93: 3 warnings, checksum 7a29ae29",
+        "needles": [
+          "7a29ae29"
+        ]
+      },
+      {
+        "id": "unchanged",
+        "kind": "exact-unchanged",
+        "ask": "What does the line for record 94-0061 in kept-4.log say?",
+        "reference": "record 94-0061: station 6696 reported 988 units at step 61",
+        "needles": [
+          "station 6696 reported 988 units"
+        ]
+      },
+      {
+        "id": "then",
+        "kind": "exact-then",
+        "ask": "changing-4.log has been regenerated since you read it. What did its line for record 84-0044 say when you read it, before that?",
+        "reference": "record 84-0044: station 412 reported 451 units at step 44",
+        "needles": [
+          "station 412 reported 451 units"
+        ]
+      },
+      {
+        "id": "now",
+        "kind": "exact-now",
+        "ask": "changing-4.log has been regenerated since you read it. What does its line for record 84-0044 say now?",
+        "reference": "record 84-0044: station 412 reported 65 units at step 44",
+        "needles": [
+          "station 412 reported 65 units"
+        ]
+      },
+      {
+        "id": "next",
+        "kind": "continuity",
+        "ask": "Without starting on it yet: what is the next step, and which shelves does it involve?",
+        "reference": "Check shelves 31 to 36 the same way.",
+        "rubric": "Right if it says the next step is checking shelves 31 to 36. Wrong if it names other shelves or another task, or does not know.",
+        "right": "Checking shelves 31 through 36 in the same way.",
+        "wrong": "Re-checking shelves 1 to 6 with a stricter threshold."
+      },
+      {
+        "id": "decided",
+        "kind": "continuity",
+        "ask": "What did we decide about when a slot counts as short, and what is still open?",
+        "reference": "A slot is short only when its quantity is under 5, not under 10. Still open: whether shelf 12 was miscounted.",
+        "rubric": "Right if it gives both: short means quantity under 5 (not 10), and shelf 12 possibly being miscounted is open. Wrong if either is missing or different.",
+        "right": "A slot is short only under a quantity of 5; open is whether shelf 12 was miscounted.",
+        "wrong": "A slot is short under a quantity of 10; nothing is open."
+      },
+      {
+        "id": "rule-1",
+        "kind": "constraint",
+        "ask": "Which Node version does our code have to run on?",
+        "reference": "Node 22, with no newer syntax.",
+        "rubric": "Right if it says Node 22. Wrong if it gives another version or says there is no requirement.",
+        "right": "Node 22; nothing newer than its syntax.",
+        "wrong": "The latest Node, whatever is current."
+      },
+      {
+        "id": "rule-2",
+        "kind": "constraint",
+        "ask": "How do we write a date in our notes?",
+        "reference": "Day first, as in 03 Feb, never month first.",
+        "rubric": "Right if it says dates are written day first. Wrong if it gives another order or says there is no rule.",
+        "right": "Day first, like 03 Feb; never month first.",
+        "wrong": "Month first, as in Feb 03."
+      }
+    ],
+    "finds": [
+      {
+        "id": "find-report",
+        "ask": "Which earlier result held a line reading \"d8940af6\"?",
+        "target": "batch 58: 0 warnings, checksum d8940af6"
+      },
+      {
+        "id": "find-kept",
+        "ask": "Which earlier result listed a station that reported 621 units at step 17?",
+        "target": "record 94-0017: station 7315 reported 621 units at step 17"
+      }
+    ]
+  },
+  {
+    "trace": "full",
+    "version": 1,
+    "shape": "too full: about 440,000 characters pasted into messages, which moving results out cannot reduce",
+    "said": 12,
+    "filesBeforeCompaction": [
+      "removed: report.sh",
+      "regenerated: changing-5.log"
+    ],
+    "questions": [
+      {
+        "id": "gone-1",
+        "kind": "exact-gone",
+        "ask": "What did report.sh print for batch 07? Give the whole line.",
+        "reference": "batch 07: 9 warnings, checksum 53876aea",
+        "needles": [
+          "batch 07: 9 warnings, checksum 53876aea"
+        ]
+      },
+      {
+        "id": "gone-2",
+        "kind": "exact-gone",
+        "ask": "What was the checksum on the line report.sh printed for batch 93?",
+        "reference": "batch 93: 6 warnings, checksum 7a2a4c60",
+        "needles": [
+          "7a2a4c60"
+        ]
+      },
+      {
+        "id": "unchanged",
+        "kind": "exact-unchanged",
+        "ask": "What does the line for record 95-0061 in kept-5.log say?",
+        "reference": "record 95-0061: station 6827 reported 989 units at step 61",
+        "needles": [
+          "station 6827 reported 989 units"
+        ]
+      },
+      {
+        "id": "then",
+        "kind": "exact-then",
+        "ask": "changing-5.log has been regenerated since you read it. What did its line for record 85-0044 say when you read it, before that?",
+        "reference": "record 85-0044: station 543 reported 452 units at step 44",
+        "needles": [
+          "station 543 reported 452 units"
+        ]
+      },
+      {
+        "id": "now",
+        "kind": "exact-now",
+        "ask": "changing-5.log has been regenerated since you read it. What does its line for record 85-0044 say now?",
+        "reference": "record 85-0044: station 543 reported 70 units at step 44",
+        "needles": [
+          "station 543 reported 70 units"
+        ]
+      },
+      {
+        "id": "next",
+        "kind": "continuity",
+        "ask": "Without starting on it yet: what is the next step, and which file does it involve?",
+        "reference": "List every limit above 900 per minute into LIMITS.md.",
+        "rubric": "Right if it says the next step is listing the limits above 900 per minute into LIMITS.md. Wrong if it names another file or task, or does not know.",
+        "right": "Listing every limit over 900 per minute in LIMITS.md.",
+        "wrong": "Rewriting the archive tier section in ARCHIVE.md."
+      },
+      {
+        "id": "decided",
+        "kind": "continuity",
+        "ask": "What did we decide about the archive tier, and what is still open?",
+        "reference": "Cut the archive tier from the first release, since nothing depends on it yet. Still open: whether the export job needs its own quota.",
+        "rubric": "Right if it gives both: the archive tier is cut from the first release, and the export job needing its own quota is open. Wrong if either is missing or different.",
+        "right": "The archive tier is cut from the first release; open is whether the export job needs a quota of its own.",
+        "wrong": "The archive tier ships in the first release; nothing is open."
+      },
+      {
+        "id": "rule-1",
+        "kind": "constraint",
+        "ask": "Which directory are we not allowed to change?",
+        "reference": "legacy/ must not be changed.",
+        "rubric": "Right if it names legacy/ as the directory not to change. Wrong if it names another or says there is none.",
+        "right": "Nothing under legacy/ may be changed.",
+        "wrong": "Nothing under src/ may be changed."
+      },
+      {
+        "id": "rule-2",
+        "kind": "constraint",
+        "ask": "In which tense do we write commit messages?",
+        "reference": "In the past tense, as in \"Raised the cap\".",
+        "rubric": "Right if it says commit messages are written in the past tense. Wrong if it gives another tense or says there is no rule.",
+        "right": "In the past tense, like \"Raised the cap\".",
+        "wrong": "In the imperative, as in \"Raise the cap\"."
+      }
+    ],
+    "finds": [
+      {
+        "id": "find-report",
+        "ask": "Which earlier result held a line reading \"d894a92d\"?",
+        "target": "batch 58: 3 warnings, checksum d894a92d"
+      },
+      {
+        "id": "find-kept",
+        "ask": "Which earlier result listed a station that reported 622 units at step 17?",
+        "target": "record 95-0017: station 7446 reported 622 units at step 17"
+      }
+    ]
+  },
+  {
+    "trace": "thinking",
+    "version": 1,
+    "shape": "long thinking: ten puzzles worked out at high effort; much of what is in use is thinking",
+    "said": 14,
+    "filesBeforeCompaction": [
+      "removed: report.sh",
+      "regenerated: changing-6.log"
+    ],
+    "questions": [
+      {
+        "id": "gone-1",
+        "kind": "exact-gone",
+        "ask": "What did report.sh print for batch 07? Give the whole line.",
+        "reference": "batch 07: 1 warnings, checksum 53880921",
+        "needles": [
+          "batch 07: 1 warnings, checksum 53880921"
+        ]
+      },
+      {
+        "id": "gone-2",
+        "kind": "exact-gone",
+        "ask": "What was the checksum on the line report.sh printed for batch 93?",
+        "reference": "batch 93: 9 warnings, checksum 7a2aea97",
+        "needles": [
+          "7a2aea97"
+        ]
+      },
+      {
+        "id": "unchanged",
+        "kind": "exact-unchanged",
+        "ask": "What does the line for record 96-0061 in kept-6.log say?",
+        "reference": "record 96-0061: station 6958 reported 990 units at step 61",
+        "needles": [
+          "station 6958 reported 990 units"
+        ]
+      },
+      {
+        "id": "then",
+        "kind": "exact-then",
+        "ask": "changing-6.log has been regenerated since you read it. What did its line for record 86-0044 say when you read it, before that?",
+        "reference": "record 86-0044: station 674 reported 453 units at step 44",
+        "needles": [
+          "station 674 reported 453 units"
+        ]
+      },
+      {
+        "id": "now",
+        "kind": "exact-now",
+        "ask": "changing-6.log has been regenerated since you read it. What does its line for record 86-0044 say now?",
+        "reference": "record 86-0044: station 674 reported 75 units at step 44",
+        "needles": [
+          "station 674 reported 75 units"
+        ]
+      },
+      {
+        "id": "next",
+        "kind": "continuity",
+        "ask": "Without starting on it yet: what is the next step?",
+        "reference": "Work out puzzles 11 to 13.",
+        "rubric": "Right if it says the next step is working out puzzles 11 to 13. Wrong if it names other puzzles or another task, or does not know.",
+        "right": "Working out puzzles 11, 12 and 13.",
+        "wrong": "Re-doing puzzles 1 to 3 with a different method."
+      },
+      {
+        "id": "decided",
+        "kind": "continuity",
+        "ask": "What did we decide to do when two workings of a puzzle disagree, and what is still open?",
+        "reference": "Report the puzzle as doubtful rather than taking the later working. Still open: whether puzzle 4, whose divisor is 10, has a misprinted step.",
+        "rubric": "Right if it gives both: a puzzle with disagreeing workings is reported as doubtful (not settled by the later working), and puzzle 4 possibly having a misprinted step is open. Wrong if either is missing or different.",
+        "right": "We report it as doubtful instead of taking the later working; open is whether puzzle 4 has a misprinted step.",
+        "wrong": "We take the later working as correct; nothing is open."
+      },
+      {
+        "id": "rule-1",
+        "kind": "constraint",
+        "ask": "How do we write the answers?",
+        "reference": "As integers without thousands separators.",
+        "rubric": "Right if it says answers are integers with no thousands separators. Wrong if it gives another form or says there is no rule.",
+        "right": "As plain integers, with no thousands separators.",
+        "wrong": "With a comma every three digits, for readability."
+      },
+      {
+        "id": "rule-2",
+        "kind": "constraint",
+        "ask": "How do we round a half?",
+        "reference": "To the even neighbour: the earlier agreement to round a half up was reversed.",
+        "rubric": "Right if it says a half is rounded to the even neighbour. Wrong if it says a half is rounded up, gives another rule, or says there is none.",
+        "right": "To the even neighbour; the earlier agreement to round a half up was reversed.",
+        "wrong": "A half is rounded up."
+      }
+    ],
+    "finds": [
+      {
+        "id": "find-report",
+        "ask": "Which earlier result held a line reading \"d8954764\"?",
+        "target": "batch 58: 6 warnings, checksum d8954764"
+      },
+      {
+        "id": "find-kept",
+        "ask": "Which earlier result listed a station that reported 623 units at step 17?",
+        "target": "record 96-0017: station 7577 reported 623 units at step 17"
+      }
+    ]
+  }
+]

@@ -1,0 +1,154 @@
+// Turns the units measured into tables. Each trace and model has its own; the
+// runs of a unit are shown as they are when there are three or fewer, as a median
+// and range otherwise. Nothing is added up across traces into one score.
+
+import { OUTCOMES, outcomeOf, spread, type Arm, type Outcome, type ToolCall } from './lib.ts';
+import { keyOf, type Grades, type Verdict } from './grade.ts';
+import { type Asked, type Unit } from './run.ts';
+import { type Kind } from './traces.ts';
+
+const ARMS: readonly Arm[] = ['plugin', 'builtin'];
+const KINDS: readonly Kind[] = ['exact-gone', 'exact-unchanged', 'exact-then', 'exact-now', 'continuity', 'constraint'];
+const KIND_NAMES: Record<Kind, string> = {
+  'exact-gone': 'Exact, source gone',
+  'exact-unchanged': 'Exact, file unchanged',
+  'exact-then': 'Exact, file changed: what it said then',
+  'exact-now': 'Exact, file changed: what it says now',
+  continuity: 'Where the work stands',
+  constraint: 'A rule stated early',
+};
+
+/**
+ * The verdict on one answer. An exact answer is right only when the program found
+ * the text in it; for the rest the grader's first pass decides, and of an exact
+ * answer it can only say which way it is not right. No verdict means not graded.
+ */
+export function verdictOf(unit: Unit, asked: Asked, grades: Grades | null): Verdict | undefined {
+  if (asked.verdict !== undefined) return asked.verdict;
+  const graded = grades?.verdicts[keyOf(unit, asked.id, asked.answer)]?.[0] ?? undefined;
+  if (graded === undefined || graded === null) return undefined;
+  return graded === 'correct' && asked.kind.startsWith('exact') ? 'incorrect' : graded;
+}
+
+/** True for an exact answer the program found not to hold the text and the grader called right all the same: the sign of a right answer the program's matching missed. */
+export function overruled(unit: Unit, asked: Asked, grades: Grades | null): boolean {
+  return asked.verdict === undefined && asked.kind.startsWith('exact') && grades?.verdicts[keyOf(unit, asked.id, asked.answer)]?.[0] === 'correct';
+}
+
+const callsOf = (asked: Asked): ToolCall[] => asked.calls.map((name) => ({ name, input: {} }));
+
+export function outcomesOf(units: readonly Unit[], grades: Grades | null): Record<Outcome, number> & { ungraded: number } {
+  const counts = Object.fromEntries([...OUTCOMES.map((outcome) => [outcome, 0]), ['ungraded', 0]]) as Record<Outcome, number> & { ungraded: number };
+  for (const unit of units) {
+    for (const asked of unit.questions) {
+      const verdict = verdictOf(unit, asked, grades);
+      if (verdict === undefined) counts.ungraded += 1;
+      else counts[outcomeOf(verdict, callsOf(asked), asked.outside)] += 1;
+    }
+  }
+  return counts;
+}
+
+const table = (head: readonly string[], rows: readonly (readonly string[])[]) =>
+  [`| ${head.join(' | ')} |`, `| ${head.map((_, at) => (at === 0 ? '---' : '---:')).join(' | ')} |`, ...rows.map((row) => `| ${row.join(' | ')} |`)].join('\n');
+
+const sum = (values: readonly number[]) => values.reduce((a, b) => a + b, 0);
+
+/** How the grader itself did, on the answers whose grade was known and between its two passes. */
+export function graderOf(grades: Grades | null): string {
+  if (grades === null) return 'Nothing has been graded by a model yet: the answers a program cannot grade are counted as ungraded.';
+  const { controls } = grades;
+  return [
+    `Graded by ${grades.model || 'a model that was not recorded'}, in two passes; the tables use the first.`,
+    `Of ${controls.count} answers mixed in whose grade was known, it graded ${controls.graded}, ${controls.asExpected} as expected.`,
+    `Of ${controls.toldPairs} pairs of the same answer with and without words that tell an arm, it graded both of ${controls.toldPairsGraded}, ${controls.toldPairsSame} alike.`,
+    `The two passes graded ${grades.disagreements} answer(s) differently; ${grades.ungraded.length} answer(s) or control(s) were left ungraded by a pass.`,
+  ].join(' ');
+}
+
+/** The tables for the units that asked a trace's questions, one section per trace and model. `older` is how many units were left out for measuring an older version of their trace. */
+export function report(units: readonly Unit[], grades: Grades | null, older = 0): string {
+  const asked = units.filter((unit) => unit.mode === 'ask' && unit.variant === 'default');
+  const groups = new Map<string, Unit[]>();
+  for (const unit of asked) {
+    const key = `${unit.trace}|${unit.model}`;
+    groups.set(key, [...(groups.get(key) ?? []), unit]);
+  }
+  const sections: string[] = [graderOf(grades), ''];
+  if (older > 0) sections.push(`${older} unit(s) measured an older version of their trace and are left out.`, '');
+  for (const [key, group] of groups) {
+    const [trace, model] = key.split('|');
+    const by = (arm: Arm) => group.filter((unit) => unit.arm === arm).sort((a, b) => a.run - b.run);
+    const cell = (arm: Arm, pick: (unit: Unit) => number, digits = 0) => spread(by(arm).map(pick), digits);
+    const plugins = [...new Set(by('plugin').map((unit) => `${unit.plugin ?? 'not recorded'} (commit ${unit.pluginCommit ?? 'not recorded'})`))];
+    const builds = new Set(group.map((unit) => unit.base));
+    const lines = [
+      `### ${trace}, ${model}`,
+      '',
+      `Runs: ${ARMS.map((arm) => `${arm} ${by(arm).length}, first in ${by(arm).filter((unit) => unit.first).length}`).join('; ')}. The plugin's code: ${plugins.join(', ') || '—'}.`,
+      '',
+    ];
+    // What `run` would have stopped at can still sit side by side in the box: said here, where the figures are read.
+    if (builds.size > 1) lines.push(`**These units were measured on ${builds.size} different buildings of the trace: they are not one comparison.**`, '');
+    if (plugins.length > 1) lines.push(`**These units were measured on ${plugins.length} different states of the plugin's code.**`, '');
+    lines.push(
+      table(
+        ['', ...ARMS],
+        [
+          ['Compaction, ms', ...ARMS.map((arm) => cell(arm, (unit) => unit.compaction.durationMs))],
+          ['Tokens before', ...ARMS.map((arm) => cell(arm, (unit) => unit.compaction.preTokens))],
+          ['Tokens sent on the next request', ...ARMS.map((arm) => cell(arm, (unit) => unit.questions[0]?.requests[0] ?? NaN))],
+          ['Built-in summary ran', ...ARMS.map((arm) => `${by(arm).filter((unit) => unit.compaction.summarized).length} of ${by(arm).length}`)],
+          // What a compaction costs turns on whether the trace is still in the cache, which lasts an hour: the tokens say which it was.
+          ['Compaction: tokens read from cache', ...ARMS.map((arm) => cell(arm, (unit) => unit.compaction.own.cacheReadInputTokens))],
+          ['Compaction: tokens written to cache or sent fresh', ...ARMS.map((arm) => cell(arm, (unit) => unit.compaction.own.cacheCreationInputTokens + unit.compaction.own.inputTokens))],
+          ['Compaction: tokens written out', ...ARMS.map((arm) => cell(arm, (unit) => unit.compaction.own.outputTokens))],
+          ['Compaction: cost, USD', ...ARMS.map((arm) => cell(arm, (unit) => unit.compaction.own.costUSD, 4))],
+          ['All questions: seconds', ...ARMS.map((arm) => cell(arm, (unit) => sum(unit.questions.map((one) => one.durationMs)) / 1000, 1))],
+          ['All questions: input tokens', ...ARMS.map((arm) => cell(arm, (unit) => sum(unit.questions.flatMap((one) => one.requests))))],
+          ['All questions: cost, USD', ...ARMS.map((arm) => cell(arm, (unit) => sum(unit.questions.map((one) => one.own.costUSD)), 4))],
+          ['`recall` calls', ...ARMS.map((arm) => cell(arm, (unit) => sum(unit.questions.map((one) => one.retrieval.recalls))))],
+          ['Files read again', ...ARMS.map((arm) => cell(arm, (unit) => sum(unit.questions.map((one) => one.retrieval.reads))))],
+          ['Calls refused at a question', ...ARMS.map((arm) => cell(arm, (unit) => sum(unit.questions.map((one) => one.refused))))],
+          ['Answers after reading outside the working directory', ...ARMS.map((arm) => cell(arm, (unit) => unit.questions.filter((one) => one.outside).length))],
+          ['Exact answers the program found wrong and the grader called right', ...ARMS.map((arm) => cell(arm, (unit) => unit.questions.filter((one) => overruled(unit, one, grades)).length))],
+          ['Words that tell the arm, in all answers', ...ARMS.map((arm) => cell(arm, (unit) => sum(unit.questions.map((one) => one.tells))))],
+        ],
+      ),
+      '',
+    );
+    const right = (arm: Arm, kind: Kind) =>
+      by(arm)
+        .map((unit) => {
+          const of = unit.questions.filter((one) => one.kind === kind);
+          const graded = of.map((one) => verdictOf(unit, one, grades));
+          return graded.some((verdict) => verdict === undefined) ? `?/${of.length}` : `${graded.filter((verdict) => verdict === 'correct').length}/${of.length}`;
+        })
+        .join(', ');
+    lines.push('Right answers of those asked, per run:', '', table(['', ...ARMS], KINDS.map((kind) => [KIND_NAMES[kind], ...ARMS.map((arm) => right(arm, kind))])), '');
+    const outcomes = ARMS.map((arm) => outcomesOf(by(arm), grades));
+    lines.push('How the questions went, all runs together:', '', table(['', ...ARMS], [...OUTCOMES, 'ungraded' as const].map((outcome) => [outcome, ...outcomes.map((counts) => String(counts[outcome]))])), '');
+    sections.push(lines.join('\n'));
+  }
+  return sections.join('\n');
+}
+
+/**
+ * What the plugin estimated a compaction would leave against what the next
+ * request was sent, per checkout or setting of the plugin. Where the plugin
+ * handed over, what was sent is what the built-in summary left, which its
+ * estimate was never of: no error is given.
+ */
+export function estimates(units: readonly Unit[]): string {
+  const probes = units.filter((unit) => unit.arm === 'plugin' && unit.compaction.line !== null);
+  const rows = probes
+    .sort((a, b) => `${a.trace}${a.model}${a.variant}${a.run}`.localeCompare(`${b.trace}${b.model}${b.variant}${b.run}`))
+    .map((unit) => {
+      const line = unit.compaction.line;
+      const actual = unit.questions[0]?.requests[0] ?? NaN;
+      const estimate = line?.estimate;
+      const error = estimate === undefined || line?.outcome !== 'moved' ? '—' : `${(((estimate - actual) / actual) * 100).toFixed(1)} %`;
+      return [unit.trace, unit.model, `${unit.variant} (${unit.plugin ?? 'not recorded'})`, String(unit.run), line?.outcome ?? '—', estimate === undefined ? 'none stated' : String(estimate), String(actual), error];
+    });
+  return table(['Trace', 'Model', 'Plugin', 'Run', 'Outcome', 'Estimated', 'Next request', 'Error'], rows);
+}
