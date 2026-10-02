@@ -1,9 +1,19 @@
 # lossless-compaction
 
-A Claude Code plugin that compacts a conversation by moving old tool output to
-local files instead of summarizing or deleting it. One line stays behind for
-each result. The agent reads a result back by its id with `recall`, or by
-what it is about with `find`, which asks [Jev](https://typesafe.ai) to choose.
+When a Claude Code conversation fills up, the built-in compaction replaces it
+with a summary, and what the summary leaves out is gone from the conversation.
+This plugin compacts by moving old tool results to files on your machine
+instead. One line, a ticket, stays behind for each result, and the agent gets
+the exact result back when it needs it: by the id on the ticket with `recall`,
+or by saying what it is about with `find`, which asks
+[Jev](https://typesafe.ai) to choose.
+
+A compaction sends nothing anywhere. `find` is optional and needs a Jev key;
+with one set, it sends [excerpts of the conversation](#usage) to the Jev
+provider you choose. A repository's own settings files do not decide where
+results are written or where `find` sends: a key, proxy or place from them
+stops the plugin instead
+([what a repository can change](docs/limits.md#what-a-repository-can-change)).
 
 ![A conversation compacted by lossless-compaction: three large Read results move out of the context into content-addressed files under ~/.claude/lossless-compaction/, one ticket line stays behind for each, and recall by id or find by meaning brings the exact result back. Recorded figures: 6 of 21 results moved in 61 ms; find answered 13 of 13.](docs/assets/readme-header.svg)
 
@@ -16,122 +26,128 @@ claude plugin marketplace add yottayoshida/lossless-compaction
 claude plugin install lossless-compaction@lossless-compaction
 ```
 
-Then turn Claude Code's function hooks on, once, in `~/.claude/settings.json`.
-They are early access: unless your account already has them on, the plugin
-installs, shows in the list, and moves nothing out without this line.
+Then turn Claude Code's function hooks on, once, in `~/.claude/settings.json`:
 
 ```json
 { "env": { "CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1" } }
 ```
 
-Start a new session. From then on `/compact` and automatic compaction go
-through the plugin, and a line starting `lossless-compaction:` says what each
-one did. In a session where the plugin is enabled and is not running, a line
-says so at the first message you send, naming the setting to add; a `/compact`
-is held once, and a compaction that goes ahead is followed by a line saying it
-was Claude Code's own. A session already open when the plugin was installed or
-enabled is not told ([more of what this does not reach](docs/limits.md#function-hooks)).
+Function hooks are early access. Unless your account already has them on,
+the plugin installs and shows in the list without this line, and moves
+nothing out.
 
-`recall` needs nothing more. `find` is optional and needs a Jev key: set it
-with `/plugin configure lossless-compaction@lossless-compaction` inside
-Claude Code. For Jev on Cloudflare Workers AI, enter the account id there as
-well: with `provider` left on `auto`, an account id entered there sends the
-key to Cloudflare, and none sends it to TypeSafe.
-More ways to set it up — one repository only, the key from the environment,
-coming from `jev-lossless-compaction` — are in
+Start a new session. From then on `/compact` and automatic compaction go
+through the plugin. It is not on npm; it installs from this repository. More
+ways to set it up — one repository only, the key from the environment, coming
+from `jev-lossless-compaction` — are in
 [docs/limits.md](docs/limits.md#setting-it-up).
 
-> **Before you install**
->
-> - A compaction sends nothing anywhere. With a key set, `find` sends the Jev
->   provider you choose, each time the agent calls it, the agent's question
->   and, for every result moved out of the conversation, the call that made
->   it and a 400-character digest of it, and for every part of the
->   conversation kept before a summary, the head of what was said in it.
->   Shapes of secrets are blanked first, which is a courtesy and not a
->   guarantee. Without a key there is no `find`, and nothing is sent.
-> - A repository's own settings files do not decide where results are written
->   or where `find` sends: a key, proxy or place from them stops the plugin
->   instead. See [what a repository can change](docs/limits.md#what-a-repository-can-change).
-> - It is not on npm; it installs from this repository.
+## Usage
 
-## Demo
+Three things, in the order you will meet them.
 
-What a compaction reports, and the line that stands in a result's place,
-from a real session of `Read` results:
+**A compaction.** A line starting `lossless-compaction:` says what each one
+did. From a real session of `Read` results:
 
 ```text
 lossless-compaction: moved 6 of 21 tool results out (844544 -> 548237 chars, about 52357 of 167000 tokens in use) in 61 ms
+```
 
+Each result that left has a ticket in its place:
+
+```text
 [moved out] Read result, 83261 bytes; recall with mcp__lossless-compaction__recall id ed8701f23087852c07ee8eb0b91b9335cc94cc8b21e42826c6b684299e8008e3
 ```
 
-Asked in other words which of thirteen moved-out results reported a refusal
-on an unsupported kernel call, the agent called `find` and got it back:
+In a session where the plugin is enabled and is not running, a line says so
+at the first message you send, naming the setting to add
+([what else it does, and what it does not reach](docs/limits.md#function-hooks)).
+
+**`recall`.** The agent calls it with the id on a ticket and gets the result
+back unchanged. It needs no key.
+
+**`find`.** Optional. Asked in words, it returns the moved-out result of this
+conversation that the question is about, or lists the likeliest few when Jev
+is not sure which. Asked in other words which of thirteen moved-out results
+reported a refusal on an unsupported kernel call, the agent called `find` and
+got it back:
 
 ```text
 [found] Bash result, 2271 bytes; id 968e6cdd8a21069b3907388db507c061ce28cac950b7a63eae5a0967adf39edc; probability 0.99
 ```
 
-|                                             | This plugin | Built-in compaction |
-| ------------------------------------------- | ----------- | ------------------- |
-| Time a compaction took                      | 43 ms       | 69.6 s              |
+It needs a Jev key: set it with
+`/plugin configure lossless-compaction@lossless-compaction` inside Claude
+Code. For Jev on Cloudflare Workers AI, enter the account id there as well:
+with `provider` left on `auto`, an account id entered there sends the key to
+Cloudflare, and none sends it to TypeSafe.
+
+With a key set, each call to `find` sends the provider:
+
+- the agent's question;
+- for every result moved out of the conversation, the call that made it and
+  a 400-character digest of it;
+- for every part of the conversation kept before a summary, the head of what
+  was said in it.
+
+Jev chooses among them, with "none of these" among the choices; a phrase of
+twelve characters or more in double quotes is looked for as written first.
+Shapes of secrets are blanked before anything is sent, which is a courtesy
+and not a guarantee. A result that holds an image is not offered, and nothing
+of it is sent. Without a key there is no `find`, and nothing is sent.
+
+## Against the built-in compaction
+
+|                                              | This plugin | Built-in compaction |
+| -------------------------------------------- | ----------- | ------------------- |
+| Time a compaction took                       | 43 ms       | 69.6 s              |
 | "What was on line N of that file?", 20 asked | 16 answered | 0 answered          |
-| "Which result is about …?", 13 asked        | 13 answered | —                   |
+| "Which result is about …?", 13 asked         | 13 answered | —                   |
 
 Every figure, with when and how it was taken: [docs/measurements.md](docs/measurements.md).
 
-## What it does
+## How it works
 
-- **Nothing is deleted that a recorded transcript still names.** A tool
-  result is written to a file named by the SHA-256 of its content, read back,
-  and compared. Only then is it replaced by a ticket. The tool call itself
-  stays in the conversation, and `recall` checks the content against its name
-  again before returning it. A file is removed only when no transcript in a
-  place the plugin recorded named it at two weekly clean-ups a week apart.
-- **No summary is written, and nothing is sent.** A compaction takes the
-  time of writing a few files. Rules decide the order results leave in: those
-  a later call replaced first, then those sharing the least with what you are
-  working on, then the oldest. The newest results stay, up to `keepTokens`
-  tokens of them (20,000 by default); every older one is a candidate to
-  leave, and a result a later call made obsolete is a candidate even when it
-  is the newest. A result that holds an image always leaves.
-- **`find` brings a result back by what it is about.** Asked in words,
-  `find` returns the moved-out result of this conversation that the question
-  is about, or lists the likeliest few when Jev is not sure which. Jev is
-  shown the call that made each result and a digest of it, with "none of
-  these" among the choices; a phrase of twelve characters or more in double
-  quotes is looked for as written first.
+- **A result is stored before it is replaced.** It is written to a file named
+  by the SHA-256 of its content, read back, and compared. Only then does a
+  ticket take its place. The tool call itself stays in the conversation, and
+  `recall` checks the content against its name again before returning it. A
+  write that fails loses nothing: a result is ticketed only once all of it is
+  written.
+- **Rules decide what leaves. No summary is written, and nothing is sent.** A
+  compaction takes the time of writing a few files. Results leave in this
+  order until the conversation is estimated to be under the target size
+  (`targetPercent`): those a later call replaced, then those sharing the
+  least with what you are working on, then the oldest. The newest results
+  stay, up to `keepTokens` tokens of them (20,000 by default). A result a
+  later call made obsolete can leave even when it is the newest, and a result
+  that holds an image always leaves.
+- **Nothing is deleted that a recorded transcript still names.** Files are
+  plain text under `~/.claude/lossless-compaction/`, in a directory closed to
+  mode 700 before anything is written. Once a week the transcripts are read.
+  A file that neither they nor a part kept before a summary names goes to a
+  trash, and is removed a week later if still named by none.
 
 ## Limits
 
-- **Claude Code's own summary still runs** when moving out is not enough,
-  when nothing can be moved out, when the conversation holds an image or a
-  document outside a tool result, a block of a kind the plugin does not know
-  or 4096 messages or more, and in a subagent. On the main conversation, what it summarizes is
-  kept first, and `recall` returns it unchanged by the ids left right after
-  the summary — except images, documents and thinking, and messages older
-  than the 4096 Claude Code shows. When the results' place is not an absolute
-  path or cannot be made private, nothing is kept, and the compaction says
-  so.
-- **A write that fails loses nothing**: a result is ticketed only once all
-  of it is written, and when a failed write leaves nothing kept before the
-  summary, the summary does not run and the compaction says why. There is no
-  limit on how much is kept.
-- **Files are plain text** under `~/.claude/lossless-compaction/`, in a
-  directory closed to mode 700 before anything is written. Once a week the
-  transcripts are read; a file that neither they nor a part kept before a
-  summary names goes to a trash, and is removed a week later if still named
-  by none.
-- **`find`** offers the tickets it sees in the conversation and in the parts
-  kept before a summary, except those of results that hold an image, shows Jev the first lines of each result, answers a
-  subagent with nothing to find, and gives a request to Jev up after twenty
-  seconds. Tokens are estimated at three characters each, so more may leave
+- **Claude Code's own summary still runs in some cases:** when moving results
+  out is not enough, or nothing can be moved out; when the conversation holds
+  an image or a document outside a tool result, a block of a kind the plugin
+  does not know, or 4096 messages or more; and in a subagent.
+- **What a summary replaces is kept first**, on the main conversation, and
+  `recall` returns it unchanged by the ids left right after the summary. Not
+  kept: images, documents, thinking, and messages older than the 4096 Claude
+  Code shows.
+- **`find` does not see everything.** It offers the tickets it sees in the
+  conversation and in the parts kept before a summary, shows Jev the first
+  lines of each result, and gives a request to Jev up after twenty seconds.
+- **Sizes are not capped, and are estimates.** There is no limit on how much
+  is kept. Tokens are estimated at three characters each, so more may leave
   than the target asks for.
 
 Each of these in full, and the rest: [docs/limits.md](docs/limits.md).
 
-## Docs
+## Documentation
 
 - [Limits](docs/limits.md), [Measurements](docs/measurements.md),
   [Development](docs/development.md), [CHANGELOG](CHANGELOG.md), and the
