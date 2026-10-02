@@ -127,10 +127,36 @@ test("a compaction is told what is not the conversation from Claude Code's break
   assert.equal(hooks.split('reportLine(outcome.report)').length - 1, 3, 'every line a compaction shows');
 });
 
+test('a /compact left undone is decided in src/: by who asked, with what, what Claude Code says is in use, and what could have left (ADR 0015)', () => {
+  const handler = hooks.slice(hooks.indexOf("on('session.compact'"));
+  // The call, argument by argument: the trigger and the instructions as Claude Code hands them, the figure of what
+  // was in use and not the size a report estimates, the window the compaction measured against, and the candidates.
+  assert.ok(
+    handler.includes(
+      'if (leftUndone({ trigger: e.trigger, instructions: e.instructions, inUse: tried.inUse, window: outcome.report.window, maxAfterPercent: tried.maxAfterPercent, candidates: outcome.report.candidates })) {',
+    ),
+  );
+  // What was in use is Claude Code's own figure, thinking included, made up from characters only when it gives none; the compaction is handed the same.
+  assert.ok(hooks.includes("const given = typeof tokens === 'number' && tokens > 0;"));
+  assert.ok(hooks.includes('const inUse = given ? tokens : Math.ceil(charsOf(messages) / CHARS_PER_TOKEN) + media.images * IMAGE_TOKENS;'));
+  assert.ok(hooks.includes('tokens: inUse,'));
+  assert.ok(hooks.includes('return { outcome, store, inUse, given, maxAfterPercent: config.maxAfterPercent };'));
+  // Only where nothing was moved out, and before that branch keeps and hands over: nothing is written, nothing is summarized.
+  const branch = handler.slice(handler.indexOf('if (outcome.report.moved === 0) {'), handler.indexOf('if (!outcome.enough) {'));
+  assert.ok(branch.includes('leftUndone('));
+  assert.ok(branch.indexOf('return { skip: ') > 0 && branch.indexOf('return { skip: ') < branch.indexOf('return summarizeKeeping('));
+  assert.equal(handler.split('leftUndone(').length - 1, 1, 'nowhere else');
+  // The line names the figure only when Claude Code gave it, and is said once: as the reason of the skip, with no line of the plugin's before it.
+  assert.ok(branch.includes('return { skip: `${PLUGIN}: ${undoneLine(tried.given ? tried.inUse : null, outcome.report.window)}` };'));
+  assert.ok(!branch.slice(0, branch.indexOf('return { skip: ')).includes('say($,'));
+  // Two skips in all: a compaction computed ahead, and this.
+  assert.equal(handler.match(/return \{ skip: /g)?.length, 2);
+});
+
 test('a result that holds an image is told from the blocks, handed to the compaction, and comes back from recall as an image', () => {
   assert.ok(hooks.includes('const media = mediaIn(api);'), 'read from the conversation with its blocks');
   assert.ok(hooks.includes('media: media.results,'), 'handed to the compaction');
-  assert.ok(hooks.includes(': Math.ceil(charsOf(messages) / CHARS_PER_TOKEN) + media.images * IMAGE_TOKENS,'), 'a size made up from characters counts the images too, since the compaction takes them off');
+  assert.ok(hooks.includes(': Math.ceil(charsOf(messages) / CHARS_PER_TOKEN) + media.images * IMAGE_TOKENS;'), 'a size made up from characters counts the images too, since the compaction takes them off');
   assert.ok(hooks.includes('whyNotRebuilt(messages, api) ?? (media.why === null ? null :'), 'what cannot be carried stops the rebuild');
   const handler = hooks.slice(hooks.indexOf(`{ tool: '${RECALL_TOOL}' }`), hooks.indexOf(`{ tool: '${FIND_TOOL}' }`));
   assert.ok(handler.includes('return { result: found.parts === undefined ? found.text : blocksOf(found.parts) };'), 'text as before, and what holds an image as its blocks (src/media.ts decides their form)');

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { CHARS_PER_TOKEN, charsOf, compact, countFrom, reportLine, thinkingOf, weigh, weightOf, windowFrom, type Config, type Host, type Input } from '../src/compact.ts';
+import { CHARS_PER_TOKEN, charsOf, compact, countFrom, leftUndone, reportLine, thinkingOf, undoneLine, weigh, weightOf, windowFrom, type Config, type Host, type Input } from '../src/compact.ts';
 import { moveOut, readTicket, recall, ticketText } from '../src/store.ts';
 import type { Message } from '../src/types.ts';
 import { MemoryFiles, conversation, output, sized, type Call } from './helpers.ts';
@@ -770,4 +770,36 @@ test('a conversation that is mostly tickets already is counted at what it comes 
   assert.ok(messages.flatMap((m) => m.toolResults ?? []).filter((r) => readTicket(r.text)).length > once.report.moved);
   near(report.tokensAfter, truth(messages));
   assert.ok(report.tokensAfter <= input.tokens / 2 + 1, `${report.tokensAfter} of ${input.tokens / 2}`);
+});
+
+test('a /compact run by hand with nothing to move out and room left is left undone, and only then (ADR 0015)', () => {
+  // The benchmark's `short` as it stood: 28,546 tokens in use where Claude Code compacts at 167,000.
+  const room = { trigger: 'manual', instructions: undefined, inUse: 28_546, window: 167_000, maxAfterPercent: 75, candidates: 0 };
+  assert.equal(leftUndone(room), true);
+
+  // By hand only: an automatic compaction runs because the conversation is full, and one a plugin asks for is not the person's.
+  for (const trigger of ['auto', 'plugin', 'precompute', undefined]) assert.equal(leftUndone({ ...room, trigger }), false, `${trigger}`);
+  // Only with nothing that could leave: a candidate that was not written goes on as before.
+  assert.equal(leftUndone({ ...room, candidates: 1 }), false);
+  // Instructions are for a summary; white space alone is none.
+  assert.equal(leftUndone({ ...room, instructions: 'keep the plan' }), false);
+  for (const instructions of ['', '  \n\t']) assert.equal(leftUndone({ ...room, instructions }), true, JSON.stringify(instructions));
+
+  // The line is `maxAfterPercent` of the size Claude Code compacts at: at it the conversation stays, a token over it goes on.
+  assert.equal(leftUndone({ ...room, inUse: 125_250 }), true);
+  assert.equal(leftUndone({ ...room, inUse: 125_251 }), false);
+  // Under the size itself and over the line: not all of the size is room.
+  assert.equal(leftUndone({ ...room, inUse: 166_000 }), false);
+  // The setting moves the line: at 1 it is under any conversation, at 100 it is the size.
+  assert.equal(leftUndone({ ...room, maxAfterPercent: 1 }), false);
+  assert.equal(leftUndone({ ...room, inUse: 166_000, maxAfterPercent: 100 }), true);
+});
+
+test('the line a /compact left undone shows names what is in use only when Claude Code gave the figure (ADR 0015)', () => {
+  assert.equal(
+    undoneLine(28_546, 167_000),
+    "nothing to move out, 28546 of 167000 tokens in use: the conversation is left as it is. /compact with instructions runs Claude Code's summary",
+  );
+  // Made up from characters, a figure holds no system prompt and no tools: none is shown.
+  assert.equal(undoneLine(null, 167_000), "nothing to move out: the conversation is left as it is. /compact with instructions runs Claude Code's summary");
 });

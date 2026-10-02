@@ -13,7 +13,9 @@ import {
   charsOf,
   compact,
   countFrom,
+  leftUndone,
   reportLine,
+  undoneLine,
   windowFrom,
   type Config,
   type Context,
@@ -358,6 +360,13 @@ function numberIn(value: unknown, fallback: number, min: number, max: number): n
 type HandedOver = { why: string; keep: { store: StoreDirs; messages: readonly Message[] } | { unkept: string } };
 
 /**
+ * What a compaction came to, and what it was measured with: what was in use
+ * before, whether Claude Code gave that figure or it was made up from
+ * characters, and the share of the window that may stay in use.
+ */
+type Tried = { outcome: Outcome; store: StoreDirs; inUse: number; given: boolean; maxAfterPercent: number };
+
+/**
  * One compaction, up to what would be handed back, or why the built-in
  * compaction runs instead. Nothing is thrown, so the caller calls `next` once
  * whatever happened here.
@@ -366,7 +375,7 @@ async function attempt(
   $: WithUi & WithEnv & WithFiles & WithSession & WithSettings & WithProcess,
   e: Compacting,
   options: PluginOptions,
-): Promise<{ outcome: Outcome; store: StoreDirs } | HandedOver> {
+): Promise<Tried | HandedOver> {
   // Outside the try: once the place is known to be private, a failure further on still keeps the conversation.
   let store: StoreDirs | null = null;
   const messages = e.messages as readonly Message[];
@@ -408,11 +417,13 @@ async function attempt(
       targetPercent: numberIn(options['targetPercent'], 40, 1, 99),
       maxAfterPercent: numberIn(options['maxAfterPercent'], 75, 1, 100),
     };
+    const given = typeof tokens === 'number' && tokens > 0;
+    // Made up from characters when Claude Code gives none: images, which are no characters, at their rough figure.
+    const inUse = given ? tokens : Math.ceil(charsOf(messages) / CHARS_PER_TOKEN) + media.images * IMAGE_TOKENS;
     const outcome = await compact(
       {
         messages,
-        // Made up from characters when Claude Code gives none: images, which are no characters, at their rough figure.
-        tokens: typeof tokens === 'number' && tokens > 0 ? tokens : Math.ceil(charsOf(messages) / CHARS_PER_TOKEN) + media.images * IMAGE_TOKENS,
+        tokens: inUse,
         count: countFrom(context?.breakdown, tokens, api, messages),
         window: windowFrom(context, FALLBACK_WINDOW),
         goal: goalOf(messages, e.instructions),
@@ -423,7 +434,7 @@ async function attempt(
     );
     // A result that holds an image could not be moved out: nothing was rebuilt.
     if (outcome.abandoned !== undefined) return { why: outcome.abandoned, keep: { store, messages: asSent } };
-    return { outcome, store };
+    return { outcome, store, inUse, given, maxAfterPercent: config.maxAfterPercent };
   } catch (error) {
     const why = error instanceof Error ? error.message : String(error);
     return { why, keep: store === null ? { unkept: 'the place to keep it in could not be read' } : { store, messages: asSent } };
@@ -549,6 +560,11 @@ export const register: Register = (on, options) => {
     }
     const { outcome, store } = tried;
     if (outcome.report.moved === 0) {
+      // By hand, with room and nothing that could leave: no summary was asked for and none is needed (ADR 0015, src/compact.ts decides).
+      if (leftUndone({ trigger: e.trigger, instructions: e.instructions, inUse: tried.inUse, window: outcome.report.window, maxAfterPercent: tried.maxAfterPercent, candidates: outcome.report.candidates })) {
+        // Said once, as the reason Claude Code shows for not compacting: a line of the plugin's beside it says the same twice.
+        return { skip: `${PLUGIN}: ${undoneLine(tried.given ? tried.inUse : null, outcome.report.window)}` };
+      }
       say($, `built-in compaction: nothing could be moved out (${reportLine(outcome.report)})`);
       return summarizeKeeping($, e, next, { store, messages: e.messages as readonly Message[] });
     }
