@@ -586,6 +586,10 @@ test('the tables keep the arms apart, show a few runs as they are, and say how e
   assert.ok(!text.includes('different buildings') && !text.includes('different states'));
   assert.match(report(units.map((unit) => (unit.run === 2 ? { ...unit, base: 'another-session' } : unit)), grades), /measured on 2 different buildings of the trace/);
   assert.match(report(units.map((unit) => (unit.run === 2 && unit.arm === 'plugin' ? { ...unit, plugin: 'def5678' } : unit)), grades), /measured on 2 different states of the plugin's code/);
+  // The same code at another commit, one that touched only the benchmark, is one state: both commits are named.
+  const later = report(units.map((unit) => (unit.run === 2 && unit.arm === 'plugin' ? { ...unit, pluginCommit: 'beef123' } : unit)), grades);
+  assert.ok(!later.includes('different states'));
+  assert.match(later, /The plugin's code: abc1234 \(commit c0ffee1, beef123\)\./);
   assert.match(text, /2 unit\(s\) measured an older version of their trace and are left out\./);
   assert.ok(!report(units, grades).includes('older version'));
   assert.match(text, /\| Compaction: tokens read from cache \| 0, 0 \| 0, 0 \|/);

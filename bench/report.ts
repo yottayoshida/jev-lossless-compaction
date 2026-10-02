@@ -80,7 +80,9 @@ export function report(units: readonly Unit[], grades: Grades | null, older = 0)
     const [trace, model] = key.split('|');
     const by = (arm: Arm) => group.filter((unit) => unit.arm === arm).sort((a, b) => a.run - b.run);
     const cell = (arm: Arm, pick: (unit: Unit) => number, digits = 0) => spread(by(arm).map(pick), digits);
-    const plugins = [...new Set(by('plugin').map((unit) => `${unit.plugin ?? 'not recorded'} (commit ${unit.pluginCommit ?? 'not recorded'})`))];
+    // A commit that touches no code of the plugin leaves the code the same: units are told apart by the code, and the commits are named beside it.
+    const codes = [...new Set(by('plugin').map((unit) => unit.plugin ?? 'not recorded'))];
+    const plugins = codes.map((code) => `${code} (commit ${[...new Set(by('plugin').filter((unit) => (unit.plugin ?? 'not recorded') === code).map((unit) => unit.pluginCommit ?? 'not recorded'))].join(', ')})`);
     const builds = new Set(group.map((unit) => unit.base));
     const lines = [
       `### ${trace}, ${model}`,
