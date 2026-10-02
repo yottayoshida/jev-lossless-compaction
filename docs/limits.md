@@ -12,33 +12,72 @@ change that. An image in a tool result is moved out with the result: a line
 stands in its place, and the conversation is compacted by the plugin (see
 [images](#images)).
 
-How full it is afterwards is counted from what stays: what Claude Code's
-breakdown says is not the conversation (the system prompt, the tools'
-definitions and the like), plus the rebuilt conversation at the session's
-own tokens a character — what the breakdown's `Messages` row comes to over
-the conversation as it was sent — and at no less than one in three.
-Thinking is not in it, since no rebuilt message carries any, and neither
-are images (their bytes are not among the characters, and about 1,500
-tokens an image are taken off the `Messages` row). Measured against the
-next request, that came within 17 % in three sessions and 29 % over in a
-fourth: mostly high. It comes out low when what stays is denser than the
-session on average, such as Japanese left after source code was moved out.
-In the made-up conversations of [the benchmark](measurements.md#the-plugins-estimate-of-what-is-left)
-it was within 1 % where results were moved out with Haiku, and 2 % over
-with Sonnet. Where nothing could be moved, and the count can be set against
-what was in use, it ran from 48 % over to 41 % under in the five such
-conversations: 34 % and 48 % over in two that are mostly pasted prose, 6 %
-under in one that is mostly files the agent wrote, 26 % under in one of
-many short results, and 41 % under in one that is a third thinking. The
-three of them run with Sonnet came within two points of the same. The
-errors over go the way the floor of one token to three characters would,
-and the largest under the way leaving thinking out would; how much of each
-that accounts for was not measured, and the 26 % is not explained.
+How full it is afterwards is counted as what is in use less what goes (ADR
+0013). What Claude Code's breakdown says is not the conversation (the system
+prompt, the tools' definitions and the like) stays as it is. Of the
+conversation, the breakdown's `Messages` row, three things are gone once the
+messages are rebuilt, whatever is moved out: images, taken off at about
+1,500 tokens each; thinking, whose tokens a plugin cannot read, and which is
+estimated from how long the signatures of the thinking blocks are; and what
+Claude Code added to the conversation as it sent it — reminders after
+results and after what you said, the text of commands and attachments —
+which is in no message a plugin is handed. What is left of the row is spread
+over the characters that were sent, a digit counting as two and a character
+that is not ASCII as three, and what Claude Code added at four fifths of
+what the messages' characters count; the rebuilt conversation is counted at
+that rate. What a result saves by leaving is counted at it too.
+
+Where the plugin moved results out, the size it goes by came within 20 % of
+what was in use afterwards, and no more than 5 % under it, in every
+conversation it was measured on, compacted by the model that had built it.
+On Haiku 4.5, in the made-up conversations of
+[the benchmark](measurements.md#the-size-after-a-compaction-counted-again):
+mostly tool results, pasted English prose with logs, and Japanese with logs.
+On Opus 5.5: Japanese with logs, made up, and five long working sessions
+with 172 to 235 thinking blocks.
+
+Where nothing could be moved, the conversation goes to the summary and
+nothing the plugin would have rebuilt is sent, so there is no afterwards to
+measure. Set against what was in use before less its thinking, the size came
+up to 7 % under in the five such conversations of the benchmark (files
+written, pasted prose, many short results, a full window, a third
+thinking), where 0.6.0 ran from 49 % over to 22 % under.
+
+Which way it is off, where that is known:
+
+- Over where what leaves comes to more tokens a character than what stays:
+  3 % and 7 % with logs moved out, the 7 % out of English prose.
+- What Claude Code added comes to fewer tokens than the same weight of the
+  messages: 0.75 to 0.88 of them in the five working sessions, where it
+  was half to four fifths as much again as the messages themselves. It is
+  counted at four fifths, chosen on the first four of those sessions; the
+  fifth, measured with that, came 1 % under. A session whose own figure
+  lies further from four fifths is off by the difference, times the share
+  that was added: 3 % at most in the five.
+- The thinking is estimated at 0.6 to 1.5 times what it was, in
+  conversations of four thinking blocks or more. With one block, or with
+  blocks whose signatures are all as long, it comes out at nothing, and the
+  size over by as much.
+- Right after the model is changed, the breakdown is still of the last
+  response, which the model before gave. A conversation built with Haiku
+  and compacted by Sonnet before Sonnet had answered came 20 % under where
+  English prose stayed, for which Sonnet counts a third more tokens, and
+  5 % over where logs did. Once the new model has answered, the figures are
+  its own.
+- Two of the working sessions held 29 and 11 images in their results,
+  taken off at about 1,500 tokens each, and came within 3 %. A conversation
+  that is mostly images was not measured with this count; with the one
+  before it, five images among four text files came 29 % over.
+
 When the breakdown cannot be relied on, the line a compaction shows names
 no token count, and what was in use less what was moved out is measured
-instead: that still counts the thinking, and with no response since the
-last compaction, what was in use is the conversation's characters over
-three, without the system prompt or the tools.
+instead, at three characters a token: that still counts the thinking, and
+with no response since the last compaction, what was in use is the
+conversation's characters over three, without the system prompt or the
+tools. It is not relied on either when the conversation cannot be read as
+it was sent, when the thinking comes out at more than nine tenths of the
+`Messages` row, or when the row comes to fewer than 0.05 or more than 3
+tokens a weighted character.
 
 ## What a summary replaces
 
@@ -470,9 +509,12 @@ When Claude Code loads tools on demand, the agent has to load `recall` or
 
 ## Sizes and older versions
 
-Tokens are estimated from characters, three to a token, so more can leave
-the conversation than the target asks for; and since source code runs nearer
-2.2 characters a token, `keepTokens` keeps more than its number says. The
+`keepTokens` is turned into characters at three to a token, and since
+source code runs nearer 2.2 characters a token, it keeps more than its
+number says. How full the conversation is afterwards is counted as said
+[above](#when-the-built-in-compaction-runs-instead); where the breakdown
+cannot be relied on, tokens are estimated at three characters each, and
+more can leave the conversation than the target asks for. The
 `keepNewest` setting of 0.1.0 is gone and ignored; where the host still hands
 its value to the plugin, every compaction of the main conversation says so.
 

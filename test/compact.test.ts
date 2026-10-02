@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { CHARS_PER_TOKEN, apiChars, charsOf, compact, countFrom, reportLine, windowFrom, type Config, type Host, type Input } from '../src/compact.ts';
+import { CHARS_PER_TOKEN, charsOf, compact, countFrom, reportLine, thinkingOf, weigh, weightOf, windowFrom, type Config, type Host, type Input } from '../src/compact.ts';
 import { moveOut, readTicket, recall, ticketText } from '../src/store.ts';
 import type { Message } from '../src/types.ts';
 import { MemoryFiles, conversation, output, sized, type Call } from './helpers.ts';
@@ -180,8 +180,10 @@ test('when a summary of what is left could not make room either, the built-in co
 /** Twelve results, with what is not the conversation and the thinking every compaction drops on top (#24). */
 function withThinking(fixedTokens: number, thinking: number, window: number, tokensPerChar = 1 / CHARS_PER_TOKEN): Input {
   const messages = conversation(Array.from({ length: 12 }, (_, i) => call(`step ${i + 1}`)));
-  const tokens = fixedTokens + Math.ceil(charsOf(messages) * tokensPerChar) + thinking;
-  return { messages, tokens, count: { fixedTokens, tokensPerChar }, window, goal: messages[0]?.text ?? '' };
+  const said = Math.ceil(charsOf(messages) * tokensPerChar);
+  const tokens = fixedTokens + said + thinking;
+  // The density as `countFrom` makes it: what the conversation comes to, over its weighted characters.
+  return { messages, tokens, count: { fixedTokens, density: said / weightOf(messages) }, window, goal: messages[0]?.text ?? '' };
 }
 
 test('a conversation that fits once its thinking is gone is not handed to the built-in summary', async () => {
@@ -240,7 +242,7 @@ test('a conversation that counts near a token a character is still handed over w
   const thin = withThinking(10_000, 0, 20_000);
 
   const counted = await compact(dense, CONFIG, hostWith(new MemoryFiles()).host);
-  const guessed = await compact({ ...dense, count: { fixedTokens: 10_000, tokensPerChar: 1 / CHARS_PER_TOKEN } }, CONFIG, hostWith(new MemoryFiles()).host);
+  const guessed = await compact({ ...dense, ...(thin.count === undefined ? {} : { count: thin.count }) }, CONFIG, hostWith(new MemoryFiles()).host);
 
   assert.ok(counted.report.tokensAfter > (20_000 * 60) / 100, `${counted.report.tokensAfter}`);
   assert.equal(counted.enough, false);
@@ -248,43 +250,102 @@ test('a conversation that counts near a token a character is still handed over w
   assert.equal((await compact(thin, CONFIG, hostWith(new MemoryFiles()).host)).enough, true);
 });
 
-test('a size is counted from the breakdown only when it can be relied on, at the session\'s own tokens a character', () => {
+/** Within a millionth: what a division by 2.3 leaves of a round figure. */
+const close = (actual: number | undefined, expected: number) =>
+  assert.ok(actual !== undefined && Math.abs(actual - expected) <= expected * 1e-6, `${actual} is not ${expected}`);
+
+/** A thinking block whose signature is this long. */
+const signed = (chars: number) => ({ type: 'thinking', thinking: '', signature: 's'.repeat(chars) });
+
+test("a size is counted from the breakdown only when it can be relied on, at the conversation's own density", () => {
   const row = (name: string, tokens: number, kind = 'used') => ({ name, tokens, kind, color: '', isDeferred: kind === 'deferred' });
   const categories = [row('System prompt', 9_000), row('System tools', 21_000), row('Messages', 70_000), row('Free space', 100_000, 'free'), row('MCP tools', 5_000, 'deferred')];
   const apiUsage = { input_tokens: 10, output_tokens: 10 };
-  const text = (chars: number) => [{ role: 'user', content: [{ type: 'text', text: 'x'.repeat(chars) }] }];
+  const said = (chars: number, char = 'x'): Message[] => [{ role: 'user', text: char.repeat(chars), toolUses: [] }];
 
-  // 70,000 tokens over 70,000 characters: a token a character, as Japanese runs.
-  assert.deepEqual(countFrom({ categories, apiUsage }, 100_000, text(70_000)), { fixedTokens: 30_000, tokensPerChar: 1 });
-  // Never under one in three, whatever the session's figure.
-  assert.deepEqual(countFrom({ categories, apiUsage }, 100_000, text(700_000)), { fixedTokens: 30_000, tokensPerChar: 1 / CHARS_PER_TOKEN });
-  assert.deepEqual(countFrom({ categories, apiUsage }, 100_000, []), { fixedTokens: 30_000, tokensPerChar: 1 / CHARS_PER_TOKEN });
+  // 70,000 tokens over 70,000 letters.
+  assert.deepEqual(countFrom({ categories, apiUsage }, 100_000, [], said(70_000)), { fixedTokens: 30_000, density: 1 });
+  // No floor: prose at ten characters a token is counted at that (#37).
+  assert.deepEqual(countFrom({ categories, apiUsage }, 100_000, [], said(700_000)), { fixedTokens: 30_000, density: 0.1 });
+  // The characters are weighted: the same row over as many digits is half the density, over Japanese a third.
+  assert.equal(countFrom({ categories, apiUsage }, 100_000, [], said(70_000, '7'))?.density, 0.5);
+  assert.equal(countFrom({ categories, apiUsage }, 100_000, [], said(70_000, 'あ'))?.density, 1 / 3);
+  // The thinking is taken off the row: 20,000 tokens of it, told from the signatures, leave 50,000 for the same letters.
+  const thinking = [{ role: 'assistant', content: [signed(600), signed(600 + 46_000)] }];
+  close(countFrom({ categories, apiUsage }, 100_000, thinking, said(100_000))?.density, 0.5);
+  // The control, and a signature is no character of the conversation: without the blocks it is 0.7.
+  assert.equal(countFrom({ categories, apiUsage }, 100_000, [], said(100_000))?.density, 0.7);
+  // What Claude Code added to the conversation as it sent it goes too: the row is spread over what was sent, what
+  // was added counting at four fifths. With as many letters again sent as the 70,000 of the messages, those come to
+  // 70,000 of 126,000 parts of the row.
+  const reminded = [
+    { role: 'user', content: [{ type: 'text', text: `${'x'.repeat(70_000)}${'r'.repeat(30_000)}` }] },
+    { role: 'assistant', content: [signed(600), { type: 'tool_use', id: 't1', name: 'Read', input: {} }] },
+    { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: [{ type: 'text', text: 'r'.repeat(39_998) }] }] },
+  ];
+  // What was sent: 100,000 letters said, an input of two characters, a result of 39,998. No signature, id or name is among them.
+  close(countFrom({ categories, apiUsage }, 100_000, reminded, said(70_000))?.density, 70_000 / 126_000);
+  // Blocks that hold less than the messages do are not the conversation as it was sent: the messages are.
+  assert.equal(countFrom({ categories, apiUsage }, 100_000, [{ role: 'user', content: 'x'.repeat(100) }], said(70_000))?.density, 1);
+  // What cannot be read as a conversation is not counted with: what was added to it could not be told from what stays.
+  assert.equal(countFrom({ categories, apiUsage }, 100_000, [{ role: 'user', content: 'x'.repeat(100) }, { role: 'system', content: 'x' }], said(70_000)), undefined);
+  assert.equal(countFrom({ categories, apiUsage }, 100_000, [null], said(70_000)), undefined);
+  assert.equal(countFrom({ categories, apiUsage }, 100_000, undefined, said(70_000)), undefined);
+  // Not one to count with: thinking that comes out over nine tenths of the row, with the control just under,
+  const most = (tokens: number) => [{ role: 'assistant', content: [signed(600), signed(600 + Math.round(tokens * 2.3))] }];
+  assert.equal(countFrom({ categories, apiUsage }, 100_000, most(64_000), said(70_000)), undefined);
+  close(countFrom({ categories, apiUsage }, 100_000, most(62_000), said(70_000))?.density, 8_000 / 70_000);
+  // a density no tokenizer comes to, either way, and a conversation without a character.
+  assert.equal(countFrom({ categories, apiUsage }, 100_000, [], said(10_000)), undefined);
+  assert.equal(countFrom({ categories, apiUsage }, 100_000, [], said(7_000_000)), undefined);
+  assert.equal(countFrom({ categories, apiUsage }, 100_000, [], []), undefined);
   // Not Claude Code's own figure: estimated from characters when it gave none.
-  assert.equal(countFrom({ categories, apiUsage }, undefined, text(1)), undefined);
+  assert.equal(countFrom({ categories, apiUsage }, undefined, [], said(70_000)), undefined);
   // Before a response, what the rows are reconciled to is missing.
-  assert.equal(countFrom({ categories, apiUsage: null }, 100_000, text(1)), undefined);
-  assert.equal(countFrom({ categories: categories.filter((r) => r.name !== 'Messages'), apiUsage }, 100_000, text(1)), undefined);
+  assert.equal(countFrom({ categories, apiUsage: null }, 100_000, [], said(70_000)), undefined);
+  assert.equal(countFrom({ categories: categories.filter((r) => r.name !== 'Messages'), apiUsage }, 100_000, [], said(70_000)), undefined);
   // Out of range either way.
-  assert.equal(countFrom({ categories, apiUsage }, 30_000, text(1)), undefined);
-  assert.equal(countFrom({ categories: [row('Messages', 70_000)], apiUsage }, 100_000, text(1)), undefined);
-  assert.equal(countFrom(undefined, 100_000, text(1)), undefined);
+  assert.equal(countFrom({ categories, apiUsage }, 30_000, [], said(70_000)), undefined);
+  assert.equal(countFrom({ categories: [row('Messages', 70_000)], apiUsage }, 100_000, [], said(70_000)), undefined);
+  assert.equal(countFrom(undefined, 100_000, [], said(70_000)), undefined);
 });
 
-test('the characters of a conversation read with its blocks count thinking, signatures, inputs and results', () => {
+test('the thinking of a conversation is told from its signatures: what they run to beyond the shortest of them', () => {
   const api = [
     { role: 'user', content: 'hello' },
-    {
-      role: 'assistant',
-      content: [
-        { type: 'thinking', thinking: 'abc', signature: 'sig' },
-        { type: 'tool_use', id: 't1', name: 'Read', input: { path: 'a' } },
-      ],
-    },
+    { role: 'assistant', content: [signed(600), { type: 'text', text: 'x'.repeat(5000) }] },
+    { role: 'assistant', content: [signed(600 + 2300), { type: 'tool_use', id: 't1', name: 'Read', input: { path: 'a' } }] },
     { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: [{ type: 'text', text: 'body' }] }] },
+    { role: 'assistant', content: [signed(600 + 23_000)] },
   ];
-  // 5 + (3 + 3) + (2 + 4 + 12) + (2 + 4)
-  assert.equal(apiChars(api), 5 + 6 + 2 + 4 + JSON.stringify({ path: 'a' }).length + 2 + 4);
-  assert.equal(apiChars(undefined), 0);
+  // 25,300 characters beyond three times the shortest, at 2.3 a token.
+  close(thinkingOf(api), 11_000);
+  // One block alone is the shortest: what it thought cannot be told.
+  assert.equal(thinkingOf([api[4]]), 0);
+  // Thinking that was redacted is no thinking block, whatever it carries, and a block without a signature is not the
+  // shortest: neither adds or takes away.
+  const unsigned = [
+    { role: 'assistant', content: [{ type: 'redacted_thinking', data: 'd'.repeat(9000), signature: 's'.repeat(100) }] },
+    { role: 'assistant', content: [{ type: 'thinking', thinking: 'aloud' }, { type: 'thinking', thinking: '', signature: '' }] },
+  ];
+  close(thinkingOf([...api, ...unsigned]), 11_000);
+  assert.equal(thinkingOf(unsigned), 0);
+  assert.equal(thinkingOf(undefined), 0);
+});
+
+test('a digit weighs as two characters and a character that is not ASCII as three', () => {
+  assert.equal(weigh('abc def\n'), 8);
+  assert.equal(weigh('2026-10-02'), 8 * 2 + 2);
+  assert.equal(weigh('受付の記録'), 15);
+  assert.equal(weigh(''), 0);
+  // Of a conversation: what was said, the calls' inputs and the results, as its characters are counted.
+  const messages: Message[] = [
+    { role: 'user', text: '直す', toolUses: [] },
+    { role: 'assistant', text: 'ok', toolUses: [{ tool_use_id: 't1', tool: 'Read', input: { n: 7 }, text: 'not counted on this side' }] },
+    { role: 'user', text: '', toolUses: [], toolResults: [{ tool_use_id: 't1', text: 'line 12', isError: false }] },
+  ];
+  assert.equal(weightOf(messages), 6 + 2 + (JSON.stringify({ n: 7 }).length + 1) + (7 + 2));
+  assert.equal(charsOf(messages), 2 + 2 + JSON.stringify({ n: 7 }).length + 7);
 });
 
 test('what a compaction measures against is where Claude Code compacts on its own, else the window', () => {
@@ -503,4 +564,210 @@ test('the line names a size of the context only when it was counted from what st
 
   assert.match(reportLine(counted.report), new RegExp(`chars, about ${counted.report.tokensAfter} of 68000 tokens in use\\) in `));
   assert.match(reportLine(guessed.report), /^moved 11 of 12 tool results out \(\d+ -> \d+ chars\) in \d+ ms$/);
+});
+
+/**
+ * A tokenizer for these tests: a letter or a sign comes to a quarter of a token, a digit
+ * to half, a character that is not ASCII to three quarters, which is the ratio `weigh`
+ * takes, as the signatures of `session` grow at the 2.3 characters a token the plugin
+ * takes, and what `session` adds comes to the four fifths the plugin takes. So these
+ * tests hold that every size is counted one way, from one end of a compaction to the
+ * other; they do not hold that the weights, the 2.3 or the four fifths are right. That
+ * is measured: the probes in bench/results/2026-10-02-estimate, and the test that reads
+ * them (test/bench.test.ts).
+ */
+function tokensIn(text: string): number {
+  let total = 0;
+  for (const char of text) total += char >= '0' && char <= '9' ? 0.5 : char.charCodeAt(0) > 127 ? 0.75 : 0.25;
+  return total;
+}
+
+const spoken = (messages: readonly Message[]): number =>
+  messages.reduce(
+    (sum, m) =>
+      sum + tokensIn(m.text) + m.toolUses.reduce((n, u) => n + tokensIn(JSON.stringify(u.input)), 0) + (m.toolResults ?? []).reduce((n, r) => n + tokensIn(r.text), 0),
+    0,
+  );
+
+/**
+ * A session as Claude Code tells of it: the rows of its breakdown, and the conversation
+ * with its blocks, where each thinking block has a signature as long as its tokens make
+ * it. `truth` is what a conversation handed back would come to in the next request.
+ */
+function session(messages: readonly Message[], fixed: number, window: number, thinking: readonly number[] = [], added = '') {
+  const thought = thinking.reduce((sum, tokens) => sum + tokens, 0);
+  const said = Math.round(spoken(messages));
+  // What Claude Code sent with the conversation and no message holds: in the row, and gone once the messages are rebuilt.
+  // It comes to four fifths of what as many characters of the messages do, which is what the plugin takes it to.
+  const extra = Math.round(tokensIn(added) * 0.8);
+  const row = (name: string, tokens: number) => ({ name, tokens, kind: 'used' });
+  const breakdown = { categories: [row('System prompt', fixed), row('Messages', said + thought + extra)], apiUsage: { input_tokens: 1 } };
+  const api = [
+    { role: 'assistant', content: thinking.map((tokens) => signed(600 + Math.round(tokens * 2.3))) },
+    ...(added === ''
+      ? []
+      : [
+          ...messages.map((m) => ({
+            role: m.role,
+            content: [
+              { type: 'text', text: m.text },
+              ...m.toolUses.map((use) => ({ type: 'tool_use', id: use.tool_use_id, name: use.tool, input: use.input })),
+              ...(m.toolResults ?? []).map((result) => ({ type: 'tool_result', tool_use_id: result.tool_use_id, content: result.text })),
+            ],
+          })),
+          { role: 'user', content: [{ type: 'text', text: added }] },
+        ]),
+  ];
+  const tokens = fixed + said + thought + extra;
+  const count = countFrom(breakdown, tokens, api, messages);
+  const input: Input = { messages, tokens, window, goal: '', ...(count === undefined ? {} : { count }) };
+  return { input, count, said, truth: (after: readonly Message[]) => fixed + spoken(after) };
+}
+
+/** Within half a percent. */
+const near = (actual: number, expected: number) =>
+  assert.ok(Math.abs(actual - expected) <= expected * 0.005, `${actual} is not within half a percent of ${Math.round(expected)}`);
+
+const PROSE = 'the quick brown fox jumps over the lazy dog and '; // 48 letters and spaces
+
+test('pasted prose in English is counted at what it comes to, and a conversation that fits is not handed over (#37)', async () => {
+  // 240,000 letters that stay whatever leaves: 60,000 tokens, where a third of a token a character says 80,000.
+  const before = conversation(Array.from({ length: 12 }, (_, i) => call(`step ${i + 1}`, 1000)), PROSE.repeat(5000));
+  const { input, count, truth } = session(before, 10_000, 140_000);
+  assert.ok(count !== undefined && count.density < 0.3, `${count?.density}`);
+
+  const { messages, enough, report } = await compact(input, CONFIG, hostWith(new MemoryFiles()).host);
+
+  assert.equal(report.moved, 11);
+  near(report.tokensAfter, truth(messages));
+  assert.ok(report.tokensAfter < (140_000 * 60) / 100, `${report.tokensAfter}`);
+  assert.equal(enough, true);
+  // The control: counted at a third, as it was before, the same conversation is handed to the summary.
+  const floored = await compact({ ...input, count: { fixedTokens: 10_000, density: 1 / CHARS_PER_TOKEN } }, CONFIG, hostWith(new MemoryFiles()).host);
+  assert.equal(floored.report.moved, 11);
+  assert.equal(floored.enough, false);
+});
+
+test('the thinking a session holds makes the size after neither higher nor lower (#37)', async () => {
+  const before = conversation(Array.from({ length: 12 }, (_, i) => call(`step ${i + 1}`, 300)));
+  const plain = session(before, 10_000, 1_000_000);
+  // 37,000 tokens of thinking on top of the same conversation, about as much again.
+  const thought = session(before, 10_000, 1_000_000, [0, 5_000, 20_000, 12_000]);
+  assert.ok(plain.count !== undefined && thought.count !== undefined);
+  assert.ok(thought.input.tokens > plain.input.tokens * 1.5, 'the control: the thinking is a large part of what is in use');
+  close(thought.count.density, plain.count.density);
+
+  const without = await compact(plain.input, CONFIG, hostWith(new MemoryFiles()).host);
+  const { messages, report } = await compact(thought.input, CONFIG, hostWith(new MemoryFiles()).host);
+
+  assert.ok(report.moved > 0);
+  assert.equal(report.moved, without.report.moved);
+  assert.equal(report.tokensAfter, without.report.tokensAfter);
+  near(report.tokensAfter, thought.truth(messages));
+});
+
+test('what Claude Code added to the conversation as it sent it is not counted as staying (#37)', async () => {
+  const before = conversation(Array.from({ length: 12 }, (_, i) => call(`step ${i + 1}`, 300)));
+  const plain = session(before, 10_000, 1_000_000);
+  // Reminders and the text of commands, three quarters as much again as the messages hold, and thinking on top.
+  const added = '<system-reminder>\nThe task tools have not been used recently. 念のため確認する。\n</system-reminder>\n'.repeat(900);
+  const real = session(before, 10_000, 1_000_000, [0, 9_000], added);
+  assert.ok(plain.count !== undefined && real.count !== undefined);
+  assert.ok(real.input.tokens > plain.input.tokens * 1.5, 'the control: what goes is a large part of what is in use');
+  near(real.count.density, plain.count.density);
+
+  const { messages, report } = await compact(real.input, CONFIG, hostWith(new MemoryFiles()).host);
+
+  assert.ok(report.moved > 0);
+  near(report.tokensAfter, real.truth(messages));
+  // What is needed is measured without it as well: as much leaves as from the conversation alone.
+  assert.equal(report.moved, (await compact(plain.input, CONFIG, hostWith(new MemoryFiles()).host)).report.moved);
+});
+
+test('Japanese left after logs are moved out is counted at what it comes to (#37)', async () => {
+  // 31,500 characters of Japanese stay; the results that leave are ASCII.
+  const before = conversation(Array.from({ length: 12 }, (_, i) => call(`step ${i + 1}`, 1000)), '受付の記録を確かめ、貸し出しの手順を直す。'.repeat(1500));
+  const { input, said, truth } = session(before, 10_000, 1_000_000);
+
+  const { messages, report } = await compact(input, CONFIG, hostWith(new MemoryFiles()).host);
+
+  assert.ok(report.moved >= 6, `${report.moved}`);
+  near(report.tokensAfter, truth(messages));
+  // The control: at one figure for every character, what stays comes out well under what it is.
+  const flat = 10_000 + (charsOf(messages) * said) / charsOf(before);
+  assert.ok(flat < truth(messages) * 0.85, `${Math.round(flat)} of ${Math.round(truth(messages))}`);
+});
+
+test('results leave until what is in use is at the goal and no further, saved measured the way the size after is (#37)', async () => {
+  // Thirty results of the same size, and a goal of half of what is in use.
+  const calls = Array.from({ length: 30 }, (_, i) => call(`step ${i + 1}`, 300));
+  const before = conversation(calls, PROSE.repeat(1250));
+  const { input, truth } = session(before, 10_000, 1_000_000);
+  assert.ok(input.count !== undefined);
+  const goal = input.tokens / 2;
+  const one = Math.max(...calls.map((c) => tokensIn(c.text)));
+
+  const counted = await compact(input, CONFIG, hostWith(new MemoryFiles()).host);
+
+  // At the goal, and the last result that left was needed to get there.
+  assert.ok(counted.report.tokensAfter <= goal + 1, `${counted.report.tokensAfter} of ${goal}`);
+  assert.ok(counted.report.tokensAfter > goal - one, `${counted.report.tokensAfter} of ${goal}, a result is ${one}`);
+  near(counted.report.tokensAfter, truth(counted.messages));
+
+  // Two of the first round cannot be stored: the round falls short by an eighth, and others leave in their place.
+  const files = new MemoryFiles();
+  files.corrupt = (text) => (/^step (3|9) line/.test(text) ? text.replace('value', 'VALUE') : text);
+  const short = await compact(input, CONFIG, hostWith(files).host);
+  assert.equal(short.report.notMoved.differs, 2);
+  assert.equal(short.report.moved, counted.report.moved);
+  assert.ok(short.report.tokensAfter <= goal + 1, `${short.report.tokensAfter} of ${goal}`);
+  assert.ok(short.report.tokensAfter > goal - one, `${short.report.tokensAfter} of ${goal}, a result is ${one}`);
+
+  // Without a count, as before: characters at three a token, of what is in use.
+  const { count: _count, ...rest } = input;
+  const guessed = await compact(rest, CONFIG, hostWith(new MemoryFiles()).host);
+  const guessedGoal = rest.tokens / 2;
+  assert.equal(guessed.report.tokensAfter, Math.round(rest.tokens - (guessed.report.charsBefore - guessed.report.charsAfter) / CHARS_PER_TOKEN));
+  assert.ok(guessed.report.tokensAfter <= guessedGoal + 1, `${guessed.report.tokensAfter} of ${guessedGoal}`);
+  assert.ok(guessed.report.tokensAfter > guessedGoal - Math.max(...calls.map((c) => c.text.length)) / CHARS_PER_TOKEN);
+  assert.notEqual(guessed.report.moved, counted.report.moved, 'the control: the two ways of measuring differ on this conversation');
+});
+
+test('when the thinking is not one to count with, the size is not counted and the line names none (#37)', async () => {
+  const before = conversation(Array.from({ length: 12 }, (_, i) => call(`step ${i + 1}`, 300)));
+  const said = Math.round(spoken(before));
+  // Signatures that say twenty parts in twenty-one of the conversation are thinking.
+  const { input, count } = session(before, 10_000, 1_000_000, [0, said * 20]);
+  assert.equal(count, undefined);
+  // The control: at eight parts in nine it is counted.
+  assert.notEqual(session(before, 10_000, 1_000_000, [0, said * 8]).count, undefined);
+
+  const { report } = await compact(input, CONFIG, hostWith(new MemoryFiles()).host);
+
+  assert.equal(report.counted, false);
+  assert.match(reportLine(report), /^moved \d+ of 12 tool results out \(\d+ -> \d+ chars\) in \d+ ms$/);
+});
+
+test('a conversation that is mostly tickets already is counted at what it comes to when compacted again (#37)', async () => {
+  const files = new MemoryFiles();
+  const first = conversation(Array.from({ length: 20 }, (_, i) => call(`step ${i + 1}`, 300)));
+  const once = await compact(session(first, 10_000, 1_000_000).input, CONFIG, hostWith(files).host);
+  assert.ok(once.report.moved >= 9, `${once.report.moved}`);
+  // The work goes on: eight results more, on top of what was handed back.
+  const later = Array.from({ length: 8 }, (_, i) => call(`later ${i + 1}`, 300)).flatMap((c, i): Message[] => {
+    const id = `toolu_later_${i + 1}`;
+    return [
+      { role: 'assistant', text: '', toolUses: [{ tool_use_id: id, tool: c.tool, input: c.input, text: c.text }] },
+      { role: 'user', text: '', toolUses: [], toolResults: [{ tool_use_id: id, text: c.text, isError: false }] },
+    ];
+  });
+  const { input, truth } = session([...once.messages, ...later], 10_000, 1_000_000);
+  assert.ok(input.count !== undefined);
+
+  const { messages, report } = await compact(input, CONFIG, hostWith(files).host);
+
+  assert.ok(report.moved > 0);
+  assert.ok(messages.flatMap((m) => m.toolResults ?? []).filter((r) => readTicket(r.text)).length > once.report.moved);
+  near(report.tokensAfter, truth(messages));
+  assert.ok(report.tokensAfter <= input.tokens / 2 + 1, `${report.tokensAfter} of ${input.tokens / 2}`);
 });

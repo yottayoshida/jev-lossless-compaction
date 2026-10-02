@@ -168,8 +168,9 @@ difference in answers seen with Haiku was not there, not how often.
 
 The line a compaction shows says how much the plugin takes to be in use
 afterwards. One more unit per trace asked a question that needs nothing of
-the conversation, with this code and with v0.5.2, the release before the
-estimate was changed to count what stays (ADR 0011).
+the conversation, with the code that became 0.6.0 ("this code" below) and
+with v0.5.2, the release before the estimate was changed to count what stays
+(ADR 0011).
 
 | Trace      | What happened  | Measured                | This code: estimate | off by  | v0.5.2: estimate | off by |
 | ---------- | -------------- | ----------------------- | ------------------: | ------: | ---------------: | -----: |
@@ -200,6 +201,10 @@ the five hand-overs were for want of anything to move out. A conversation
 that is mostly prose and also holds results large enough to move is where an
 estimate this far over could hand over when it need not; none of the six is
 that conversation, and it was not measured.
+
+It was measured afterwards, with such a conversation, and the way of
+counting was replaced:
+[The size after a compaction, counted again](#the-size-after-a-compaction-counted-again).
 
 ### `find`
 
@@ -435,6 +440,207 @@ was off with almost none: three characters a token underestimates what
 source code that was moved out took. The session of #24, which held
 228,230 characters of thinking, was 72 % over; its breakdown was not
 recorded.
+
+## The size after a compaction, counted again
+
+On 2026-10-02, Claude Code 2.1.287.
+[The benchmark](#the-plugins-estimate-of-what-is-left) left the size 0.6.0
+counts up to 48 % over and 41 % under where nothing could be moved, without
+measuring why, and named a conversation in which that could do harm without
+having one. This is what was measured for #37, and what the count that
+replaced it (ADR 0013) came to.
+
+The probes are in `bench/results/2026-10-02-estimate/`: the six
+conversations of the benchmark and two made for this, `mixed` and
+`japanese`, each compacted by the model that built it (Haiku 4.5, and for
+`japanese` Opus 5.5 as well, in a building of its own); and `results` and
+`mixed` as Haiku built them, compacted by Sonnet 5.5. Each was compacted
+with the count of ADR 0013 (the plugin's code `eab2b3d9205e`; its commit,
+`df7c325027f2`, is of a checkout made for measuring and is in no branch)
+and with 0.6.0 (`583c90b50929`). A test holds what is said here of those
+units to the units.
+
+### Why 0.6.0 was off
+
+A copy of 0.6.0 that also says what it counted with was run on the same
+conversations with Haiku (its units are not published). What is not the
+conversation came to 8,506 tokens in every one, and the `Messages` row to
+what was in use less that, within 2. The size was off in the conversation's
+part alone, in three ways.
+
+- **The floor.** 0.6.0 counts no less than a token to three characters. The
+  `Messages` row over the characters sent came to 0.22 in `prose` and
+  `full` and 0.25 in `mixed`, which are mostly pasted English prose. They
+  were counted at a third: 37 %, 49 % and 39 % over.
+- **Signatures and ids in what the row was divided by.** The row was spread
+  over the characters of the conversation as it was sent, and the figure
+  then applied to the characters of the messages the hook is handed, which
+  hold neither signatures nor the ids of calls. In `short` those were
+  53,661 and 33,561 characters: 22 % under. In `thinking`, 67,818 and
+  30,628: 13 % under what was in use less its thinking.
+- **One figure for every character.** In `japanese` six English logs leave
+  and 57,000 characters of notes in Japanese stay, which come to about three times
+  the tokens a character: 20 % under with Haiku, 18 % with Opus.
+
+### The conversation it did harm in
+
+`mixed` is 350,000 characters of pasted English prose and six logs of
+17,000 characters that can leave. 0.6.0 moved the six out and counted
+144,466 tokens in use: 86.5 % of the 167,000 it measured against, over the
+75 % that may stay, so it handed the conversation to Claude Code's summary.
+Made to compact it all the same (`maxAfterPercent` 100), what it had left
+came to 103,634 tokens in the next request, 62 %. The count was 39.4 % over
+and the summary need not have run. The count of ADR 0013 put the same
+conversation at 110,755 and compacted it. Compacted by Sonnet it went the
+same way: 0.6.0 handed over at 145,338, and the count of ADR 0013 compacted.
+
+### What the count of ADR 0013 came to
+
+| Conversation | Compacted by | 0.6.0 | its size | off by | ADR 0013 | its size | off by | Measured against |
+| ------------ | ------------ | ----- | -------: | -----: | -------- | -------: | -----: | ---------------- |
+| `results`  | Haiku  | moved 11 of 15 |  36,926 |  −0.5 % | moved 10 of 15 |  45,354 |  +3.5 % | 37,130 and 43,833 sent next |
+| `mixed`    | Haiku  | handed over    | 144,466 | +39.4 % | moved 6 of 9   | 110,755 |  +7.0 % | 103,634 and 103,497 sent next |
+| `japanese` | Haiku  | moved 6 of 9   |  70,495 | −19.8 % | moved 6 of 9   |  87,128 |  −0.7 % | 87,913 and 87,776 sent next |
+| `japanese` | Opus   | moved 6 of 9   |  71,146 | −17.9 % | moved 6 of 9   |  85,030 |  −1.3 % | 86,687 and 86,113 sent next |
+| `writes`   | Haiku  | nothing moved  |  64,406 |  −3.9 % | nothing moved  |  65,654 |  −2.0 % | 67,017 in use, less thinking |
+| `prose`    | Haiku  | nothing moved  |  79,233 | +36.5 % | nothing moved  |  57,074 |  −1.7 % | 58,055 in use, less thinking |
+| `short`    | Haiku  | nothing moved  |  20,462 | −21.9 % | nothing moved  |  24,448 |  −6.7 % | 26,204 in use, less thinking |
+| `full`     | Haiku  | nothing moved  | 211,577 | +48.9 % | nothing moved  | 141,469 |  −0.5 % | 142,128 in use, less thinking |
+| `thinking` | Haiku  | nothing moved  |  20,185 | −13.3 % | nothing moved  |  22,764 |  −2.3 % | 23,294 in use, less thinking |
+| `results`  | Sonnet | moved 11 of 15 |  37,533 |  +2.1 % | moved 10 of 15 |  45,879 |  +5.0 % | 36,760 and 43,690 sent next |
+| `mixed`    | Sonnet | handed over    | 145,338 |  +5.4 % | moved 6 of 9   | 110,911 | −19.4 % | 137,834 and 137,646 sent next |
+
+Where results were moved out, the measure is what the next request sent;
+for `mixed` under 0.6.0 that is the unit made to compact it. Where nothing
+could be moved, nothing the plugin would have rebuilt was sent, and the size
+is set against what was in use before less the thinking, which the session
+that built the conversation counted. The count of ADR 0013 runs a little
+under that, 0.5 % to 6.7 %: it also leaves out what Claude Code added to
+the conversation as it sent it, which a rebuilt conversation would not hold
+either. `short`, 38 results each sent with a reminder after it, has the
+most of that.
+
+The two do not move the same results out of `results`. 0.6.0 took a result
+to save a third of a token a character whatever the size was counted at,
+and moved eleven out for a goal ten were enough for.
+
+The last two rows are another case, [below](#compacted-by-another-model).
+
+### What a signature says of the thinking
+
+A plugin cannot read how many tokens the thinking in a conversation is. Per
+response of the sessions that built a trace, the length of the thinking
+block's signature was set against the thinking tokens the response used
+(the session's cumulative usage, one step less the one before):
+
+| Built with | Blocks | Thinking tokens | Characters of signature | Fitted: a block | a token |
+| ---------- | -----: | --------------: | ----------------------: | --------------: | ------: |
+| Haiku 4.5, `thinking` | 16 | 11,195 | 33,876 | 560 | 2.22 |
+| Haiku 4.5, `japanese` | 22 | 6,191 | 26,164 | 477 | 2.39 |
+| Opus 5.5, `thinking` at high effort | 10 | 2,231 | 14,644 | 1,029 | 1.95 |
+| Opus 5.5, Japanese with eight puzzles at the highest effort | 11 | 4,743 | 22,052 | 1,091 | 2.12 |
+
+The two on Opus were built for this and are not published; Opus used little
+thinking at any effort. The plugin does not know what a block carries
+whatever it thought, which differs by model, and takes the shortest
+signature of the conversation for it, at 2.3 characters a token. Set
+against what the session counted:
+
+| Conversation | Blocks | Shortest signature | Estimated | Counted | Estimated / counted |
+| ------------ | -----: | -----------------: | --------: | ------: | ------------------: |
+| `results`, Haiku | 21 | 476 | 998 | 873 | 1.14 |
+| `writes`, Haiku | 26 | 512 | 1,483 | 1,332 | 1.11 |
+| `prose`, Haiku | 12 | 548 | 1,240 | 881 | 1.41 |
+| `short`, Haiku | 16 | 552 | 2,162 | 1,524 | 1.42 |
+| `full`, Haiku | 14 | 564 | 925 | 896 | 1.03 |
+| `thinking`, Haiku | 16 | 592 | 10,610 | 11,195 | 0.95 |
+| `mixed`, Haiku | 21 | 456 | 1,497 | 1,001 | 1.50 |
+| `japanese`, Haiku | 22 | 492 | 6,670 | 6,191 | 1.08 |
+| `japanese`, Opus | 4 | 1,016 | 624 | 647 | 0.96 |
+| Working session A, Opus | 235 | 944 | 83,346 | 82,935 | 1.00 |
+| Working session B, Opus | 172 | 872 | 54,017 | 83,980 | 0.64 |
+| Working session C, Opus | 217 | 1,044 | 82,797 | 100,234 | 0.83 |
+| Working session D, Opus | 212 | 1,080 | 49,880 | 53,396 | 0.93 |
+| Working session E, Opus | 220 | 1,004 | 63,282 | 54,650 | 1.16 |
+
+### Five long working sessions
+
+The benchmark's conversations are started without the user's settings and
+hold little that Claude Code adds. Five long sessions of real work on Opus
+5.5, in a window of 1,000,000 tokens (967,000 to the plugin), were forked
+with the plugin loaded as the benchmark loads it, asked for one word so
+that the breakdown was the fork's own, compacted with `/compact`, and asked
+for one word again. Nothing of them is published but these counts.
+
+|                                                        |                 A |                 B |                 C |                 D |                 E |
+| ------------------------------------------------------ | ----------------: | ----------------: | ----------------: | ----------------: | ----------------: |
+| Thinking blocks                                        |               235 |               172 |               217 |               212 |               220 |
+| Tool results                                           |               223 |               192 |               226 |               281 |               294 |
+| Images in results                                      |                 0 |                 0 |                 0 |                29 |                11 |
+| In use before                                          |           513,041 |           431,509 |           472,859 |           451,987 |           483,258 |
+| Not the conversation                                   |             7,807 |             7,641 |             7,807 |             7,807 |             7,805 |
+| `Messages` row                                         |           505,234 |           423,868 |           465,052 |           444,180 |           475,453 |
+| Characters of the messages handed to the hook          |           442,639 |           465,659 |           511,590 |           421,048 |           483,064 |
+| Characters sent: what was said, inputs and results     |           774,766 |           694,573 |           749,266 |           662,184 |           745,261 |
+| Characters of signatures                               |           413,536 |           274,224 |           416,980 |           343,684 |           363,788 |
+| Thinking, estimated                                    |            83,346 |            54,017 |            82,797 |            49,880 |            63,282 |
+| Results moved out                                      |                10 |                27 |                27 |                43 |                24 |
+| Characters of the messages afterwards                  |           399,712 |           351,748 |           349,161 |           357,754 |           422,011 |
+| Sent in the next request                               |           234,380 |           196,190 |           199,524 |           209,616 |           242,532 |
+| Size, the row spread over the messages handed over     | 394,510 (+68.3 %) | 293,994 (+49.9 %) | 282,957 (+41.8 %) | 311,251 (+48.5 %) | 356,461 (+47.0 %) |
+| Size, what was added counted as the messages are       |  216,247 (−7.7 %) |  187,885 (−4.2 %) |  183,115 (−8.2 %) |  188,976 (−9.8 %) |  222,661 (−8.2 %) |
+| Size, the count of ADR 0013: what was added at 4/5     |  237,416 (+1.3 %) |  202,312 (+3.1 %) |  196,833 (−1.3 %) |  204,856 (−2.3 %) |  240,523 (−0.8 %) |
+| Size, 0.6.0's way of counting                          | 173,850 (−25.8 %) | 158,077 (−19.4 %) | 143,582 (−28.0 %) | 145,499 (−30.6 %) | 177,361 (−26.9 %) |
+
+What was sent held half to four fifths as much again as the messages
+handed to the hook (0.57 to 0.86 of them): reminders after results and
+after what was said, the text of commands and of what was attached. Spread
+over the messages alone, as ADR 0013 first decided, the row counted all of
+that as staying: 42 % to 68 % over. That was the count the benchmark had
+put within 8 % wherever the model that built a conversation compacted it,
+since little is added to its conversations.
+
+Counted as the messages are, what was added leaves the sizes 4 % to 10 %
+under. It comes to fewer tokens than the same weight of the messages would:
+the share of the messages' tokens a character at which each session comes
+out exact is 0.83, 0.88, 0.76, 0.75 and 0.78. It is plain English for the
+most part, and the messages are code and JSON. At four fifths, chosen on
+the first four, the sizes are within 3 %; the fifth, measured with that,
+came 0.8 % under.
+
+Each of the first four was measured with the count as it stood, and its
+line said 394,512 (A, the row over the messages), 186,074 (B), 183,115 (C)
+and 188,976 (D); the other figures for them are the counts applied to what
+the plugin was handed and gave back. E was measured with the count as it
+is, and its line said what the table says. A and B's characters are from a
+second fork compacted at once, which sends nothing, and their rows from
+the first fork after its one request, which the second did not hold: the
+difference is one request of a few dozen characters, and the sizes differ
+by a few hundred tokens from the lines that were shown (213,657 and
+186,074). The figures for 0.6.0 are its way of counting applied to the
+conversation the count left, not runs of 0.6.0.
+
+### Compacted by another model
+
+`results` and `mixed`, built with Haiku, were compacted by Sonnet 5.5
+before Sonnet had answered: the first thing the fork is sent is the
+`/compact`. The breakdown a plugin reads is reconciled to the last
+response, which Haiku gave, so the size is in Haiku's tokens: 45,879 and
+110,911, against 45,354 and 110,755 when Haiku compacted. What Sonnet was
+then sent was 43,690 and 137,646. The logs of `results` come to the same
+tokens for both models, and the prose of `mixed` to a third more for
+Sonnet: 5.0 % over and 19.4 % under. 0.6.0 came 5.4 % over on `mixed` here
+because its floor of a third is near what Sonnet counts for prose; it
+handed the conversation over all the same.
+
+### Not measured
+
+A conversation that is mostly images. A conversation built with Sonnet. A
+conversation on Opus that is mostly thinking: in the five working sessions
+thinking was 11 % to 21 % of what was in use. 0.6.0 itself on the working
+sessions. And the count of hand-overs in
+[Moving out tool inputs](#moving-out-tool-inputs-counted-in-hand-overs) was
+made with 0.6.0's way of counting, and was not made again with this one.
 
 ## An image in a tool result
 

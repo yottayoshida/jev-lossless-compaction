@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { CHARS_PER_TOKEN, apiChars, compact, countFrom, imagesOf, reportLine, type Config, type Host, type Input } from '../src/compact.ts';
+import { CHARS_PER_TOKEN, compact, countFrom, imagesOf, reportLine, weightOf, type Config, type Host, type Input } from '../src/compact.ts';
 import { find, type FindInput } from '../src/find.ts';
-import { keepThenSummarize } from '../src/keep.ts';
+import { keepThenSummarize, messagesFromApi } from '../src/keep.ts';
 import { IMAGE_TOKENS, blocksOf, decodeMedia, encodeMedia, isImage, mediaIn, type MediaPart } from '../src/media.ts';
 import { whyNotRebuilt } from '../src/select.ts';
 import { MAX_BYTES, RECALL_TOOL, isStored, moveOut, readTicket, recall } from '../src/store.ts';
@@ -230,29 +230,34 @@ test('an image that cannot be carried still leaves the conversation to the built
   assert.equal(mediaIn(carried).images, 1);
 });
 
-test('the bytes of an image are not characters of the conversation, and its tokens are taken off what the messages come to', () => {
+test('the tokens of an image are taken off what the messages come to, and more images than the row holds are not counted with', () => {
   const data = pixels('counted', 300_000);
   const withImage = [
     { role: 'user', content: [{ type: 'text', text: 'x'.repeat(30_000) }] },
     { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data } }] }] },
   ];
   const without = [withImage[0], { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: [] }] }];
-  assert.equal(apiChars(withImage), apiChars(without));
   assert.equal(imagesOf(withImage), 1);
   assert.equal(imagesOf(without), 0);
+  // For a hook, the result that holds the image has no text.
+  const messages: Message[] = [
+    { role: 'user', text: 'x'.repeat(30_000), toolUses: [] },
+    { role: 'user', text: '', toolUses: [], toolResults: [{ tool_use_id: 't1', text: '', isError: false }] },
+  ];
 
   const row = (name: string, tokens: number) => ({ name, tokens, kind: 'used', color: '', isDeferred: false });
-  const breakdown = (messages: number) => ({ categories: [row('System prompt', 10_000), row('Messages', messages)], apiUsage: { input_tokens: 1 } });
-  // 30,002 characters of text at one token a character, and one image on top.
-  const chars = apiChars(withImage);
-  const counted = countFrom(breakdown(chars + IMAGE_TOKENS), 200_000, withImage);
-  assert.equal(counted?.tokensPerChar, 1, 'the image is on neither side of the division');
+  const breakdown = (tokens: number) => ({ categories: [row('System prompt', 10_000), row('Messages', tokens)], apiUsage: { input_tokens: 1 } });
+  // 30,000 letters at one token each, and one image on top. Its tokens are off the row, and of its 300,000 characters of
+  // base64 none is among those the row is spread over: only the line that stands for an image in what is kept, which
+  // counts as what Claude Code added does, at four fifths.
+  const counted = countFrom(breakdown(30_000 + IMAGE_TOKENS), 200_000, withImage, messages);
+  assert.equal(counted?.density, 30_000 / (30_000 + 0.8 * '[image not kept]'.length));
   // The control: the same row over a conversation without the image comes out higher.
-  const plain = countFrom(breakdown(chars + IMAGE_TOKENS), 200_000, without);
-  assert.ok((plain?.tokensPerChar ?? 0) > 1);
-  // Never under the floor, however many images there are.
+  const plain = countFrom(breakdown(30_000 + IMAGE_TOKENS), 200_000, without, messages);
+  assert.ok((plain?.density ?? 0) > 1);
+  // More images than the row holds at their rough figure: nothing is left to spread, and the size is not counted.
   const many = Array.from({ length: 50 }, () => withImage[1]);
-  assert.equal(countFrom(breakdown(40_000), 200_000, [withImage[0], ...many])?.tokensPerChar, 1 / CHARS_PER_TOKEN);
+  assert.equal(countFrom(breakdown(40_000), 200_000, [withImage[0], ...many], messages), undefined);
 });
 
 test('a conversation of screenshots is not said to be too full once they are gone', async () => {
@@ -261,7 +266,8 @@ test('a conversation of screenshots is not said to be too full once they are gon
   const shots = Object.fromEntries(calls.map((_, i) => [i + 1, { data: pixels(`shot-${i}`) }]));
   const { messages, api } = withImages(calls, shots);
   const fixed = 20_000;
-  const conversationTokens = 30 * IMAGE_TOKENS + Math.ceil(apiChars(api) / CHARS_PER_TOKEN);
+  // What was sent with the images: the calls, and the reminder the host puts after each result.
+  const conversationTokens = 30 * IMAGE_TOKENS + Math.ceil(weightOf(messagesFromApi(api) ?? []) / CHARS_PER_TOKEN);
   const breakdown = {
     categories: [
       { name: 'System prompt', tokens: fixed, kind: 'used' },
@@ -270,7 +276,7 @@ test('a conversation of screenshots is not said to be too full once they are gon
     apiUsage: { input_tokens: 1 },
   };
   const tokens = fixed + conversationTokens;
-  const count = countFrom(breakdown, tokens, api);
+  const count = countFrom(breakdown, tokens, api, messages);
   assert.ok(count);
   const window = Math.round(tokens * 1.1);
 

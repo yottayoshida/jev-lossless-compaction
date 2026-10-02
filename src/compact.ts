@@ -1,5 +1,6 @@
 // One compaction: choose what leaves, move it out, hand the conversation back.
 
+import { messagesFromApi } from './keep.ts';
 import { IMAGE_TOKENS, encodeMedia, type MediaPart } from './media.ts';
 import { ruleOrder, select, type Candidate } from './select.ts';
 import { isStored, moveOut, readTicket, ticketText, type Moved, type NotMoved, type StoreDirs, type Ticket } from './store.ts';
@@ -35,7 +36,7 @@ export type Input = {
   tokens: number;
   /**
    * How to count a size from what stays, see `countFrom`. Absent when it cannot be
-   * told, and sizes are estimated from `tokens` alone.
+   * told, and sizes are estimated from `tokens` alone, at three characters a token.
    */
   count?: Count;
   /** The size the context may reach, see `windowFrom`. */
@@ -57,7 +58,7 @@ export type Report = {
   images: number;
   charsBefore: number;
   charsAfter: number;
-  /** Estimated from characters: the context after, in tokens, and the size it was measured against. */
+  /** Estimated: the context after, in tokens, and the size it was measured against. */
   tokensAfter: number;
   /**
    * Whether `tokensAfter` is counted from what stays. When false it is `tokens` less
@@ -89,13 +90,14 @@ export type Outcome = {
   report: Report;
 };
 
-// ponytail: tokens are estimated as characters / 3. Results of reading source code
-// measured 2.2 to 2.3 characters a token, prose in English runs near 4, Japanese at a
-// character or less. Where a size is `tokens` less what was moved out, too high a
-// figure is the worse mistake: what was saved is underestimated, and a compaction that
-// did enough is handed to the built-in one. Where a size is counted from what stays,
-// the session's own figure is used when it is lower (`countFrom`), and this one is
-// only the floor. The host counts no text for a plugin.
+// ponytail: three characters a token is what `keepTokens` is turned into characters
+// with, and what sizes are estimated at when the breakdown cannot be relied on. Results
+// of reading source code measured 2.2 to 2.3 characters a token, prose in English runs
+// near 4, Japanese at a character or less. There a size is `tokens` less what was moved
+// out, and too high a figure is the worse mistake: what was saved is underestimated, and
+// a compaction that did enough is handed to the built-in one. Where the breakdown can be
+// relied on, sizes are counted at the session's own density instead (`countFrom`). The
+// host counts no text for a plugin.
 export const CHARS_PER_TOKEN = 3;
 const WRITES_IN_FLIGHT = 16;
 
@@ -115,15 +117,44 @@ export function windowFrom(context: Context | undefined, fallback: number): numb
   return sizes.find((size): size is number => typeof size === 'number' && Number.isFinite(size) && size > 0) ?? fallback;
 }
 
-/** The characters of a conversation: what the person and the model said, the calls' inputs, the results. */
-export function charsOf(messages: readonly Message[]): number {
+/** What the person and the model said, the calls' inputs and the results, each text measured and added up. */
+function sizeOf(messages: readonly Message[], measure: (text: string) => number): number {
   let total = 0;
   for (const message of messages) {
-    total += message.text.length;
-    for (const use of message.toolUses) total += JSON.stringify(use.input).length;
-    for (const result of message.toolResults ?? []) total += result.text.length;
+    total += measure(message.text);
+    for (const use of message.toolUses) total += measure(JSON.stringify(use.input));
+    for (const result of message.toolResults ?? []) total += measure(result.text);
   }
   return total;
+}
+
+const lengthOf = (text: string): number => text.length;
+
+/**
+ * The characters of a text weighted by what they tend to come to in tokens: a digit as
+ * two characters, a character that is not ASCII as three. Measured, logs of numbers ran
+ * near twice the tokens a character of English prose, and Japanese near three times: at
+ * one figure for all of them, Japanese left after logs were moved out came 20 % under
+ * (ADR 0013).
+ */
+export function weigh(text: string): number {
+  let total = text.length;
+  for (let at = 0; at < text.length; at++) {
+    const code = text.charCodeAt(at);
+    if (code > 127) total += 2;
+    else if (code >= 48 && code <= 57) total += 1;
+  }
+  return total;
+}
+
+/** The characters of a conversation: what the person and the model said, the calls' inputs, the results. */
+export function charsOf(messages: readonly Message[]): number {
+  return sizeOf(messages, lengthOf);
+}
+
+/** The characters of a conversation, weighted as `weigh` does. */
+export function weightOf(messages: readonly Message[]): number {
+  return sizeOf(messages, weigh);
 }
 
 async function inParallel<T, R>(items: readonly T[], limit: number, run: (item: T) => Promise<R>): Promise<R[]> {
@@ -178,12 +209,11 @@ function rebuild(messages: readonly Message[], moved: ReadonlyMap<string, Moved>
 }
 
 /**
- * A size counted from what stays: what is not the conversation, and how many tokens
- * the conversation's characters come to.
+ * A size counted from what stays: what is not the conversation, and the density of the
+ * conversation, the tokens one weighted character of it came to as it was sent
+ * (`countFrom`).
  */
-export type Count = { fixedTokens: number; tokensPerChar: number };
-
-const MEDIA = new Set(['image', 'document']);
+export type Count = { fixedTokens: number; density: number };
 
 /** How many images a conversation read with its blocks holds, wherever they stand. */
 export function imagesOf(api: unknown): number {
@@ -198,43 +228,70 @@ export function imagesOf(api: unknown): number {
   return total;
 }
 
-/** The characters of a conversation read with its blocks: every text a block holds, its signature and input too, and no image. */
-export function apiChars(api: unknown): number {
-  let total = 0;
-  const visit = (node: unknown): void => {
-    if (typeof node === 'string') {
-      total += node.length;
-      return;
+// What a signature grows by for every token of the thinking it signs. Measured per
+// response, a signature was as long as a fixed part and 2.1 to 2.2 characters a token on
+// Haiku 4.5, 1.95 to 2.1 on Opus 5.5. A little over both: the shortest signature, which
+// stands in for the fixed part, was shorter than it on Haiku.
+const SIGNATURE_CHARS_PER_TOKEN = 2.3;
+/** Above this share of the `Messages` row, an estimate of the thinking is not one to count with. */
+const MOST_THINKING = 0.9;
+/** The tokens a weighted character can come to. Measured, 0.2 to 0.5. */
+const DENSITY = { least: 0.05, most: 3 };
+// What Claude Code added to a conversation as it sent it came to fewer tokens than as many weighted characters
+// of the messages did: 0.75 to 0.88 of them in four long working sessions on Opus 5.5, for no reason that was
+// found. Counted as the messages are, those sessions came 4 % to 10 % under. At four fifths they come 2 % under
+// to 3 % over, the size being held closer on the side of too little.
+const ADDED = 0.8;
+
+/**
+ * The tokens of the thinking in a conversation read with its blocks. They are in the
+ * `Messages` row and gone once the messages are rebuilt, and nothing says how many they
+ * are: the breakdown has no row for them and a message carries no usage. What can be
+ * read is each thinking block's signature, whose length is a line in the tokens it
+ * signs. What every block carries whatever it thought is not known and differs by
+ * model, so the shortest signature of the conversation stands in for it. A block
+ * without a signature counts as none.
+ */
+export function thinkingOf(api: unknown): number {
+  let blocks = 0;
+  let chars = 0;
+  let shortest = Infinity;
+  if (Array.isArray(api)) {
+    for (const message of api) {
+      const content = (message as { content?: unknown } | null)?.content;
+      if (!Array.isArray(content)) continue;
+      for (const block of content) {
+        const { type, signature } = (block ?? {}) as { type?: unknown; signature?: unknown };
+        if (type !== 'thinking' || typeof signature !== 'string' || signature === '') continue;
+        blocks += 1;
+        chars += signature.length;
+        shortest = Math.min(shortest, signature.length);
+      }
     }
-    if (Array.isArray(node)) return node.forEach(visit);
-    if (typeof node !== 'object' || node === null) return;
-    // The bytes of an image are not characters of the conversation: counted, they would
-    // bring the tokens a character down to the floor for every conversation holding one.
-    if (MEDIA.has((node as { type?: unknown }).type as string)) return;
-    for (const [key, value] of Object.entries(node)) {
-      if (key === 'type') continue;
-      if (key === 'content' || typeof value === 'string') visit(value);
-      else total += JSON.stringify(value ?? '').length;
-    }
-  };
-  if (Array.isArray(api)) for (const message of api) visit((message as { content?: unknown } | null)?.content);
-  return total;
+  }
+  return blocks === 0 ? 0 : (chars - blocks * shortest) / SIGNATURE_CHARS_PER_TOKEN;
 }
 
 /**
- * How to count a size from what stays, from Claude Code's breakdown. What is not
- * the conversation is every row in use but `Messages`. The conversation counts at the
- * tokens a character the `Messages` row comes to over the conversation as it was
- * sent (`api`), and at no less than one in three: Japanese runs near a token a
- * character, and counted at three characters a token a conversation that is still
- * too full would be said to fit.
+ * How to count a size from what stays, from Claude Code's breakdown. What is not the
+ * conversation is every row in use but `Messages`. The conversation is that row less
+ * what goes whatever is moved out: the images, which a rebuilt message cannot carry,
+ * the thinking (`thinkingOf`), and what Claude Code added to the conversation as it
+ * sent it: reminders after results and after what the person said, the text of
+ * commands and of what was attached. That is in no message a hook is handed and so in
+ * none it hands back; in a long working session it was three quarters as much again as
+ * the messages held. The row less images and thinking is spread over the weighted
+ * characters of the conversation as it was sent, read with its blocks, those Claude
+ * Code added counting for less (`ADDED`); that is the density, and a rebuilt
+ * conversation is counted at it over the characters of its messages (ADR 0013).
  *
  * Undefined unless it can be relied on: `tokens` is Claude Code's own figure, the
  * breakdown carries the last response's usage, which its `Messages` row is
- * reconciled to, there is such a row, and what is left lies between nothing and
- * `tokens`.
+ * reconciled to, there is such a row, what is left lies between nothing and
+ * `tokens`, the conversation can be read as it was sent, the thinking comes out at no
+ * more than nine tenths of the row, and the density within what a tokenizer can come to.
  */
-export function countFrom(breakdown: Breakdown | undefined, tokens: unknown, api: unknown): Count | undefined {
+export function countFrom(breakdown: Breakdown | undefined, tokens: unknown, api: unknown, messages: readonly Message[]): Count | undefined {
   if (typeof tokens !== 'number' || !Number.isFinite(tokens) || tokens <= 0) return undefined;
   if (typeof breakdown?.apiUsage !== 'object' || breakdown.apiUsage === null || !Array.isArray(breakdown.categories)) return undefined;
   const used = breakdown.categories.filter(
@@ -247,13 +304,21 @@ export function countFrom(breakdown: Breakdown | undefined, tokens: unknown, api
   if (conversation === undefined) return undefined;
   const fixedTokens = used.filter((row) => row !== conversation).reduce((sum, row) => sum + row.tokens, 0);
   if (!(fixedTokens > 0 && fixedTokens < tokens)) return undefined;
-  const chars = apiChars(api);
-  const floor = 1 / CHARS_PER_TOKEN;
+  const thinking = thinkingOf(api);
+  if (thinking > conversation.tokens * MOST_THINKING) return undefined;
   // Images are left out on both sides: their bytes are not among the characters, so
   // their tokens are taken off the row. Left in the row alone, the figure would say
   // a conversation of screenshots is still too full once every one of them is gone.
-  const text = Math.max(0, conversation.tokens - imagesOf(api) * IMAGE_TOKENS);
-  return { fixedTokens, tokensPerChar: chars > 0 ? Math.max(floor, text / chars) : floor };
+  // As it is read to be kept before a summary: what was said, the inputs and the results, no thinking, and a
+  // line of sixteen characters for an image. Where it cannot be read, what Claude Code added cannot be told
+  // from what stays, and nothing is counted. What it holds beyond the messages is what was added.
+  const read = messagesFromApi(api);
+  if (read === null) return undefined;
+  const held = weightOf(messages);
+  const sent = held + ADDED * Math.max(0, weightOf(read) - held);
+  const density = (conversation.tokens - imagesOf(api) * IMAGE_TOKENS - thinking) / sent;
+  if (!(density >= DENSITY.least && density <= DENSITY.most)) return undefined;
+  return { fixedTokens, density };
 }
 
 export async function compact(input: Input, config: Config, host: Host): Promise<Outcome> {
@@ -325,9 +390,14 @@ export async function compact(input: Input, config: Config, host: Host): Promise
   // `tokens` is gone afterwards whatever is moved out: counted from `tokens`, a
   // conversation that fits could be handed to the built-in summary (#24).
   const { count } = input;
-  const perChar = count?.tokensPerChar ?? 1 / CHARS_PER_TOKEN;
+  // One measure for every size below, what is needed and what a result saves included:
+  // weighted characters at the session's density when sizes are counted, else characters
+  // at three a token. Measured one way and saved another, results would be moved out
+  // until a goal is met that the size afterwards then misses.
+  const measure = count === undefined ? lengthOf : weigh;
+  const perUnit = count?.density ?? 1 / CHARS_PER_TOKEN;
   const charsBefore = charsOf(input.messages);
-  const before = count === undefined ? input.tokens : count.fixedTokens + charsBefore * perChar;
+  const before = count === undefined ? input.tokens : count.fixedTokens + sizeOf(input.messages, measure) * perUnit;
   // At most the target, and never more than half of what is there now: a
   // compaction that was asked for should leave room to work in. Both measured the
   // same way, so that something is always needed.
@@ -345,16 +415,19 @@ export async function compact(input: Input, config: Config, host: Host): Promise
   // `tokens` holds them, as Claude Code's own figure or as the caller made it up.
   let saved = count === undefined ? images * IMAGE_TOKENS * CHARS_PER_TOKEN : 0;
   const left = [...order];
-  while (saved / CHARS_PER_TOKEN < need && left.length > 0) {
+  while (saved * perUnit < need && left.length > 0) {
     // As many as the estimate says are still needed, written side by side. Each
     // round takes at least one, so the loop ends when the candidates do.
     const wave: Candidate[] = [];
+    const sizes: number[] = [];
     let expected = saved;
     do {
       const candidate = left.shift() as Candidate;
+      const size = measure(candidate.text);
       wave.push(candidate);
-      expected += candidate.text.length;
-    } while (left.length > 0 && expected / CHARS_PER_TOKEN < need);
+      sizes.push(size);
+      expected += size;
+    } while (left.length > 0 && expected * perUnit < need);
     const written = await inParallel(wave, WRITES_IN_FLIGHT, (candidate) =>
       moveOut(files, config.store.write, candidate.tool, candidate.text),
     );
@@ -366,7 +439,7 @@ export async function compact(input: Input, config: Config, host: Host): Promise
         return;
       }
       moved.set(candidate.id, result);
-      saved += Math.max(0, candidate.text.length - result.text.length);
+      saved += Math.max(0, (sizes[at] as number) - measure(result.text));
     });
   }
 
@@ -374,13 +447,14 @@ export async function compact(input: Input, config: Config, host: Host): Promise
   // What is measured against the window is everything in it: the system prompt and the
   // tools' definitions too, which no compaction makes smaller.
   const charsAfter = charsOf(messages);
-  const tokensAfter = Math.round(count === undefined ? input.tokens - saved / CHARS_PER_TOKEN : count.fixedTokens + charsAfter * perChar);
+  const conversationAfter = sizeOf(messages, measure) * perUnit;
+  const tokensAfter = Math.round(count === undefined ? input.tokens - saved * perUnit : count.fixedTokens + conversationAfter);
   // How far over what may stay in use. A summary can take away no more than the
   // conversation that is left: when that does not cover it, handing over gains nothing.
   const over = tokensAfter - (input.window * config.maxAfterPercent) / 100;
   return {
     messages,
-    enough: moved.size > 0 && (over <= 0 || charsAfter * perChar < over),
+    enough: moved.size > 0 && (over <= 0 || conversationAfter < over),
     report: {
       results: resultCount,
       candidates: candidates.length,

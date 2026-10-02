@@ -413,7 +413,7 @@ async function attempt(
         messages,
         // Made up from characters when Claude Code gives none: images, which are no characters, at their rough figure.
         tokens: typeof tokens === 'number' && tokens > 0 ? tokens : Math.ceil(charsOf(messages) / CHARS_PER_TOKEN) + media.images * IMAGE_TOKENS,
-        count: countFrom(context?.breakdown, tokens, api),
+        count: countFrom(context?.breakdown, tokens, api, messages),
         window: windowFrom(context, FALLBACK_WINDOW),
         goal: goalOf(messages, e.instructions),
         media: media.results,
