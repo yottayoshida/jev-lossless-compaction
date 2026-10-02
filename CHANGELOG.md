@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed
+
+- The benchmark builds two more conversations, `mixed` (pasted English prose with logs that can leave) and `japanese` (Japanese with logs that can leave, and some thinking). No question is asked of them: they are compacted and probed, to set the size the plugin counts against what the next request is sent. `probe` takes `--plugin-dirs` and `--max-after` together, a unit records the thinking in what it compacted, and `publish --variants` writes a selection of a box.
+
+### Fixed
+
+- A conversation that would fit once its tool results were moved out is no longer handed to Claude Code's summary because the plugin counted it too high (#37). 0.6.0 counted what stays at no less than one token to three characters, which is too much for English prose: in a made-up conversation of pasted prose and logs it counted 144,466 tokens, 86 % of the window, and handed over, when 103,634 were in use once the logs were out. It also counted low where Japanese stayed after English results left (20 % under); its way of counting, applied to five long working sessions, comes 19 % to 31 % under. The size is now what is in use less what goes whatever is moved out — the thinking, estimated from the signatures its blocks carry, and what Claude Code adds to the conversation as it sends it, which counts at four fifths — at the conversation's own tokens a character, with a digit counted as two characters and a character that is not ASCII as three (ADR 0013). Where results were moved out, compacted by the model that had built the conversation, it came within 20 % of what the next request sent, and no more than 5 % under: 3 % and 7 % over and 1 % under in made-up conversations, 2 % under to 3 % over in five long working sessions on Opus 5.5. What a result saves by leaving is counted the same way; 0.6.0 took it to save a third of a token a character, and moved more out than the goal asked for where results are denser than that. Right after the model is changed the figures are still those of the model before (20 % under in one conversation): `docs/limits.md`. What was measured is in `docs/measurements.md` and `bench/results/2026-10-02-estimate/`.
+
 ## [0.6.0] - 2026-10-02
 
 ### Added
