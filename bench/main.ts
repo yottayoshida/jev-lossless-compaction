@@ -7,22 +7,24 @@
 //   node bench/main.ts pick                          what `find` picks against a word match (asks Jev: BENCH_JEV_ENV)
 //   node bench/main.ts find    [--traces a,b]        the same questions with an agent in between, with and without `find`
 //   node bench/main.ts grade   [--model m]           grade what a program cannot
-//   node bench/main.ts report                        the tables
+//   node bench/main.ts report  [--from dir]          the tables, of the box or of results that were published
+//   node bench/main.ts publish --to dir              the units, grades and tables, without the paths of this machine
 //
 // `run` asks the trace's questions; `probe` asks one that needs no history, to
 // measure what a compaction left against what the plugin estimated.
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve, sep } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { dirname, join, resolve, sep } from 'node:path';
 
 import { providerFrom } from '../src/ask.ts';
 import type { Http } from '../src/types.ts';
 import { build, type Conversation, type Places } from './build.ts';
-import { currentOf, grade, unitsUnder, type Grades } from './grade.ts';
+import { currentOf, grade, published, unitsUnder, type Grades } from './grade.ts';
 import { keysIn } from './lib.ts';
 import { pick, pickTable, type Pick } from './pick.ts';
-import { estimates, finds, report } from './report.ts';
-import { runAll, type Variant } from './run.ts';
+import { whole } from './report.ts';
+import { leaf, runAll, type Variant } from './run.ts';
 import { TRACES, described } from './traces.ts';
 
 const HAIKU = 'claude-haiku-4-5-20251001';
@@ -50,6 +52,13 @@ const overHttp: Http = async (url, init) => {
   return { status: response.status, ok: response.ok, text: await response.text() };
 };
 
+/** What was measured under a directory: the box, or results as they were published. */
+function measuredUnder(dir: string) {
+  const { units, older } = currentOf(unitsUnder(dir));
+  const read = <T>(name: string): T | null => (existsSync(join(dir, name)) ? (JSON.parse(readFileSync(join(dir, name), 'utf8')) as T) : null);
+  return { units, older, grades: read<Grades>('grades.json'), picks: read<{ picks: Pick[] }>('picks.json') };
+}
+
 const list = (value: string | undefined, all: readonly string[]) => (value === undefined ? [...all] : value.split(',').filter((item) => item !== ''));
 
 async function main(): Promise<void> {
@@ -60,6 +69,11 @@ async function main(): Promise<void> {
     const text = `${JSON.stringify(described(), null, 2)}\n`;
     if (out === undefined) process.stdout.write(text);
     else writeFileSync(out, text);
+    return;
+  }
+  if (command === 'report' && flag(args, 'from') !== undefined) {
+    const { units, older, grades, picks } = measuredUnder(resolve(flag(args, 'from') as string));
+    process.stdout.write(whole(units, grades, older, picks?.picks ?? null));
     return;
   }
   const box = process.env['BENCH_BOX'];
@@ -146,16 +160,27 @@ async function main(): Promise<void> {
     return;
   }
   if (command === 'report') {
-    const { units, older } = currentOf(unitsUnder(places.box));
-    const gradesPath = join(places.box, 'grades.json');
-    const grades = existsSync(gradesPath) ? (JSON.parse(readFileSync(gradesPath, 'utf8')) as Grades) : null;
-    process.stdout.write(`${report(units, grades, older)}\n\n### What the plugin estimated against what was sent\n\n${estimates(units.filter((unit) => unit.mode === 'probe' || (unit.mode === 'ask' && unit.variant === 'default')))}\n`);
-    if (units.some((unit) => unit.mode === 'find')) process.stdout.write(`\n### The questions \`find\` is for, asked of an agent\n\n${finds(units)}\n`);
-    const picksPath = join(places.box, 'picks.json');
-    if (existsSync(picksPath)) process.stdout.write(`\n### What \`find\` picks, against a word match\n\n${pickTable((JSON.parse(readFileSync(picksPath, 'utf8')) as { picks: Pick[] }).picks)}\n`);
+    const { units, older, grades, picks } = measuredUnder(places.box);
+    process.stdout.write(whole(units, grades, older, picks?.picks ?? null));
     return;
   }
-  throw new Error('commands: describe, build, run, probe, pick, find, grade, report');
+  if (command === 'publish') {
+    const to = flag(args, 'to');
+    if (to === undefined) throw new Error('publish takes --to, the directory to write to');
+    const { units, grades, picks } = measuredUnder(places.box);
+    const out = published(units, grades, { box: places.box, home: homedir() });
+    const write = (path: string, text: string) => {
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, text);
+    };
+    for (const unit of out.units) write(join(to, 'units', unit.trace, unit.model, `run-${unit.run}`, `${leaf(unit.arm, unit.variant, unit.mode)}.json`), `${JSON.stringify(unit, null, 1)}\n`);
+    if (out.grades !== null) write(join(to, 'grades.json'), `${JSON.stringify(out.grades, null, 1)}\n`);
+    if (picks !== null) write(join(to, 'picks.json'), `${JSON.stringify(picks, null, 1)}\n`);
+    write(join(to, 'report.md'), whole(out.units, out.grades, 0, picks?.picks ?? null));
+    console.log(`${out.units.length} units, their grades and the tables under ${to}`);
+    return;
+  }
+  throw new Error('commands: describe, build, run, probe, pick, find, grade, report, publish');
 }
 
 await main();

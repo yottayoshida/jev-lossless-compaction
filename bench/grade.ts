@@ -58,6 +58,31 @@ export function currentOf(units: readonly Unit[]): { units: Unit[]; older: numbe
 export const keyOf = (unit: Pick<Unit, 'trace' | 'model' | 'run' | 'arm' | 'variant'>, question: string, answer: string) =>
   [unit.trace, unit.model, unit.run, unit.arm, unit.variant, question, createHash('sha256').update(answer).digest('hex').slice(0, 12)].join('|');
 
+/**
+ * The units and their grades as they are published. An answer may name the box
+ * it ran in, or the home directory above it: both are written `<box>` and
+ * `<home>`. A verdict is filed under the answer it is on, so each is filed again
+ * under the answer as published.
+ */
+export function published(units: readonly Unit[], grades: Grades | null, places: { box: string; home: string }): { units: Unit[]; grades: Grades | null } {
+  const clean = (unit: Unit) => JSON.parse(JSON.stringify(unit).split(JSON.stringify(places.box).slice(1, -1)).join('<box>').split(JSON.stringify(places.home).slice(1, -1)).join('<home>')) as Unit;
+  const out = units.map(clean);
+  if (grades === null) return { units: out, grades: null };
+  const verdicts = { ...grades.verdicts };
+  const moved = new Map<string, string>();
+  units.forEach((unit, at) => {
+    unit.questions.forEach((one, q) => {
+      const was = keyOf(unit, one.id, one.answer);
+      const is = keyOf(out[at] as Unit, one.id, (out[at] as Unit).questions[q]?.answer ?? '');
+      if (was === is || !(was in verdicts)) return;
+      verdicts[is] = verdicts[was] as (Verdict | null)[];
+      delete verdicts[was];
+      moved.set(was, is);
+    });
+  });
+  return { units: out, grades: { ...grades, verdicts, ungraded: grades.ungraded.map((key) => moved.get(key) ?? key) } };
+}
+
 const TOLD = ['After calling the recall tool on the moved-out result, I can say: ', 'According to the summary of our earlier conversation: '] as const;
 
 /** The rubric for an exact answer the program found not to hold the text: the grader cannot make it right, only say which way it is not. */

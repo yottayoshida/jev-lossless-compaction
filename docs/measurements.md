@@ -1,12 +1,204 @@
 # Measurements
 
-Every figure the README quotes, with how it was taken. Except for the last
-two sections, they were recorded when the plugin was named
-`jev-lossless-compaction`, and the lines quoted are as they appeared then.
-One run each unless said otherwise, all on 2026-09-30, Claude Code 2.1.285
-with Claude Haiku 4.5.
-The plugin was run on 2.1.284 and 2.1.285; function hooks are early access,
-and another version may have changed them.
+Every figure the README compares the plugin and the built-in compaction by
+comes from one protocol, run on the same traces; `bench/` holds the traces,
+the questions, the grading and what it takes to run it again. That is the
+first section.
+
+The sections after it are single measurements, taken while the plugin was
+built and kept for what each was taken to decide. The README's demo quotes
+lines from them; it no longer compares the two compactions by them. The
+first four were recorded when the plugin was named `jev-lossless-compaction`,
+and the lines quoted are as they appeared then: one run each unless said
+otherwise, all on 2026-09-30, Claude Code 2.1.285 with Claude Haiku 4.5. The
+later ones say when they were taken. Function hooks are early access, and
+another version of Claude Code may have changed them.
+
+## The benchmark
+
+Six made-up conversations, each compacted once by the plugin and once by
+Claude Code itself, and nine questions asked of each afterwards, every
+question of a fresh copy of what the compaction left. Run on 2026-10-02 with
+Claude Code 2.1.287: Haiku 4.5 three times on every conversation, Sonnet 5.5
+once on three of them. The window is 200,000 tokens for both models, of which
+the plugin sees 167,000.
+
+What is fixed before anything is compared, how a session is started and what
+is checked of it are in [`bench/README.md`](../bench/README.md). The
+conversations as they were built are in `bench/bases/`. Every unit, its
+answers and their grades are in `bench/results/2026-10-02/`, and `report.md`
+there holds every table in full; a test makes it again from the units and
+fails if it differs. The tables below are taken from it.
+
+The six conversations, and what was in use when each was compacted:
+
+| Trace      | What it is mostly                                                        | Tokens  |
+| ---------- | ------------------------------------------------------------------------ | ------: |
+| `results`  | Twelve files of about 17,000 characters read, nothing written            | 102,276 |
+| `writes`   | Eight source files written from dictation and two edited: tool inputs    |  68,349 |
+| `prose`    | Six documents of about 21,000 characters pasted into messages            |  58,936 |
+| `short`    | Thirty small command outputs, and a status file read five times          |  27,728 |
+| `full`     | About 440,000 characters pasted into messages                            | 143,024 |
+| `thinking` | Ten puzzles worked out at high effort; a third of it is thinking         |  34,489 |
+
+Each also runs a script once, which is removed before the compaction, and
+reads two logs, one of which is regenerated before the compaction.
+
+### What the compaction did
+
+Haiku 4.5, three runs; a range where the runs differ. "Next request" is what
+the first question was sent, the median of the runs.
+
+| Trace      | The summary ran: plugin | built-in | Seconds: plugin | built-in  | USD: plugin | built-in  | Next request: plugin | built-in |
+| ---------- | ----------------------: | -------: | --------------: | --------: | ----------: | --------: | -------------------: | -------: |
+| `results`  |                  0 of 3 |   3 of 3 |             0.1 | 23.3–30.4 |        0.00 | 0.11–0.14 |               37,139 |    8,313 |
+| `writes`   |                  3 of 3 |   3 of 3 |       27.2–30.0 | 26.6–35.7 |   0.03–0.09 | 0.02–0.09 |               27,218 |   26,327 |
+| `prose`    |                  3 of 3 |   3 of 3 |       25.8–32.3 | 22.4–28.6 |   0.07–0.08 | 0.02–0.08 |               13,823 |   12,634 |
+| `short`    |                  3 of 3 |   3 of 3 |       25.5–28.7 | 24.3–28.7 |   0.02–0.04 | 0.03–0.05 |               13,608 |   13,091 |
+| `full`     |                  3 of 3 |   3 of 3 |       33.7–40.1 | 31.0–43.4 |   0.15–0.19 | 0.03–0.16 |               14,512 |   12,613 |
+| `thinking` |                  3 of 3 |   3 of 3 |       30.2–38.0 | 25.4–29.4 |   0.02–0.05 | 0.04–0.05 |               14,213 |   12,829 |
+
+The plugin compacted one conversation of the six by itself: the one that is
+mostly large tool results. There it took a tenth of a second, called no
+model, and left 37,139 tokens where the summary left 8,313: the newest
+results and a line for each one moved out stay.
+
+In the other five it had nothing to move out that would have made room: what
+fills them is what the agent wrote, what was pasted in, thinking, or results
+too short to move. It kept the conversation and handed over to Claude Code's
+summary, and the two arms then take the same time and cost within what the
+runs vary by. What a summary costs turns on whether the conversation is still
+in the prompt cache, which is where the low ends of the ranges come from
+(`report.md` gives the tokens read from the cache and written to it).
+
+### What could be answered afterwards
+
+Right answers over the three runs, the plugin's arm first: `30 · 9 of 36` is
+thirty right for the plugin and nine for the built-in compaction, of
+thirty-six asked of each. Exact answers are checked by a program; the last
+two columns were graded by Haiku 4.5, which was not told the arm.
+
+| Trace      | A script's output, the script gone | A file that is unchanged | What a file said before it changed | What that file says now | Where the work stands | A rule stated once |
+| ---------- | ---------------------------------: | -----------------------: | ---------------------------------: | ----------------------: | --------------------: | -----------------: |
+| `results`  |                         4 · 1 of 6 |               3 · 3 of 3 |                         2 · 0 of 3 |              3 · 3 of 3 |            5 · 6 of 6 |         6 · 6 of 6 |
+| `writes`   |                         4 · 2 of 6 |               3 · 3 of 3 |                         3 · 0 of 3 |              3 · 3 of 3 |            6 · 5 of 6 |         6 · 6 of 6 |
+| `prose`    |                         5 · 2 of 6 |               3 · 3 of 3 |                         0 · 0 of 3 |              3 · 3 of 3 |            6 · 6 of 6 |         6 · 6 of 6 |
+| `short`    |                         6 · 1 of 6 |               3 · 3 of 3 |                         0 · 0 of 3 |              3 · 3 of 3 |            6 · 6 of 6 |         6 · 6 of 6 |
+| `full`     |                         5 · 2 of 6 |               3 · 3 of 3 |                         0 · 0 of 3 |              3 · 3 of 3 |            6 · 6 of 6 |         6 · 6 of 6 |
+| `thinking` |                         6 · 1 of 6 |               3 · 3 of 3 |                         0 · 0 of 3 |              3 · 3 of 3 |            3 · 4 of 6 |         6 · 6 of 6 |
+| All six    |                      30 · 9 of 36  |            18 · 18 of 18 |                       5 · 0 of 18  |           18 · 18 of 18 |        32 · 33 of 36  |     36 · 36 of 36  |
+
+- **Output that no file holds any more.** The plugin's thirty right answers
+  all came after `recall`: of the result itself in `results`, and in the
+  other five of the conversation kept before the summary. Its six misses were
+  three wrong after a `recall` and three that said they could not tell. The
+  built-in arm's nine right answers all came from reading outside the working
+  directory: Claude Code keeps its own record of a session, the summary ends
+  by naming it, and the agent searched it. Twenty-six times it said it could
+  not tell, and once it searched and was wrong.
+- **What a file said when it was read, the file having changed since.** Both
+  arms mostly answer with what the file says now: twelve of eighteen in each
+  arm were wrong without anything being brought back. The plugin's five right
+  answers came after `recall`. Nothing in the question says the old reading
+  has to be fetched, and neither arm fetches it unasked.
+- **A file that is still there** was read again and answered by both arms
+  every time.
+- **Where the work stands, and a rule stated in the first message**: no
+  difference. The misses on the standing are in `thinking` in both arms, and
+  one each elsewhere.
+
+The grader graded all 186 answers of known grade mixed in as expected, and
+graded all 120 pairs of one answer with and without words that tell an arm
+alike. Its two passes disagreed on 4 of the 232 answers it graded; the tables
+use the first pass.
+
+### What the questions cost
+
+The nine questions of a run together: seconds, input tokens over all their
+requests, and cost. Ranges over the three runs.
+
+| Trace      | Seconds: plugin | built-in | Input tokens, thousands: plugin | built-in | USD: plugin | built-in  | `Read` and `Grep` calls: plugin | built-in |
+| ---------- | --------------: | -------: | ------------------------------: | -------: | ----------: | --------: | ------------------------------: | -------: |
+| `results`  |           40–47 |   58–116 |                         682–685 |  180–433 |   0.11–0.64 | 0.10–0.19 |                               1 |     4–26 |
+| `writes`   |           61–80 |    47–68 |                         583–656 |  389–693 |   0.52–0.56 | 0.43–0.48 |                             2–3 |     5–13 |
+| `prose`    |           52–63 |   35–108 |                         262–297 |  196–556 |   0.22–0.23 | 0.16–0.26 |                             1–2 |     3–19 |
+| `short`    |           45–48 |    46–80 |                         252–271 |  255–459 |   0.21–0.22 | 0.18–0.24 |                             1–2 |     5–20 |
+| `full`     |           69–72 |    32–89 |                         450–484 |  140–626 |   0.28–0.29 | 0.15–0.30 |                             1–4 |     1–23 |
+| `thinking` |           51–55 |    38–53 |                         265–284 |  163–276 |   0.22–0.23 | 0.17–0.19 |                             1–2 |      1–7 |
+
+The plugin's arm made four to seven `recall` calls a run. Its questions take
+about the same time from run to run; the built-in arm's vary with how far the
+agent goes looking, from one `Read` or `Grep` call in a run to twenty-six.
+After the plugin's own compaction every later request carries the 37,139
+tokens it left, which is why `results` sends more input for the plugin's arm
+than for the other; the high end of its cost is the run that wrote that
+context to the cache, and the low end the runs that read it.
+
+### Sonnet 5.5, one run
+
+`results`, `writes` and `prose`, once each. The compaction went as with
+Haiku: the plugin compacted `results` by itself in 0.1 s and handed the other
+two over.
+
+| Trace     | Exact answers right, of 5: plugin | built-in | Standing and rules, of 4: plugin | built-in | Nine questions, USD: plugin | built-in |
+| --------- | --------------------------------: | -------: | -------------------------------: | -------: | --------------------------: | -------: |
+| `results` |                                 5 |        5 |                                4 |        4 |                        1.29 |     0.17 |
+| `writes`  |                                 5 |        5 |                                4 |        3 |                        1.25 |     0.96 |
+| `prose`   |                                 5 |        5 |                                4 |        4 |                        0.50 |     0.33 |
+
+Both arms answered every exact question. The built-in arm's nine answers
+about what was gone or had changed all came from reading Claude Code's
+record of the session, which Sonnet did every time where Haiku mostly did
+not. The plugin's arm cost more to ask in all three, most in `results`, where
+its questions carry the larger context. This is one run: it shows that the
+difference in answers seen with Haiku was not there, not how often.
+
+### The plugin's estimate of what is left
+
+The line a compaction shows says how much the plugin takes to be in use
+afterwards. One more unit per trace asked a question that needs nothing of
+the conversation, with this code and with v0.5.2, the release before the
+estimate was changed to count what stays (ADR 0011).
+
+| Trace      | What happened  | Measured                | This code: estimate | off by  | v0.5.2: estimate | off by |
+| ---------- | -------------- | ----------------------- | ------------------: | ------: | ---------------: | -----: |
+| `results`  | results moved  | 37,130 sent next        |              36,926 |  −0.5 % |           49,157 | +32.4 % |
+| `writes`   | nothing moved  | 68,349 in use before    |              64,406 |  −5.8 % |           68,204 | −0.2 % |
+| `prose`    | nothing moved  | 58,936 in use before    |              79,233 | +34.4 % |           58,821 | −0.2 % |
+| `short`    | nothing moved  | 27,728 in use before    |              20,462 | −26.2 % |           27,620 | −0.4 % |
+| `full`     | nothing moved  | 143,024 in use before   |             211,577 | +47.9 % |          142,915 | −0.1 % |
+| `thinking` | nothing moved  | 34,489 in use before    |              20,185 | −41.5 % |           34,364 | −0.4 % |
+
+Where results were moved out, which is what the change was for, the estimate
+went from 32 % over to within 1 %. Where nothing was moved, nothing had
+changed, so the estimate can be set against what Claude Code counted before
+the compaction: v0.5.2 hands that count back, and this code counts again and
+is off by up to 48 %. The two largest errors are what
+[limits](limits.md#when-the-built-in-compaction-runs-instead) says the count
+does: it takes no less than one token to three characters, and the pasted
+English prose of `prose` and `full` runs to more characters a token than
+that; and it leaves thinking out, which is a third of `thinking`.
+
+In none of these six did either version hand over because of its estimate:
+the five hand-overs were for want of anything to move out. A conversation
+that is mostly prose and also holds results large enough to move is where an
+estimate this far over could hand over when it need not; none of the six is
+that conversation, and it was not measured.
+
+### What this does not show
+
+- The conversations are made up, and each is one shape. A working session
+  mixes them.
+- Three runs, and one for Sonnet: enough to see a difference of thirty
+  against nine, not to put a rate on anything.
+- Every question is asked of a fresh copy, so what `recall` brings back does
+  not stay in the context for the next question, and what that adds up to
+  over a long session is not here.
+- Each compaction is a `/compact` typed once. A conversation that compacts
+  several times, and automatic compaction, are not here.
+- A question may read and search but not run anything, which shuts out
+  running a command again.
+- One window, 200,000 tokens.
 
 ## A compaction, and a result read back
 
@@ -25,6 +217,10 @@ without rereading it, the agent called `recall` with the id from the ticket
 and quoted the heading exactly.
 
 ## Against the built-in compaction
+
+One conversation, one run, and of the kind the plugin does best on: the
+README compared by these figures until [the benchmark](#the-benchmark)
+replaced them.
 
 Another conversation, 76,490 tokens, compacted once by the plugin (no key
 set) and once by Claude Code itself. The file the question asks about had
