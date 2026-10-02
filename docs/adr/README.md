@@ -26,3 +26,5 @@ Why the plugin is built the way it is, one record a decision.
   compaction is counted from what stays.
 - [0012](0012-an-image-in-a-result-is-moved-out.md): why an image in a tool
   result is moved out with the result.
+- [0013](0013-the-size-after-is-what-is-in-use-less-what-goes.md): how the
+  size after a compaction is counted, which replaces the way of 0011.

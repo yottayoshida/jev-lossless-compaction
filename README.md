@@ -183,8 +183,10 @@ The protocol, every table and what they do not show:
   conversation and in the parts kept before a summary, shows Jev the first
   lines of each result, and gives a request to Jev up after twenty seconds.
 - **Sizes are not capped, and are estimates.** There is no limit on how much
-  is kept. Tokens are estimated at three characters each, so more may leave
-  than the target asks for.
+  is kept. How full the conversation is afterwards is counted from Claude
+  Code's own figures: where results were moved out it came within 20 % of
+  what the next request sent, and within 3 % in five long working
+  sessions. `keepTokens` is turned into characters at three to a token.
 
 Each of these in full, and the rest: [docs/limits.md](docs/limits.md).
 

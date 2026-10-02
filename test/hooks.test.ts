@@ -121,7 +121,7 @@ test('stored results are written through mv where it starts, the reason a write 
 });
 
 test("a compaction is told what is not the conversation from Claude Code's breakdown, and the line comes from src/", () => {
-  assert.ok(hooks.includes('count: countFrom(context?.breakdown, tokens, api),'), 'count');
+  assert.ok(hooks.includes('count: countFrom(context?.breakdown, tokens, api, messages),'), 'count: the thinking from the blocks, the density over the messages the hook was handed');
   assert.ok(!hooks.includes('function summary('), 'no line of its own');
   assert.equal(hooks.split('reportLine(outcome.report)').length - 1, 3, 'every line a compaction shows');
 });
