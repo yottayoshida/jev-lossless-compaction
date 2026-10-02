@@ -17,6 +17,11 @@ Claude Code files its records under. A user's name on its own is not
 replaced: search what was written for it before it goes anywhere. `report --from results/<date>` makes the
 tables again from what was published, and a test holds `report.md` to that.
 
+`results/2026-10-02-estimate/` holds probes alone (see "A unit"): the size
+the plugin counts, with the count of ADR 0013 and with 0.6.0, set against
+what was in use afterwards. `publish --variants a,b` writes only the units of
+those variants out of a box that holds more.
+
 ## What is fixed before anything is compared
 
 - **The traces** (`traces.ts`): six made-up conversations of different
@@ -25,6 +30,12 @@ tables again from what was published, and a test holds `report.md` to that.
   in `bases/`: what was said, the calls and their results, with the working
   directory's path taken out. Claude Code's own record of a session holds
   the account it ran under and is not published; its SHA-256 is.
+  Two more, `mixed` and `japanese`, are built the same way and asked
+  nothing: they are there to be compacted and probed, as conversations in
+  which what stays and what leaves come to different tokens a character
+  (pasted English prose with logs that can leave; Japanese with logs that
+  can leave, and some thinking). They are no part of the questions, the
+  grading or the comparison of the two arms.
 - **The questions, their answers and how each is graded**
   (`questions.json`, which is `traces.ts` written out; a test holds the two
   together). Nine per trace:
@@ -86,6 +97,14 @@ not in front of the next.
 What a run repeats: the trace is built once and shared. The plugin's
 compaction is decided by rules and comes out the same every run; what varies
 between runs is the built-in summary and the answers.
+
+A probe is a unit of the plugin's arm that asks one thing which needs
+nothing of the conversation ("Reply with the single word: ok"). What its
+first request sent is what the compaction left, and is set against the size
+the plugin's line named. Where the plugin moved nothing and handed over, the
+size it named is of the conversation as it stood, less its thinking, which
+no rebuilt message carries: the session that built the trace counted that
+thinking, and the unit records it.
 
 Within one trace and model the two arms take turns at going first from run
 to run, and each unit says which it was set to be: the second arm of a run
@@ -203,13 +222,15 @@ It is written to no file and is on no command line.
 
 ```sh
 export BENCH_BOX=~/somewhere/outside/the/repository
-node bench/main.ts build                                   # the six traces
+node bench/main.ts build                                   # the six traces, and the two that are only probed
 node bench/main.ts run --runs 3                            # every trace, Haiku 4.5
 node bench/main.ts run --traces results,writes,prose --models claude-sonnet-5-5 --runs 1
 node bench/main.ts probe --plugin-dirs current=.,v0.5.2=../v0.5.2   # estimate against the next request
+node bench/main.ts probe --traces mixed --plugin-dirs v0.6.0=../v0.6.0 --max-after 100   # a checkout made to compact what it would hand over
 node bench/main.ts grade
 node bench/main.ts report
 node bench/main.ts publish --to bench/results/2026-10-02   # the units, grades and tables, for the repository
+node bench/main.ts publish --to bench/results/2026-10-02-estimate --variants adr-0013,v0.6.0   # only those variants' units
 node bench/main.ts report --from bench/results/2026-10-02  # the tables again, from what was published: no box needed
 BENCH_JEV_ENV=~/somewhere/jev.env node bench/main.ts pick     # asks Jev: no session of Claude Code
 BENCH_JEV_ENV=~/somewhere/jev.env node bench/main.ts find     # results and short, with and without `find`

@@ -1,14 +1,14 @@
 // The benchmark's commands. Sessions run outside the repository, under BENCH_BOX:
 //
 //   node bench/main.ts describe                      what is asked, and the answers
-//   node bench/main.ts build   --traces a,b          build the conversations
+//   node bench/main.ts build   --traces a,b          build the conversations: the six that are asked questions, and the two that are only probed
 //   node bench/main.ts run     --traces a,b --models m1,m2 --runs 3
-//   node bench/main.ts probe   --traces a,b --models m1 [--plugin-dirs name=path,...] [--max-after 100]
+//   node bench/main.ts probe   --traces a,b --models m1 [--plugin-dirs name=path,...] [--max-after 100]   (both: each checkout at that setting)
 //   node bench/main.ts pick                          what `find` picks against a word match (asks Jev: BENCH_JEV_ENV)
 //   node bench/main.ts find    [--traces a,b]        the same questions with an agent in between, with and without `find`
 //   node bench/main.ts grade   [--model m]           grade what a program cannot
 //   node bench/main.ts report  [--from dir]          the tables, of the box or of results that were published
-//   node bench/main.ts publish --to dir              the units, grades and tables, without the paths of this machine
+//   node bench/main.ts publish --to dir [--variants a,b]   the units, grades and tables, without the paths of this machine
 //
 // `run` asks the trace's questions; `probe` asks one that needs no history, to
 // measure what a compaction left against what the plugin estimated.
@@ -24,8 +24,8 @@ import { currentOf, grade, published, scrubbed, unitsUnder, type Grades } from '
 import { keysIn } from './lib.ts';
 import { pick, pickTable, type Pick } from './pick.ts';
 import { whole } from './report.ts';
-import { leaf, runAll, type Variant } from './run.ts';
-import { TRACES, described } from './traces.ts';
+import { leaf, runAll, variantsOf } from './run.ts';
+import { BUILT, PROBED, TRACES, described } from './traces.ts';
 
 const HAIKU = 'claude-haiku-4-5-20251001';
 
@@ -81,11 +81,12 @@ async function main(): Promise<void> {
   if (`${resolve(box)}${sep}`.startsWith(`${pluginDir}${sep}`)) throw new Error(`BENCH_BOX is inside the repository (${pluginDir}): records of sessions stay outside it`);
   const places: Places = { box: resolve(box), pluginDir };
   const log = (text: string) => console.error(text);
-  const traces = list(flag(args, 'traces'), TRACES.map((trace) => trace.name));
+  // Every conversation is built and probed; questions are asked of the six they were written for.
+  const traces = list(flag(args, 'traces'), (command === 'build' || command === 'probe' ? BUILT : TRACES).map((trace) => trace.name));
   const buildModel = flag(args, 'build-model') ?? HAIKU;
   if (command === 'build') {
     for (const name of traces) {
-      const trace = TRACES.find((one) => one.name === name);
+      const trace = BUILT.find((one) => one.name === name);
       if (trace === undefined) throw new Error(`no trace named ${name}`);
       const base = await build(trace, buildModel, places, log);
       console.log(JSON.stringify({ trace: base.trace, tokens: base.tokens, thinkingTokens: base.thinkingTokens, toolCalls: base.toolCalls, session: base.sessionId }));
@@ -93,20 +94,11 @@ async function main(): Promise<void> {
     return;
   }
   if (command === 'run' || command === 'probe') {
+    const unasked = command === 'run' ? traces.filter((name) => PROBED.some((one) => one.name === name)) : [];
+    if (unasked.length > 0) throw new Error(`no question is asked of ${unasked.join(', ')}: built for \`probe\` only`);
     const models = list(flag(args, 'models'), [HAIKU]);
     const runs = Number(flag(args, 'runs') ?? 1);
-    const maxAfter = flag(args, 'max-after');
-    const dirs = flag(args, 'plugin-dirs');
-    const variants: Variant[] | undefined =
-      dirs !== undefined
-        ? dirs.split(',').map((pair) => {
-            const [name, path] = pair.split('=');
-            if (name === undefined || path === undefined) throw new Error('--plugin-dirs takes name=path,name=path');
-            return { name, pluginDir: resolve(path) };
-          })
-        : maxAfter !== undefined
-          ? [{ name: `max-after-${maxAfter}`, pluginDir, options: { maxAfterPercent: Number(maxAfter) } }]
-          : undefined;
+    const variants = variantsOf(flag(args, 'plugin-dirs'), flag(args, 'max-after'), pluginDir);
     const arms = flag(args, 'arms');
     const units = await runAll(
       { traces, models, runs, buildModel, mode: command === 'probe' ? 'probe' : 'ask', ...(variants ? { variants } : {}), ...(arms ? { arms: arms.split(',') as ('plugin' | 'builtin')[] } : {}) },
@@ -167,7 +159,13 @@ async function main(): Promise<void> {
   if (command === 'publish') {
     const to = flag(args, 'to');
     if (to === undefined) throw new Error('publish takes --to, the directory to write to');
-    const { units, grades, picks } = measuredUnder(places.box);
+    // With --variants, only the units of those variants: the probes of two checkouts, say, out of a box that holds more.
+    const only = flag(args, 'variants')?.split(',');
+    const measured = measuredUnder(places.box);
+    const units = only === undefined ? measured.units : measured.units.filter((unit) => only.includes(unit.variant));
+    // Grades are of the questions asked, and what `find` picked is of no variant: neither goes with a selection that asked nothing.
+    const grades = only === undefined || units.some((unit) => unit.mode !== 'probe') ? measured.grades : null;
+    const picks = only === undefined ? measured.picks : null;
     const machine = { box: places.box, home: homedir() };
     const out = published(units, grades, machine);
     const write = (path: string, text: string) => {

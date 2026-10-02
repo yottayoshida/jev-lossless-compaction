@@ -103,3 +103,43 @@ export function puzzle(n: number): { ask: string; answer: number } {
     answer,
   };
 }
+
+const JA_SUBJECTS = ['受付の係は', '書庫の担当は', '閲覧室の係は', '目録の担当は', '貸出の窓口は', '予約の係は', '点検の担当は', '案内の係は'];
+const JA_OBJECTS = ['返却の遅れた本を', '重複した登録を', '大きすぎる地図を', '古くなった貸出の記録を', '記入の途中の申込書を', '棚の決まっていない本を', '名前の書かれていない申込書を', '期限の過ぎた予約を'];
+const JA_VERBS = ['もう一度確かめる', 'まとめて処理する', '後回しにする', '受け取らずに戻す', '写しを取っておく', '並べ直す', '件数を絞る', '読み直す'];
+const JA_REASONS = [
+  '休館日をはさんでも記録が残るようにするためだ',
+  '隣の館の目録がすぐには揃わないからだ',
+  '責任者が掲示を確認するまでのあいだだけである',
+  '未処理の件数が目安を超えたときに限る',
+  '夜の作業を一時間以内に収めるためだ',
+  '以前のやり方では記録が残らなかったからだ',
+  '貸出がまだ有効なあいだに限る',
+  '利用者に受領を伝える前に行う',
+];
+
+/** One paragraph of notes on a library's desk in Japanese: about 250 characters, no two alike within a document. */
+export function jaParagraph(doc: number, n: number): string {
+  const pick = <T>(list: readonly T[], salt: number) => list[(n * 5 + doc * 3 + salt * 7 + ((n * salt) % 5)) % list.length] as T;
+  const sentences = Array.from({ length: 5 }, (_, s) => {
+    const k = s + 1;
+    return `${pick(JA_SUBJECTS, k)}${pick(JA_OBJECTS, k + 4)}${pick(JA_VERBS, k + 2)}。${pick(JA_REASONS, k + 6)}。`;
+  });
+  return `覚え書き ${doc}.${n}。${sentences.join('')}この窓口の上限は一日 ${((n * 17 + doc * 29) % 900) + 100} 件である。`;
+}
+
+/** A design document in Japanese of `paragraphs` paragraphs. */
+export function jaDoc(doc: number, paragraphs: number): string {
+  return Array.from({ length: paragraphs }, (_, i) => jaParagraph(doc, i + 1)).join('\n\n');
+}
+
+/** The same puzzle as `puzzle`, asked in Japanese. */
+export function jaPuzzle(n: number): string {
+  const start = 7 + n * 4;
+  const step = 3 + n;
+  const count = 40 + n * 5;
+  return (
+    `問題 ${n}。初項 ${start}、公差 ${step} の数列が ${count} 項ある。${n + 6} で割り切れる項をすべて取り除き、残りを合計せよ。` +
+    `取り除く項を一つずつ確かめながら順に計算し、最後の行を「ANSWER ${n}: <数>」とせよ。`
+  );
+}

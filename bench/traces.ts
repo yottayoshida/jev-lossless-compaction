@@ -4,7 +4,7 @@
 // file written out; a test holds the two together). A change to a trace after
 // results exist raises its `version`, and what measured the older one is left out.
 
-import { inventoryFile, logFile, logLine, proseDoc, puzzle, reportLine, reportScript, sourceFile, statusFile } from './fixtures.ts';
+import { inventoryFile, jaDoc, jaPuzzle, logFile, logLine, proseDoc, puzzle, reportLine, reportScript, sourceFile, statusFile } from './fixtures.ts';
 
 /** One thing that happens while a trace is built: something said to the agent, or a change to the files made from outside. */
 export type Step = { say: string; effort?: string } | { write: string; text: string } | { remove: string };
@@ -516,7 +516,75 @@ const thinking = trace(
   { accept: { minTokens: 25_000, maxTokens: 160_000, minThinkingTokens: 8_000 } },
 );
 
+// T7. Mostly pasted prose, and results large enough to move: where a size counted too high hands over what would have fitted (#37).
+const MIXED_LOGS = 6;
+const MIXED_DOCS = 8;
+const MIXED_PARAGRAPHS = 92;
+const mixed = trace(
+  7,
+  'mixed',
+  'pasted prose with movable results: six files of about 17,000 characters read, then about 360,000 characters pasted',
+  'We are reviewing a storage service: first its station logs, then its design record, which I will paste in parts.',
+  {
+    first: { rule: 'Nothing under attic/ may be changed.', mark: 'attic/', ask: 'Which directory are we not allowed to change?', reference: 'attic/ must not be changed.', rubric: 'Right if it names attic/.', right: 'Nothing under attic/ may be changed.', wrong: 'Nothing under src/ may be changed.' },
+    second: { rule: 'Branch names start with the word topic.', mark: 'the word topic', ask: 'How do branch names start?', reference: 'With the word topic.', rubric: 'Right if it says topic.', right: 'With topic.', wrong: 'With feature.' },
+  },
+  [
+    { say: `Read ${Array.from({ length: MIXED_LOGS }, (_, i) => `mlog${i + 1}.txt`).join(', ')} with the Read tool, one file per call, in that order. Then reply only: read.` },
+    ...said(MIXED_DOCS, (doc) => `Design record, part ${doc} of ${MIXED_DOCS}. Read it and reply only: noted.\n\n${proseDoc(30 + doc, MIXED_PARAGRAPHS)}`),
+  ],
+  {
+    status: 'Where we stand. The logs and all eight parts are read. We decided to keep the replay worker out of the first release. Next you will list every limit above 800 per minute into CAPS.md. Still open: whether the scheduler needs a second queue.',
+    next: { ask: 'Without starting on it yet: what is the next step, and which file does it involve?', reference: 'List every limit above 800 per minute into CAPS.md.', rubric: 'Right if it says listing limits above 800 into CAPS.md.', right: 'Listing every limit over 800 per minute in CAPS.md.', wrong: 'Rewriting the scheduler.' },
+    decided: { ask: 'What did we decide about the replay worker, and what is still open?', reference: 'Keep it out of the first release. Open: whether the scheduler needs a second queue.', rubric: 'Right if it gives both.', right: 'Out of the first release; open is the second queue.', wrong: 'It ships; nothing is open.' },
+  },
+  {
+    files: Array.from({ length: MIXED_LOGS }, (_, i) => ({ path: `mlog${i + 1}.txt`, text: logFile(40 + i, RESULTS_LINES) })),
+    accept: { minTokens: 115_000, maxTokens: 162_000 },
+  },
+);
+
+// T8. Japanese with English results moved out of it, and some thinking: what stays comes to more tokens a character than what leaves (#37).
+const JA_LOGS = 6;
+const JA_DOCS = 5;
+const JA_PARAGRAPHS = 47;
+const JA_PUZZLES = 3;
+const japanese = trace(
+  8,
+  'japanese',
+  'Japanese prose with English results: six files of about 17,000 characters read, about 57,000 characters of Japanese pasted, three puzzles',
+  'We are reviewing how a library runs its desk. I will ask you to read some station logs, then paste the desk\'s notes, which are in Japanese, and then give a few arithmetic puzzles.',
+  {
+    first: { rule: 'Nothing under cellar/ may be changed.', mark: 'cellar/', ask: 'Which directory are we not allowed to change?', reference: 'cellar/ must not be changed.', rubric: 'Right if it names cellar/.', right: 'Nothing under cellar/ may be changed.', wrong: 'Nothing under src/ may be changed.' },
+    second: { rule: 'Notes are filed under the heading Ledger.', mark: 'the heading Ledger', ask: 'Under which heading are notes filed?', reference: 'Ledger.', rubric: 'Right if it says Ledger.', right: 'Under Ledger.', wrong: 'Under Notes.' },
+  },
+  [
+    { say: `Read ${Array.from({ length: JA_LOGS }, (_, i) => `jlog${i + 1}.txt`).join(', ')} with the Read tool, one file per call, in that order. Then reply only: read.` },
+    ...said(JA_DOCS, (doc) => `図書館の運用記録の第 ${doc} 部（全 ${JA_DOCS} 部）です。読んで「了解」とだけ返してください。\n\n${jaDoc(120 + doc, JA_PARAGRAPHS)}`),
+    ...Array.from({ length: JA_PUZZLES }, (_, i): Step => ({ say: jaPuzzle(i + 1), effort: 'high' })),
+  ],
+  {
+    status: 'Where we stand. The logs, the five parts and three puzzles are done. We decided to report limits in the units the record uses. Next you will list every limit above 700 into JA-CAPS.md. Still open: whether part 3 repeats part 1.',
+    next: { ask: 'Without starting on it yet: what is the next step, and which file does it involve?', reference: 'List every limit above 700 into JA-CAPS.md.', rubric: 'Right if it says listing limits above 700 into JA-CAPS.md.', right: 'Listing every limit over 700 in JA-CAPS.md.', wrong: 'Translating the record.' },
+    decided: { ask: 'What did we decide about units, and what is still open?', reference: 'Report limits in the record\'s own units. Open: whether part 3 repeats part 1.', rubric: 'Right if it gives both.', right: 'The record\'s own units; open is whether part 3 repeats part 1.', wrong: 'Convert everything; nothing is open.' },
+  },
+  {
+    files: Array.from({ length: JA_LOGS }, (_, i) => ({ path: `jlog${i + 1}.txt`, text: logFile(110 + i, RESULTS_LINES) })),
+    accept: { minTokens: 70_000, maxTokens: 162_000 },
+  },
+);
+
 export const TRACES: readonly Trace[] = [results, writes, prose, short, full, thinking];
+
+/**
+ * Conversations no question is asked of: they are built and compacted to set the
+ * size the plugin counts against what the next request is sent (`probe`). Made
+ * by the same steps as the others, so each opens and ends as they do.
+ */
+export const PROBED: readonly Trace[] = [mixed, japanese];
+
+/** Every conversation that can be built. */
+export const BUILT: readonly Trace[] = [...TRACES, ...PROBED];
 
 /** What `bench/questions.json` holds: every question, its answer and how it is graded. */
 export function described() {

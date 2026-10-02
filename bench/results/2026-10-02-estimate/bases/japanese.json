@@ -1,0 +1,23 @@
+{
+  "trace": "japanese",
+  "version": 1,
+  "sessionId": "3cfa52d5-9e36-4488-86bb-9feae782bdfe",
+  "model": "claude-opus-5-5",
+  "claudeCode": "2.1.287",
+  "tokens": 116189,
+  "thinkingTokens": 647,
+  "toolCalls": 9,
+  "work": "japanese-muqkz4bk",
+  "modelUsage": {
+    "claude-opus-5-5": {
+      "inputTokens": 32,
+      "outputTokens": 2899,
+      "cacheReadInputTokens": 915994,
+      "cacheCreationInputTokens": 112436,
+      "costUSD": 1.1407948,
+      "thinkingTokens": 647
+    }
+  },
+  "recordSha256": "7659ba26fbb3edfe53dcef568ab8e2ead1ef53fc5a833c2f478323017200c276",
+  "builtAt": "2026-10-02T06:28:35.586Z"
+}
