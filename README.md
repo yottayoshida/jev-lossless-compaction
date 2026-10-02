@@ -1,5 +1,9 @@
 # lossless-compaction
 
+![Built-in compaction turns a conversation into one summary. lossless-compaction moves tool results out of the conversation into a local store of files named by the SHA-256 of their content, and recall brings an exact result back. Measured: a compaction in 61 ms; find answered 13 of 13.](docs/assets/lossless-compaction-animated.svg)
+
+The figures in the picture are measured: [how each was taken](docs/measurements.md).
+
 When a Claude Code conversation fills up, the built-in compaction replaces it
 with a summary, and what the summary leaves out is gone from the conversation.
 This plugin compacts by moving old tool results to files on your machine
@@ -14,10 +18,6 @@ provider you choose. A repository's own settings files do not decide where
 results are written or where `find` sends: a key, proxy or place from them
 stops the plugin instead
 ([what a repository can change](docs/limits.md#what-a-repository-can-change)).
-
-![A conversation compacted by lossless-compaction: three large Read results move out of the context into content-addressed files under ~/.claude/lossless-compaction/, one ticket line stays behind for each, and recall by id or find by meaning brings the exact result back. Recorded figures: 6 of 21 results moved in 61 ms; find answered 13 of 13.](docs/assets/readme-header.svg)
-
-A recorded session, not a drawing: [how each figure was taken](docs/measurements.md).
 
 ## Quick start
 
