@@ -25,7 +25,7 @@ import {
 } from '../bench/lib.ts';
 import { saidBy, saidIn, type Conversation } from '../bench/build.ts';
 import { argsOf, envOf, toolsOf } from '../bench/cc.ts';
-import { MISSED, batchName, currentOf, itemsOf, keyOf, promptOf, published, summed, unitsUnder, verdictsIn, type Grades } from '../bench/grade.ts';
+import { MISSED, batchName, currentOf, itemsOf, keyOf, promptOf, published, scrubbed, summed, unitsUnder, verdictsIn, type Grades } from '../bench/grade.ts';
 import { MIN_CHARS, pick, pickTable, readAnswer, resultsOf, staged, wentOf, type Pick } from '../bench/pick.ts';
 import { estimates, finds, graderOf, outcomesOf, overruled, report, verdictOf, whole } from '../bench/report.ts';
 import { QUOTE, armsOf, staleness, type Unit } from '../bench/run.ts';
@@ -832,6 +832,15 @@ test('published, an answer names no path of the machine it ran on, and keeps its
   // What was given is not changed by publishing it.
   assert.equal(unit.questions[0]?.answer, said);
   assert.deepEqual(published(units, null, { box: '/b', home: '/h' }).grades, null);
+
+  // Claude Code names its record of a session after the working directory, every character that is no letter or digit made a dash: an answer that read one names it so.
+  const machine = { box: '/Users/some.one/.tmp/box', home: '/Users/some.one' };
+  const record = 'from `/Users/some.one/.claude/projects/-Users-some-one--tmp-box-work-results-abc/1b5642a2.jsonl`, as some.one would';
+  assert.equal(scrubbed({ said: record }, machine).said, 'from `<home>/.claude/projects/<box>-work-results-abc/1b5642a2.jsonl`, as <user> would');
+  assert.equal(scrubbed({ said: 'under -Users-some-one-elsewhere' }, machine).said, 'under <home>-elsewhere');
+  // What `find` said of each pick goes the same way; a home whose name is as short as a word is left as a word.
+  assert.deepEqual(scrubbed({ picks: [{ said: 'Read called with /Users/some.one/.tmp/box/x' }] }, machine), { picks: [{ said: 'Read called with <box>/x' }] });
+  assert.equal(scrubbed({ said: 'the box of u is /home/u/box' }, { box: '/home/u/box', home: '/home/u' }).said, 'the box of u is <box>');
 });
 
 const RESULTS = fileURLToPath(new URL('../bench/results/2026-10-02', import.meta.url));
@@ -868,8 +877,8 @@ test('the results in the repository: of the traces as they are, of the conversat
   assert.equal(grades.controls.asExpected, grades.controls.count);
   assert.equal(grades.controls.toldPairsSame, grades.controls.toldPairs);
 
-  // Nothing of the machine: no home directory, no key.
-  const text = JSON.stringify(all) + JSON.stringify(grades) + JSON.stringify(picks);
-  assert.ok(!/\/Users\/|\.cctmp|CLOUDFLARE_API_TOKEN|TYPESAFE_API_KEY/.test(text));
+  // Nothing of the machine: no home directory in either form a path of it takes, no key.
+  const text = JSON.stringify(all) + JSON.stringify(grades) + JSON.stringify(picks) + readFileSync(`${RESULTS}/report.md`, 'utf8');
+  assert.ok(!/[\/-]Users[\/-]|[\/-]home[\/-][a-z]|cctmp|CLOUDFLARE_API_TOKEN|TYPESAFE_API_KEY/.test(text));
 });
 

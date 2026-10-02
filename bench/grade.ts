@@ -7,7 +7,7 @@
 
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
 import { type Places } from './build.ts';
 import { claude } from './cc.ts';
@@ -59,14 +59,36 @@ export const keyOf = (unit: Pick<Unit, 'trace' | 'model' | 'run' | 'arm' | 'vari
   [unit.trace, unit.model, unit.run, unit.arm, unit.variant, question, createHash('sha256').update(answer).digest('hex').slice(0, 12)].join('|');
 
 /**
- * The units and their grades as they are published. An answer may name the box
- * it ran in, or the home directory above it: both are written `<box>` and
- * `<home>`. A verdict is filed under the answer it is on, so each is filed again
- * under the answer as published.
+ * A value as it is published: wherever a string in it names the box, the home
+ * directory above it, or that directory's own name, `<box>`, `<home>` and
+ * `<user>` stand there. Claude Code files its records of a session under the
+ * working directory's path with every character that is no letter or digit made
+ * `-`, and an answer that read one names it so: that form is replaced as well.
+ */
+export function scrubbed<T>(value: T, places: { box: string; home: string }): T {
+  const inJson = (text: string) => JSON.stringify(text).slice(1, -1);
+  const dashed = (path: string) => path.replace(/[^A-Za-z0-9]/g, '-');
+  const user = basename(places.home);
+  const swaps: [string, string][] = [
+    [inJson(places.box), '<box>'],
+    [dashed(places.box), '<box>'],
+    [inJson(places.home), '<home>'],
+    [dashed(places.home), '<home>'],
+    // A name too short to be told from a word of an answer is left: the paths above have gone already.
+    ...(user.length >= 4 ? ([[inJson(user), '<user>'], [dashed(user), '<user>']] as [string, string][]) : []),
+  ];
+  let text = JSON.stringify(value);
+  for (const [from, to] of swaps) text = text.split(from).join(to);
+  return JSON.parse(text) as T;
+}
+
+/**
+ * The units and their grades as they are published: no answer names a path of
+ * the machine it ran on (`scrubbed`). A verdict is filed under the answer it
+ * is on, so each is filed again under the answer as published.
  */
 export function published(units: readonly Unit[], grades: Grades | null, places: { box: string; home: string }): { units: Unit[]; grades: Grades | null } {
-  const clean = (unit: Unit) => JSON.parse(JSON.stringify(unit).split(JSON.stringify(places.box).slice(1, -1)).join('<box>').split(JSON.stringify(places.home).slice(1, -1)).join('<home>')) as Unit;
-  const out = units.map(clean);
+  const out = units.map((unit) => scrubbed(unit, places));
   if (grades === null) return { units: out, grades: null };
   const verdicts = { ...grades.verdicts };
   const moved = new Map<string, string>();
