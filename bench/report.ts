@@ -4,6 +4,7 @@
 
 import { OUTCOMES, outcomeOf, spread, type Arm, type Outcome, type ToolCall } from './lib.ts';
 import { keyOf, type Grades, type Verdict } from './grade.ts';
+import { pickTable, type Pick } from './pick.ts';
 import { type Asked, type Unit } from './run.ts';
 import { type Kind } from './traces.ts';
 
@@ -133,6 +134,20 @@ export function report(units: readonly Unit[], grades: Grades | null, older = 0)
     sections.push(lines.join('\n'));
   }
   return sections.join('\n');
+}
+
+/** Everything `report` prints: the tables per trace and model, the plugin's estimates, and, where they were measured, the questions `find` is for. */
+export function whole(units: readonly Unit[], grades: Grades | null, older = 0, picks: readonly Pick[] | null = null): string {
+  const parts = [
+    report(units, grades, older),
+    '',
+    '### What the plugin estimated against what was in use',
+    '',
+    estimates(units.filter((unit) => unit.mode === 'probe' || (unit.mode === 'ask' && unit.variant === 'default'))),
+  ];
+  if (units.some((unit) => unit.mode === 'find')) parts.push('', '### The questions `find` is for, asked of an agent', '', finds(units));
+  if (picks !== null) parts.push('', '### What `find` picks, against a word match', '', pickTable(picks));
+  return `${parts.join('\n')}\n`;
 }
 
 /**

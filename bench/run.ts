@@ -83,7 +83,8 @@ export type Variant = {
 /** What a unit asks: the trace's questions, one question that needs no history, or the questions `find` is for. */
 export type Mode = 'ask' | 'probe' | 'find';
 
-const leaf = (arm: Arm, variant: string, mode: Mode) => [arm, ...(variant === 'default' ? [] : [variant]), ...(mode === 'ask' ? [] : [mode])].join('-');
+/** The name of a unit's file: its arm, then what sets it apart from the plain unit of that arm. */
+export const leaf = (arm: Arm, variant: string, mode: Mode) => [arm, ...(variant === 'default' ? [] : [variant]), ...(mode === 'ask' ? [] : [mode])].join('-');
 
 /** What of a checkout is the plugin's code. */
 const CODE = ['src', 'hooks', '.claude-plugin', 'package.json'] as const;

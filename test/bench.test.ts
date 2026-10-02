@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
 import {
@@ -24,9 +25,9 @@ import {
 } from '../bench/lib.ts';
 import { saidBy, saidIn, type Conversation } from '../bench/build.ts';
 import { argsOf, envOf, toolsOf } from '../bench/cc.ts';
-import { MISSED, batchName, currentOf, itemsOf, keyOf, promptOf, summed, verdictsIn } from '../bench/grade.ts';
+import { MISSED, batchName, currentOf, itemsOf, keyOf, promptOf, published, summed, unitsUnder, verdictsIn, type Grades } from '../bench/grade.ts';
 import { MIN_CHARS, pick, pickTable, readAnswer, resultsOf, staged, wentOf, type Pick } from '../bench/pick.ts';
-import { estimates, finds, graderOf, outcomesOf, overruled, report, verdictOf } from '../bench/report.ts';
+import { estimates, finds, graderOf, outcomesOf, overruled, report, verdictOf, whole } from '../bench/report.ts';
 import { QUOTE, armsOf, staleness, type Unit } from '../bench/run.ts';
 import { TRACES, described } from '../bench/traces.ts';
 import { reportLine, type Report } from '../src/compact.ts';
@@ -654,11 +655,11 @@ test('the conversations published in bench/bases are the traces as they are now:
 
 // --- find ---
 
-const published = (name: string) => JSON.parse(readFileSync(new URL(`../bench/bases/${name}.conversation.json`, import.meta.url), 'utf8')) as Conversation;
+const builtConversation = (name: string) => JSON.parse(readFileSync(new URL(`../bench/bases/${name}.conversation.json`, import.meta.url), 'utf8')) as Conversation;
 
 test('the questions find is for: by a value or by what the result was, each about one result of the built conversation', async () => {
   for (const trace of TRACES) {
-    const { stored } = await staged(resultsOf(published(trace.name)));
+    const { stored } = await staged(resultsOf(builtConversation(trace.name)));
     assert.ok(stored.length >= 3 && stored.every((one) => one.text.length >= MIN_CHARS), trace.name);
     assert.equal(new Set(trace.finds.map((find) => find.id)).size, trace.finds.length, trace.name);
     assert.ok(trace.finds.filter((find) => find.by === 'meaning').length >= 3 && trace.finds.filter((find) => find.by === 'value').length >= 2, trace.name);
@@ -671,8 +672,8 @@ test('the questions find is for: by a value or by what the result was, each abou
     }
   }
   // Results under the plugin's size to move out are no option: the short trace has thirty-eight results and three options.
-  assert.equal(resultsOf(published('short'), 0).length, 38);
-  assert.equal(resultsOf(published('short')).length, 3);
+  assert.equal(resultsOf(builtConversation('short'), 0).length, 38);
+  assert.equal(resultsOf(builtConversation('short')).length, 3);
   // An agent asked the same question is told how to show which result it means, so that a program can check it.
   assert.deepEqual(QUOTE, { value: 'Quote that line in full.', meaning: 'Quote its first line in full.' });
 });
@@ -691,7 +692,7 @@ test('find is asked as the tool asks it, and what it answers is read: one result
   const trace = TRACES.find((one) => one.name === 'results');
   const seventh = trace?.finds.find((find) => find.id === 'find-seventh');
   assert.ok(trace !== undefined && seventh !== undefined);
-  const conversation = published('results');
+  const conversation = builtConversation('results');
   const { stored } = await staged(resultsOf(conversation));
   const right = stored.findIndex((one) => one.text.includes(seventh.target));
   assert.ok(right >= 0);
@@ -809,5 +810,66 @@ test('the questions find is for, asked of an agent, are tabled per unit: with re
   assert.equal(rows.length, 2, 'the units that asked the trace\'s own questions are not in it');
   assert.match(rows[0] ?? '', /\| results \| haiku \| 1 \| `recall` only \| — \| 0\/2 \| 0 \| 2 \| 0 \|/);
   assert.match(rows[1] ?? '', /\| results \| haiku \| 1 \| `recall` and `find` \| — \| 1\/2 \| 2 \| 0 \| 0 \|/);
+});
+
+// --- what was published ---
+
+test('published, an answer names no path of the machine it ran on, and keeps its verdict', () => {
+  const said = 'I read /Users/someone/box/work/short-abc/kept-4.log and /Users/someone/.claude/projects/x/y.jsonl: station 12 reported 3 units.';
+  const units = [unitOf('builtin', 1, [answered('next', 'continuity', said, []), answered('gone-1', 'exact-gone', 'batch 07', [], 'correct')])];
+  const [unit] = units;
+  assert.ok(unit !== undefined);
+  const grades = summed(itemsOf(units), [new Map(itemsOf(units).map((item) => [item.key, item.expected ?? ('incorrect' as const)]))], 'a-model');
+  const out = published(units, grades, { box: '/Users/someone/box', home: '/Users/someone' });
+  const [clean] = out.units;
+  assert.ok(clean !== undefined && clean.questions[0] !== undefined && out.grades !== null);
+  assert.equal(clean.questions[0].answer, 'I read <box>/work/short-abc/kept-4.log and <home>/.claude/projects/x/y.jsonl: station 12 reported 3 units.');
+  assert.ok(!JSON.stringify(out).includes('/Users/someone'));
+  // The verdict was on the answer as it was given; it is found under the answer as published, and no longer under the other.
+  assert.equal(verdictOf(clean, clean.questions[0], out.grades), 'incorrect');
+  assert.equal(out.grades.verdicts[keyOf(unit, 'next', said)], undefined);
+  assert.equal(Object.keys(out.grades.verdicts).length, Object.keys(grades.verdicts).length);
+  // What was given is not changed by publishing it.
+  assert.equal(unit.questions[0]?.answer, said);
+  assert.deepEqual(published(units, null, { box: '/b', home: '/h' }).grades, null);
+});
+
+const RESULTS = fileURLToPath(new URL('../bench/results/2026-10-02', import.meta.url));
+
+test('the results in the repository: of the traces as they are, of the conversations beside them, every answer graded, and the tables made from them', () => {
+  assert.ok(existsSync(RESULTS));
+  const all = unitsUnder(RESULTS);
+  const { units, older } = currentOf(all);
+  assert.equal(older, 0);
+  const grades = JSON.parse(readFileSync(`${RESULTS}/grades.json`, 'utf8')) as Grades;
+  const picks = existsSync(`${RESULTS}/picks.json`) ? (JSON.parse(readFileSync(`${RESULTS}/picks.json`, 'utf8')) as { picks: Pick[] }).picks : null;
+  // The tables are these units and grades and nothing else: made again, they are the file.
+  assert.equal(whole(units, grades, older, picks), readFileSync(`${RESULTS}/report.md`, 'utf8'));
+
+  // Each unit is of the conversation published beside it, and of one state of the plugin's code.
+  const built = new Map(TRACES.map((trace) => [trace.name, (JSON.parse(readFileSync(new URL(`../bench/bases/${trace.name}.json`, import.meta.url), 'utf8')) as { sessionId: string }).sessionId]));
+  for (const unit of units) assert.equal(unit.base, built.get(unit.trace), `${unit.trace} ${unit.model} run ${unit.run} ${unit.arm}`);
+  // Two checkouts were measured: this code, and v0.5.2 in the probes that set its estimate beside this one's.
+  assert.equal(new Set(units.filter((unit) => unit.arm === 'plugin' && unit.variant !== 'v0.5.2').map((unit) => unit.plugin)).size, 1);
+  assert.equal(new Set(units.filter((unit) => unit.variant === 'v0.5.2').map((unit) => unit.plugin)).size, 1);
+
+  // What was run: six traces three times on Haiku, three once on Sonnet, both arms each time.
+  const asked = units.filter((unit) => unit.mode === 'ask' && unit.variant === 'default');
+  const count = (model: RegExp, arm: string) => asked.filter((unit) => model.test(unit.model) && unit.arm === arm).length;
+  assert.deepEqual([count(/haiku/, 'plugin'), count(/haiku/, 'builtin'), count(/sonnet/, 'plugin'), count(/sonnet/, 'builtin')], [18, 18, 3, 3]);
+  assert.ok(asked.every((unit) => unit.questions.length === 9));
+  // In each trace and model both arms went first at least once where there were three runs.
+  for (const trace of TRACES) {
+    const firsts = asked.filter((unit) => unit.trace === trace.name && /haiku/.test(unit.model) && unit.first).map((unit) => unit.arm);
+    assert.deepEqual([...new Set(firsts)].sort(), ['builtin', 'plugin'], trace.name);
+  }
+  // Every answer has a verdict, and the grader was right on every answer whose grade was known.
+  assert.equal(outcomesOf(asked, grades).ungraded, 0);
+  assert.equal(grades.controls.asExpected, grades.controls.count);
+  assert.equal(grades.controls.toldPairsSame, grades.controls.toldPairs);
+
+  // Nothing of the machine: no home directory, no key.
+  const text = JSON.stringify(all) + JSON.stringify(grades) + JSON.stringify(picks);
+  assert.ok(!/\/Users\/|\.cctmp|CLOUDFLARE_API_TOKEN|TYPESAFE_API_KEY/.test(text));
 });
 

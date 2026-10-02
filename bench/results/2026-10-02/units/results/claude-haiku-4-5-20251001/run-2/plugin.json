@@ -1,0 +1,323 @@
+{
+ "trace": "results",
+ "version": 1,
+ "base": "5adde713-fb9d-46b7-99b5-f59b8c9c814f",
+ "plugin": "bfe9c5b1d1d4",
+ "pluginCommit": "9cb27ca9e873",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 2,
+ "arm": "plugin",
+ "first": false,
+ "variant": "default",
+ "mode": "ask",
+ "at": "2026-10-02T01:45:05.085Z",
+ "claudeCode": "2.1.287",
+ "compaction": {
+  "sessionId": "913dd9c5-df03-46a5-b28b-7a12b1ef60da",
+  "durationMs": 91,
+  "wallMs": 1735,
+  "preTokens": 102276,
+  "postTokens": 19191,
+  "line": {
+   "outcome": "moved",
+   "moved": 11,
+   "results": 15,
+   "images": 0,
+   "charsBefore": 235652,
+   "charsAfter": 76681,
+   "ms": 56,
+   "estimate": 36926,
+   "window": 167000
+  },
+  "summarized": false,
+  "own": {
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0,
+   "thinkingTokens": 0
+  }
+ },
+ "questions": [
+  {
+   "id": "gone-1",
+   "kind": "exact-gone",
+   "answer": "batch 07: 8 warnings, checksum 5384f20e",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    37139,
+    37816,
+    40146
+   ],
+   "durationMs": 9431,
+   "wallMs": 10817,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 707,
+    "cacheReadInputTokens": 112064,
+    "cacheCreationInputTokens": 3009,
+    "costUSD": 0.020787399999999956,
+    "thinkingTokens": 497
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "gone-2",
+   "kind": "exact-gone",
+   "answer": "Batch 93 checksum: **7a27d384**",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    37140,
+    37610,
+    39905
+   ],
+   "durationMs": 6822,
+   "wallMs": 8275,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 482,
+    "cacheReadInputTokens": 111860,
+    "cacheCreationInputTokens": 2767,
+    "costUSD": 0.01915800000000001,
+    "thinkingTokens": 246
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "unchanged",
+   "kind": "exact-unchanged",
+   "answer": "Record 91-0061 in kept-1.log: station 6303 reported 985 units at step 61",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    37143,
+    37579,
+    40184
+   ],
+   "durationMs": 7291,
+   "wallMs": 8689,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 498,
+    "cacheReadInputTokens": 111835,
+    "cacheCreationInputTokens": 3043,
+    "costUSD": 0.019787500000000013,
+    "thinkingTokens": 279
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "then",
+   "kind": "exact-then",
+   "answer": "I don't have access to that content anymore. The recall mechanism didn't find it stored. I can't tell you what line 44 of changing-1.log said before it was regenerated.",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    37158,
+    37694,
+    37945
+   ],
+   "durationMs": 10048,
+   "wallMs": 11480,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 651,
+    "cacheReadInputTokens": 111980,
+    "cacheCreationInputTokens": 789,
+    "costUSD": 0.01605899999999999,
+    "thinkingTokens": 420
+   }
+  },
+  {
+   "id": "now",
+   "kind": "exact-now",
+   "answer": "Record 81-0044: station 19 reported 50 units at step 44.",
+   "calls": [
+    "Read"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 1
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    37152,
+    39803
+   ],
+   "durationMs": 3831,
+   "wallMs": 5424,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 300,
+    "cacheReadInputTokens": 74284,
+    "cacheCreationInputTokens": 2653,
+    "costUSD": 0.014252399999999998,
+    "thinkingTokens": 181
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "next",
+   "kind": "continuity",
+   "answer": "The next step is to read log13.txt through log16.txt, and for each one, identify and list any stations that reported more than 990 units. The files involved are: log13.txt, log14.txt, log15.txt, and log16.txt.",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    37142
+   ],
+   "durationMs": 3396,
+   "wallMs": 5034,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 309,
+    "cacheReadInputTokens": 37132,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.005268200000000001,
+    "thinkingTokens": 243
+   }
+  },
+  {
+   "id": "decided",
+   "kind": "continuity",
+   "answer": "We decided to flag a station only when it reports more than 990 units in two different logs, not in one.\n\nStill open: whether log7.txt, which looked truncated, needs to be fetched again.",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    37140
+   ],
+   "durationMs": 2686,
+   "wallMs": 4700,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 227,
+    "cacheReadInputTokens": 37130,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.0048579999999999735,
+    "thinkingTokens": 174
+   }
+  },
+  {
+   "id": "rule-1",
+   "kind": "constraint",
+   "answer": "findings.md",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    37131
+   ],
+   "durationMs": 1511,
+   "wallMs": 3282,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 75,
+    "cacheReadInputTokens": 37121,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.00409710000000002,
+    "thinkingTokens": 67
+   }
+  },
+  {
+   "id": "rule-2",
+   "kind": "constraint",
+   "answer": "With the prefix ST-, as in ST-1325.",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    37134
+   ],
+   "durationMs": 2463,
+   "wallMs": 4133,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 120,
+    "cacheReadInputTokens": 37124,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.004322400000000004,
+    "thinkingTokens": 102
+   }
+  }
+ ]
+}

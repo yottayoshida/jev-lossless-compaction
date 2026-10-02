@@ -8,6 +8,13 @@ done and what it takes to do it again.
 It is not run in CI: it needs Claude Code, signed in, with function hooks on
 (`docs/limits.md`), and every session uses that account's quota.
 
+What a run measured is in `results/<date>/`: each unit with its answers
+(`units/`), the grades (`grades.json`), what `find` picked (`picks.json`),
+and every table (`report.md`). `publish` writes them from the box, with the
+box's path and the home directory above it written `<box>` and `<home>`
+wherever an answer names them. `report --from results/<date>` makes the
+tables again from what was published, and a test holds `report.md` to that.
+
 ## What is fixed before anything is compared
 
 - **The traces** (`traces.ts`): six made-up conversations of different
@@ -200,6 +207,8 @@ node bench/main.ts run --traces results,writes,prose --models claude-sonnet-5-5 
 node bench/main.ts probe --plugin-dirs current=.,v0.5.2=../v0.5.2   # estimate against the next request
 node bench/main.ts grade
 node bench/main.ts report
+node bench/main.ts publish --to bench/results/2026-10-02   # the units, grades and tables, for the repository
+node bench/main.ts report --from bench/results/2026-10-02  # the tables again, from what was published: no box needed
 BENCH_JEV_ENV=~/somewhere/jev.env node bench/main.ts pick     # asks Jev: no session of Claude Code
 BENCH_JEV_ENV=~/somewhere/jev.env node bench/main.ts find     # results and short, with and without `find`
 ```
