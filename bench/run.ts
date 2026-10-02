@@ -72,6 +72,12 @@ export type Unit = {
     line: Line | null;
     /** True when the built-in summary ran: always in the built-in arm, and in the plugin's when it handed over. */
     summarized: boolean;
+    /**
+     * True when nothing was compacted: the plugin left a `/compact` with nothing to move
+     * out and room left as it was. The time is then the session's, and the tokens before
+     * and after are both what was in use. Absent otherwise.
+     */
+    undone?: true;
     own: Usage;
   };
   questions: Asked[];
@@ -162,16 +168,24 @@ export async function unit(
 
   const compacted = await claude({ ...common, out: join(records, 'compact.jsonl'), allowedTools: tools, resume: base.sessionId, prompt: '/compact' });
   const boundary = compacted.session.compaction;
-  if (boundary === null) throw new Error(`${records}: nothing was compacted`);
-  const missing = gapsOf(compacted.session, 'compaction');
+  // The plugin's line at a compaction; of a `/compact` it left undone (ADR 0015) its line is the reason Claude Code gives for not compacting.
+  const line = compacted.session.uiLog.map(readLine).find((read) => read !== null) ?? (compacted.session.skipped === null ? null : readLine(compacted.session.skipped));
+  // Left undone, no boundary is written.
+  const undone = boundary === null && arm === 'plugin' && line?.outcome === 'undone' && compacted.session.skipped !== null;
+  if (boundary === null && !undone) throw new Error(`${records}: nothing was compacted`);
+  const missing = boundary === null ? [] : gapsOf(compacted.session, 'compaction');
   if (missing.length > 0) throw new Error(`${records}: ${missing.join('; ')}`);
-  const line = compacted.session.uiLog.map(readLine).find((read) => read !== null) ?? null;
   if (arm === 'plugin' && line === null) throw new Error(`${records}: the plugin said nothing at the compaction`);
+  // Left undone, nothing changed: the time is the session's, and what was in use is what the plugin's line named, or the trace as it was built.
+  const sizes =
+    boundary === null
+      ? { durationMs: compacted.session.durationMs, preTokens: line?.inUse ?? base.tokens, postTokens: line?.inUse ?? base.tokens }
+      : { durationMs: boundary.durationMs, preTokens: boundary.preTokens, postTokens: boundary.postTokens };
   // A fork prints the usage of the session it came from with its own. Were that missing, taking one from the other would give a compaction that cost nothing.
   const unseen = Object.keys(base.modelUsage).filter((name) => !(name in compacted.session.modelUsage));
   if (unseen.length > 0) throw new Error(`${records}: the compaction's session does not carry the usage of the trace it was forked from (${unseen.join(', ')})`);
   const own = ownUsage(compacted.session, base);
-  log(`${trace.name} ${model} run ${run} ${arm} ${variant.name}: compacted in ${boundary.durationMs} ms, ${boundary.preTokens} -> ${boundary.postTokens}${line ? `, ${line.outcome}` : ''}`);
+  log(`${trace.name} ${model} run ${run} ${arm} ${variant.name}: ${undone ? 'left undone' : 'compacted'} in ${sizes.durationMs} ms, ${sizes.preTokens} -> ${sizes.postTokens}${line ? `, ${line.outcome}` : ''}`);
 
   const asked: Asked[] = [];
   for (const question of questions) {
@@ -218,13 +232,14 @@ export async function unit(
     claudeCode: compacted.session.version,
     compaction: {
       sessionId: compacted.session.sessionId,
-      durationMs: boundary.durationMs,
+      durationMs: sizes.durationMs,
       wallMs: compacted.wallMs,
-      preTokens: boundary.preTokens,
-      postTokens: boundary.postTokens,
+      preTokens: sizes.preTokens,
+      postTokens: sizes.postTokens,
       thinkingBefore: base.thinkingTokens,
       line,
-      summarized: arm === 'builtin' || (line !== null && line.outcome !== 'moved'),
+      summarized: arm === 'builtin' || (line !== null && line.outcome !== 'moved' && line.outcome !== 'undone'),
+      ...(undone ? { undone: true as const } : {}),
       own,
     },
     questions: asked,

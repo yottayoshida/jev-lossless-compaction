@@ -35,6 +35,8 @@ export type Session = {
   /** The lines the plugin showed. */
   uiLog: string[];
   compaction: Compaction | null;
+  /** What Claude Code said of a compaction that was not carried out, a hook having skipped it; null when none was. */
+  skipped: string | null;
   /** Classic hooks that ran, by name. */
   hooks: string[];
 };
@@ -61,6 +63,7 @@ export function readSession(text: string): Session {
     modelUsage: {},
     uiLog: [],
     compaction: null,
+    skipped: null,
     hooks: [],
   };
   const seen = new Set<string>();
@@ -102,6 +105,10 @@ export function readSession(text: string): Session {
           };
           break;
         }
+        case 'status':
+          // A compaction a hook skipped writes no boundary: Claude Code says it did not compact, and why.
+          if (event['compact_result'] === 'failed' && typeof event['compact_error'] === 'string') session.skipped = event['compact_error'];
+          break;
         case 'hook_started':
           session.hooks.push(String(event['hook_name'] ?? ''));
           break;
@@ -246,8 +253,12 @@ export function keysIn(text: string): Record<string, string> {
 }
 
 export type Line = {
-  /** `moved`: the plugin compacted; the others name why the built-in compaction ran. */
-  outcome: 'moved' | 'too-much' | 'nothing' | 'other';
+  /**
+   * `moved`: the plugin compacted. `undone`: it left a `/compact` with nothing to move out
+   * and room left as it was, and nothing was compacted. The others name why the built-in
+   * compaction ran.
+   */
+  outcome: 'moved' | 'too-much' | 'nothing' | 'other' | 'undone';
   moved: number;
   results: number;
   images: number;
@@ -256,15 +267,25 @@ export type Line = {
   /** The plugin's estimate of the tokens in use afterwards, and what it measured against; absent when it gave none. */
   estimate?: number;
   window?: number;
+  /** Of a compaction left undone: what was in use, as Claude Code gave it; absent when it gave none. */
+  inUse?: number;
   ms: number;
 };
 
 const LINE =
   /moved (\d+) of (\d+) tool results out(?:, (\d+) images? with them)? \((\d+) -> (\d+) chars(?:, about (\d+) of (\d+) tokens in use)?\) in ([\d.]+) (ms|s)/;
+const UNDONE = /nothing to move out(?:, (\d+) of (\d+) tokens in use)?: the conversation is left as it is/;
 
 /** Reads the line the plugin shows at a compaction, in any of the forms it has had since 0.5.0. */
 export function readLine(text: string): Line | null {
   const match = LINE.exec(text);
+  const undone = match ? null : UNDONE.exec(text);
+  if (undone) {
+    const line: Line = { outcome: 'undone', moved: 0, results: 0, images: 0, charsBefore: 0, charsAfter: 0, ms: 0 };
+    if (undone[1] !== undefined) line.inUse = Number(undone[1]);
+    if (undone[2] !== undefined) line.window = Number(undone[2]);
+    return line;
+  }
   if (!match) return text.includes('built-in compaction:') ? { outcome: 'other', moved: 0, results: 0, images: 0, charsBefore: 0, charsAfter: 0, ms: 0 } : null;
   const line: Line = {
     outcome: text.includes('too much is still in use') ? 'too-much' : text.includes('nothing could be moved out') ? 'nothing' : 'moved',

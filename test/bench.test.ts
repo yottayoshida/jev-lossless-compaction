@@ -30,7 +30,7 @@ import { MIN_CHARS, pick, pickTable, readAnswer, resultsOf, staged, wentOf, type
 import { estimates, finds, graderOf, outcomesOf, overruled, report, verdictOf, whole } from '../bench/report.ts';
 import { QUOTE, armsOf, staleness, variantsOf, type Unit } from '../bench/run.ts';
 import { BUILT, PROBED, TRACES, described } from '../bench/traces.ts';
-import { reportLine, type Report } from '../src/compact.ts';
+import { reportLine, undoneLine, type Report } from '../src/compact.ts';
 import type { Http } from '../src/types.ts';
 import { ok, questionsOf, recordingHttp, type Sent } from './helpers.ts';
 
@@ -188,7 +188,33 @@ test('the plugin\'s line is read in every form it has, and from the function tha
   assert.equal(readLine(`built-in compaction on what is left, too much is still in use: ${reportLine(report)}`)?.outcome, 'too-much');
   assert.equal(readLine(`built-in compaction: nothing could be moved out (${reportLine({ ...report, moved: 0 })})`)?.outcome, 'nothing');
   assert.equal(readLine('lossless-compaction: built-in compaction: the conversation holds what a rebuilt message cannot carry: image')?.outcome, 'other');
+  // A `/compact` left undone (ADR 0015): what was in use where Claude Code gave the figure, and no figure where it did not.
+  assert.deepEqual(readLine(`lossless-compaction: ${undoneLine(28425, 167000)}`), {
+    outcome: 'undone', moved: 0, results: 0, images: 0, charsBefore: 0, charsAfter: 0, inUse: 28425, window: 167000, ms: 0,
+  });
+  assert.deepEqual(readLine(`lossless-compaction: ${undoneLine(null, 167000)}`), { outcome: 'undone', moved: 0, results: 0, images: 0, charsBefore: 0, charsAfter: 0, ms: 0 });
   assert.equal(readLine('something else'), null);
+});
+
+test('a compaction a hook skipped is read as not carried out, with what Claude Code said of it', () => {
+  const why = `lossless-compaction: ${undoneLine(28425, 167000)}`;
+  const skipped = readSession(
+    [
+      { type: 'system', subtype: 'status', status: 'compacting' },
+      { type: 'system', subtype: 'status', status: null, compact_result: 'failed', compact_error: `skipped: ${why}` },
+    ]
+      .map((event) => JSON.stringify(event))
+      .join('\n'),
+  );
+  assert.equal(skipped.compaction, null);
+  assert.equal(skipped.skipped, `skipped: ${why}`);
+  // The plugin shows no line of its own beside it: what it left undone is read from the reason.
+  assert.deepEqual(skipped.uiLog, []);
+  assert.equal(readLine(skipped.skipped ?? '')?.inUse, 28425);
+  // A compaction that went through is not one, nor is a session that compacted nothing.
+  assert.equal(compactPlugin.skipped, null);
+  assert.equal(base.skipped, null);
+  assert.equal(readSession(JSON.stringify({ type: 'system', subtype: 'status', status: null, compact_result: 'success' })).skipped, null);
 });
 
 test('an exact answer is right when it holds every part asked for, whatever its spacing, case and Markdown', () => {
@@ -420,6 +446,17 @@ const answered = (id: string, kind: Unit['questions'][number]['kind'], answer: s
   wallMs: 5200,
   own: { inputTokens: 10, outputTokens: 330, cacheReadInputTokens: 15196, cacheCreationInputTokens: 25970, costUSD: 0.0551, thinkingTokens: 0 },
   ...(verdict !== undefined ? { verdict } : {}),
+});
+
+test('a unit whose /compact was left undone is tabled as that: no summary, and a row of its own only where there is one', () => {
+  const asked = [answered('next', 'continuity', 'Next is log13 to log16.', [], 'correct')];
+  // Units measured before a `/compact` could be left undone make the tables they made.
+  assert.ok(!report([unitOf('plugin', 1, asked), unitOf('builtin', 1, asked)], null).includes('Left as it was'));
+  const undone = unitOf('plugin', 1, asked, { undone: true, summarized: false, durationMs: 52, preTokens: 28425, postTokens: 28425 });
+  const tables = report([undone, unitOf('builtin', 1, asked)], null);
+  assert.ok(tables.includes('| Built-in summary ran | 0 of 1 | 1 of 1 |'));
+  assert.ok(tables.includes('| Left as it was, nothing compacted | 1 of 1 | 0 of 1 |'));
+  assert.ok(tables.includes('| Compaction, ms | 52 | 25730 |'));
 });
 
 test('the grader is sent a number, the question, the facts, the rubric and the answer: nothing of the arm, the model or the run', () => {
