@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-02
+
 ### Changed
 
 - The benchmark builds two more conversations, `mixed` (pasted English prose with logs that can leave) and `japanese` (Japanese with logs that can leave, and some thinking). No question is asked of them: they are compacted and probed, to set the size the plugin counts against what the next request is sent. `probe` takes `--plugin-dirs` and `--max-after` together, a unit records the thinking in what it compacted, and `publish --variants` writes a selection of a box.
