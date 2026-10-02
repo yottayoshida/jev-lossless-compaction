@@ -28,7 +28,10 @@ is checked of it are in [`bench/README.md`](../bench/README.md). The
 conversations as they were built are in `bench/bases/`. Every unit, its
 answers and their grades are in `bench/results/2026-10-02/`, and `report.md`
 there holds every table in full; a test makes it again from the units and
-fails if it differs. The tables below are taken from it.
+fails if it differs. The tables below are taken from it. The plugin measured
+is the code on `main` at `89c965b`: a unit names it by a hash of that code
+(`bfe9c5b1d1d4`), and beside it the commit of the branch the run was made
+on, which was rebased since and is not in the history.
 
 The six conversations, and what was in use when each was compacted:
 
@@ -66,10 +69,13 @@ results and a line for each one moved out stay.
 In the other five it had nothing to move out that would have made room: what
 fills them is what the agent wrote, what was pasted in, thinking, or results
 too short to move. It kept the conversation and handed over to Claude Code's
-summary, and the two arms then take the same time and cost within what the
-runs vary by. What a summary costs turns on whether the conversation is still
-in the prompt cache, which is where the low ends of the ranges come from
-(`report.md` gives the tokens read from the cache and written to it).
+summary. The compaction then took about as long in both arms, the ranges
+overlapping in four of the five; in `thinking` the plugin's arm took 30 to
+38 s against 25 to 29 s. After a hand-over the next request was larger in
+the plugin's arm in all five, by 500 to 1,900 tokens. What a summary costs
+turns on whether the conversation is still in the prompt cache, which is
+where the low ends of the ranges come from (`report.md` gives the tokens
+read from the cache and written to it).
 
 ### What could be answered afterwards
 
@@ -101,8 +107,10 @@ two columns were graded by Haiku 4.5, which was not told the arm.
   arm were wrong without anything being brought back. The plugin's five right
   answers came after `recall`. Nothing in the question says the old reading
   has to be fetched, and neither arm fetches it unasked.
-- **A file that is still there** was read again and answered by both arms
-  every time.
+- **A file that is still there** was answered right by both arms every
+  time: with no call at all in twelve of eighteen in each arm, and in the
+  rest after reading the file again (three in the plugin's arm, six in the
+  other) or after `recall` (three).
 - **Where the work stands, and a rule stated in the first message**: no
   difference. The misses on the standing are in `thinking` in both arms, and
   one each elsewhere.
@@ -129,6 +137,8 @@ requests, and cost. Ranges over the three runs.
 The plugin's arm made four to seven `recall` calls a run. Its questions take
 about the same time from run to run; the built-in arm's vary with how far the
 agent goes looking, from one `Read` or `Grep` call in a run to twenty-six.
+In `writes` and in `thinking` the plugin's arm cost more to ask in every run
+than the other arm did in any.
 After the plugin's own compaction every later request carries the 37,139
 tokens it left, which is why `results` sends more input for the plugin's arm
 than for the other; the high end of its cost is the run that wrote that
@@ -170,14 +180,18 @@ estimate was changed to count what stays (ADR 0011).
 | `thinking` | nothing moved  | 34,489 in use before    |              20,185 | −41.5 % |           34,364 | −0.4 % |
 
 Where results were moved out, which is what the change was for, the estimate
-went from 32 % over to within 1 %. Where nothing was moved, nothing had
-changed, so the estimate can be set against what Claude Code counted before
-the compaction: v0.5.2 hands that count back, and this code counts again and
-is off by up to 48 %. The two largest errors are what
+went from 32 % over to within 1 % (with Sonnet, in the one run, 2.1 % over).
+Where nothing was moved, nothing had changed, so the estimate can be set
+against what Claude Code counted before the compaction: v0.5.2 hands that
+count back, and this code counts again and is off by up to 48 %.
+
+Why was not measured apart. Two things
 [limits](limits.md#when-the-built-in-compaction-runs-instead) says the count
-does: it takes no less than one token to three characters, and the pasted
-English prose of `prose` and `full` runs to more characters a token than
-that; and it leaves thinking out, which is a third of `thinking`.
+does go the way of the largest errors: it takes no less than one token to
+three characters, which counts too much where text runs to more characters a
+token, as the pasted prose of `prose` and `full` may; and it leaves thinking
+out, which is a third of `thinking`. Neither accounts for the 26 % under in
+`short`.
 
 In none of these six did either version hand over because of its estimate:
 the five hand-overs were for want of anything to move out. A conversation
@@ -193,34 +207,49 @@ in, in two ways: by a value the result holds (a number, a checksum), or by
 what the result was, in other words than the call that made it or its text.
 
 **What it picks, with no agent in between.** The plugin's own `find` was
-called with each of 34 questions over the results of the six conversations
-that are long enough to be moved out: fifteen in `results`, three in each
-other. Beside it, a word match picked the result sharing the most words with
-the question, reading each result in full, a tie going to the earliest.
+called with each question over the results of a conversation that are long
+enough to be moved out: fifteen in `results`, three in each other. Beside
+it, a word match picked the result sharing the most words with the question,
+reading each result in full, a tie going to the earliest.
 
-| Asked by | Questions | Word match: right | `find`: gave the right one | listed it first | listed it further down | did not list it | said it was none of them |
-| -------- | --------: | ----------------: | -------------------------: | --------------: | ---------------------: | --------------: | -----------------------: |
-| A value  |        14 |                13 |                          1 |               0 |                      0 |               0 |                       13 |
-| Meaning  |        19 |                12 |                         11 |               5 |                      2 |               1 |                        0 |
+| Conversations  | Options | Asked by | Asked | Word match: right | `find`: gave the right one | listed it first | listed it further down | did not list it | said it was none of them |
+| -------------- | ------: | -------- | ----: | ----------------: | -------------------------: | --------------: | ---------------------: | --------------: | -----------------------: |
+| `results`      |      15 | A value  |     4 |                 3 |                          1 |               0 |                      0 |               0 |                        3 |
+| `results`      |      15 | Meaning  |     4 |                 2 |                          1 |               1 |                      1 |               1 |                        0 |
+| The other five |  3 each | A value  |    10 |                10 |                          0 |               0 |                      0 |               0 |                       10 |
+| The other five |  3 each | Meaning  |    15 |                10 |                         10 |               4 |                      1 |               0 |                        0 |
+
+The other five conversations ask the same five questions of the same three
+options, the script's output and the two logs, with other numbers in them:
+their rows are one situation met five times, not twenty-five askings that
+stand apart. Counted once, there are six questions by a value and seven by
+meaning. That is few, and the table says what happened on them, not how
+often it would.
 
 - Asked by a value, `find` said thirteen times of fourteen that no result
-  was about that. Jev is shown the call and the first 400 characters of a
-  result; a value further down is not in front of it. A phrase in double
+  was about that. What Jev is shown of a result is the call that made it and
+  a digest of 400 characters, which for results like these is their first
+  lines; a value further down is not in front of it. A phrase in double
   quotes is looked for in the whole text first, but only from twelve
-  characters on, and the checksum the questions quote is eight. The word
-  match reads everything and found thirteen.
+  characters on, and the checksum the questions quote is eight. The one it
+  gave is a record whose number begins with its log's, and the call names
+  the log. The word match reads everything and found thirteen.
 - Asked by meaning, `find` gave or listed first the right result sixteen
-  times of nineteen. The word match's twelve are all questions where the
-  words tied and the right result happened to come first; where the right
-  one came later it was wrong all seven times.
+  times of nineteen: in `results` it gave one of four and listed one first,
+  and in the other five it gave the script's output and the log that was to
+  stay every time, and listed the log that was to change first four times
+  of five. The word match was right on the first two of those everywhere
+  and wrong on the third everywhere: where the words tie it takes the
+  earliest, and it was right by where the right result stood.
 - `find` never gave a wrong result as the answer: where it was not sure it
   listed, or said none. The one question that asks for a result too short to
   be an option, it answered with none, which is right.
 - A call took 0.24 to 1.7 seconds, 0.28 the median.
 
 **With an agent in between.** The same questions asked of the plugin's arm
-after a compaction, each ending "Quote that line in full", one run: with
-`recall` alone, and with `find` registered as well.
+after a compaction, each ending "Quote that line in full" (by a value) or
+"Quote its first line in full" (by meaning), one run: with `recall` alone,
+and with `find` registered as well.
 
 | Trace     | Tools               | Right  | `find` calls | `recall` calls | Seconds | USD  |
 | --------- | ------------------- | -----: | -----------: | -------------: | ------: | ---: |

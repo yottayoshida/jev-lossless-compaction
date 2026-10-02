@@ -24,11 +24,14 @@ next request, that came within 17 % in three sessions and 29 % over in a
 fourth: mostly high. It comes out low when what stays is denser than the
 session on average, such as Japanese left after source code was moved out.
 In the made-up conversations of [the benchmark](measurements.md#the-plugins-estimate-of-what-is-left)
-it was within 1 % where results were moved out. Where nothing could be, and
-the count can be set against what was in use, it was 34 % and 48 % over in
-two conversations that are mostly pasted English prose, which runs to more
-than three characters a token, and 41 % under in one that is a third
-thinking.
+it was within 1 % where results were moved out with Haiku, and 2 % over
+with Sonnet. Where nothing could be moved, and the count can be set against
+what was in use, it was 34 % and 48 % over in two conversations that are
+mostly pasted prose, 41 % under in one that is a third thinking, and 26 %
+under in one of many short results. The first two go the way the floor of
+one token to three characters would, and the third the way leaving thinking
+out would; which of it each accounts for was not measured, and the fourth
+is not explained.
 When the breakdown cannot be relied on, the line a compaction shows names
 no token count, and what was in use less what was moved out is measured
 instead: that still counts the thinking, and with no response since the

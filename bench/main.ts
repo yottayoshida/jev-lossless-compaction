@@ -20,7 +20,7 @@ import { dirname, join, resolve, sep } from 'node:path';
 import { providerFrom } from '../src/ask.ts';
 import type { Http } from '../src/types.ts';
 import { build, type Conversation, type Places } from './build.ts';
-import { currentOf, grade, published, unitsUnder, type Grades } from './grade.ts';
+import { currentOf, grade, published, scrubbed, unitsUnder, type Grades } from './grade.ts';
 import { keysIn } from './lib.ts';
 import { pick, pickTable, type Pick } from './pick.ts';
 import { whole } from './report.ts';
@@ -168,15 +168,17 @@ async function main(): Promise<void> {
     const to = flag(args, 'to');
     if (to === undefined) throw new Error('publish takes --to, the directory to write to');
     const { units, grades, picks } = measuredUnder(places.box);
-    const out = published(units, grades, { box: places.box, home: homedir() });
+    const machine = { box: places.box, home: homedir() };
+    const out = published(units, grades, machine);
     const write = (path: string, text: string) => {
       mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, text);
     };
     for (const unit of out.units) write(join(to, 'units', unit.trace, unit.model, `run-${unit.run}`, `${leaf(unit.arm, unit.variant, unit.mode)}.json`), `${JSON.stringify(unit, null, 1)}\n`);
     if (out.grades !== null) write(join(to, 'grades.json'), `${JSON.stringify(out.grades, null, 1)}\n`);
-    if (picks !== null) write(join(to, 'picks.json'), `${JSON.stringify(picks, null, 1)}\n`);
-    write(join(to, 'report.md'), whole(out.units, out.grades, 0, picks?.picks ?? null));
+    const picked = picks === null ? null : scrubbed(picks, machine);
+    if (picked !== null) write(join(to, 'picks.json'), `${JSON.stringify(picked, null, 1)}\n`);
+    write(join(to, 'report.md'), whole(out.units, out.grades, 0, picked?.picks ?? null));
     console.log(`${out.units.length} units, their grades and the tables under ${to}`);
     return;
   }
