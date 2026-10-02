@@ -94,23 +94,51 @@
     "finds": [
       {
         "id": "find-report",
+        "by": "value",
         "ask": "Which earlier result held a line reading \"d8923051\"?",
         "target": "batch 58: 2 warnings, checksum d8923051"
       },
       {
         "id": "find-kept",
+        "by": "value",
         "ask": "Which earlier result listed a station that reported 618 units at step 17?",
         "target": "record 91-0017: station 6922 reported 618 units at step 17"
       },
       {
+        "id": "find-script",
+        "by": "meaning",
+        "ask": "Which earlier result was what the shell script printed when it was run at the start?",
+        "target": "batch 01: 10 warnings, checksum 9e3817e8"
+      },
+      {
+        "id": "find-stays",
+        "by": "meaning",
+        "ask": "Of the two log files looked at near the start, which earlier result was the one that was to be left as it is?",
+        "target": "record 91-0001: station 9867 reported 122 units at step 1"
+      },
+      {
+        "id": "find-changes",
+        "by": "meaning",
+        "ask": "Of the two log files looked at near the start, which earlier result was the one that was going to be made anew?",
+        "target": "record 81-0001: station 8557 reported 112 units at step 1"
+      },
+      {
         "id": "find-log-a",
+        "by": "value",
         "ask": "Which earlier result listed a station that reported 664 units at step 150?",
         "target": "record 2-0150: station 1325 reported 664 units at step 150"
       },
       {
         "id": "find-log-b",
+        "by": "value",
         "ask": "Which earlier result held the record numbered 9-0203?",
         "target": "record 9-0203: station 3083 reported 320 units at step 203"
+      },
+      {
+        "id": "find-seventh",
+        "by": "meaning",
+        "ask": "Which earlier result was the seventh of the station logs gone through one after another?",
+        "target": "record 7-0001: station 8836 reported 38 units at step 1"
       }
     ]
   },
@@ -209,16 +237,37 @@
     "finds": [
       {
         "id": "find-report",
+        "by": "value",
         "ask": "Which earlier result held a line reading \"d892ce88\"?",
         "target": "batch 58: 5 warnings, checksum d892ce88"
       },
       {
         "id": "find-kept",
+        "by": "value",
         "ask": "Which earlier result listed a station that reported 619 units at step 17?",
         "target": "record 92-0017: station 7053 reported 619 units at step 17"
       },
       {
+        "id": "find-script",
+        "by": "meaning",
+        "ask": "Which earlier result was what the shell script printed when it was run at the start?",
+        "target": "batch 01: 2 warnings, checksum 9e38b61f"
+      },
+      {
+        "id": "find-stays",
+        "by": "meaning",
+        "ask": "Of the two log files looked at near the start, which earlier result was the one that was to be left as it is?",
+        "target": "record 92-0001: station 25 reported 123 units at step 1"
+      },
+      {
+        "id": "find-changes",
+        "by": "meaning",
+        "ask": "Of the two log files looked at near the start, which earlier result was the one that was going to be made anew?",
+        "target": "record 82-0001: station 8688 reported 113 units at step 1"
+      },
+      {
         "id": "find-edit",
+        "by": "value",
         "ask": "Which earlier result confirmed a change to the limit 1234?",
         "target": "1234"
       }
@@ -319,13 +368,33 @@
     "finds": [
       {
         "id": "find-report",
+        "by": "value",
         "ask": "Which earlier result held a line reading \"d8936cbf\"?",
         "target": "batch 58: 8 warnings, checksum d8936cbf"
       },
       {
         "id": "find-kept",
+        "by": "value",
         "ask": "Which earlier result listed a station that reported 620 units at step 17?",
         "target": "record 93-0017: station 7184 reported 620 units at step 17"
+      },
+      {
+        "id": "find-script",
+        "by": "meaning",
+        "ask": "Which earlier result was what the shell script printed when it was run at the start?",
+        "target": "batch 01: 5 warnings, checksum 9e395456"
+      },
+      {
+        "id": "find-stays",
+        "by": "meaning",
+        "ask": "Of the two log files looked at near the start, which earlier result was the one that was to be left as it is?",
+        "target": "record 93-0001: station 156 reported 124 units at step 1"
+      },
+      {
+        "id": "find-changes",
+        "by": "meaning",
+        "ask": "Of the two log files looked at near the start, which earlier result was the one that was going to be made anew?",
+        "target": "record 83-0001: station 8819 reported 114 units at step 1"
       }
     ]
   },
@@ -424,13 +493,33 @@
     "finds": [
       {
         "id": "find-report",
+        "by": "value",
         "ask": "Which earlier result held a line reading \"d8940af6\"?",
         "target": "batch 58: 0 warnings, checksum d8940af6"
       },
       {
         "id": "find-kept",
+        "by": "value",
         "ask": "Which earlier result listed a station that reported 621 units at step 17?",
         "target": "record 94-0017: station 7315 reported 621 units at step 17"
+      },
+      {
+        "id": "find-script",
+        "by": "meaning",
+        "ask": "Which earlier result was what the shell script printed when it was run at the start?",
+        "target": "batch 01: 8 warnings, checksum 9e39f28d"
+      },
+      {
+        "id": "find-stays",
+        "by": "meaning",
+        "ask": "Of the two log files looked at near the start, which earlier result was the one that was to be left as it is?",
+        "target": "record 94-0001: station 287 reported 125 units at step 1"
+      },
+      {
+        "id": "find-changes",
+        "by": "meaning",
+        "ask": "Of the two log files looked at near the start, which earlier result was the one that was going to be made anew?",
+        "target": "record 84-0001: station 8950 reported 115 units at step 1"
       }
     ]
   },
@@ -529,13 +618,33 @@
     "finds": [
       {
         "id": "find-report",
+        "by": "value",
         "ask": "Which earlier result held a line reading \"d894a92d\"?",
         "target": "batch 58: 3 warnings, checksum d894a92d"
       },
       {
         "id": "find-kept",
+        "by": "value",
         "ask": "Which earlier result listed a station that reported 622 units at step 17?",
         "target": "record 95-0017: station 7446 reported 622 units at step 17"
+      },
+      {
+        "id": "find-script",
+        "by": "meaning",
+        "ask": "Which earlier result was what the shell script printed when it was run at the start?",
+        "target": "batch 01: 0 warnings, checksum 9e3a90c4"
+      },
+      {
+        "id": "find-stays",
+        "by": "meaning",
+        "ask": "Of the two log files looked at near the start, which earlier result was the one that was to be left as it is?",
+        "target": "record 95-0001: station 418 reported 126 units at step 1"
+      },
+      {
+        "id": "find-changes",
+        "by": "meaning",
+        "ask": "Of the two log files looked at near the start, which earlier result was the one that was going to be made anew?",
+        "target": "record 85-0001: station 9081 reported 116 units at step 1"
       }
     ]
   },
@@ -634,13 +743,33 @@
     "finds": [
       {
         "id": "find-report",
+        "by": "value",
         "ask": "Which earlier result held a line reading \"d8954764\"?",
         "target": "batch 58: 6 warnings, checksum d8954764"
       },
       {
         "id": "find-kept",
+        "by": "value",
         "ask": "Which earlier result listed a station that reported 623 units at step 17?",
         "target": "record 96-0017: station 7577 reported 623 units at step 17"
+      },
+      {
+        "id": "find-script",
+        "by": "meaning",
+        "ask": "Which earlier result was what the shell script printed when it was run at the start?",
+        "target": "batch 01: 3 warnings, checksum 9e3b2efb"
+      },
+      {
+        "id": "find-stays",
+        "by": "meaning",
+        "ask": "Of the two log files looked at near the start, which earlier result was the one that was to be left as it is?",
+        "target": "record 96-0001: station 549 reported 127 units at step 1"
+      },
+      {
+        "id": "find-changes",
+        "by": "meaning",
+        "ask": "Of the two log files looked at near the start, which earlier result was the one that was going to be made anew?",
+        "target": "record 86-0001: station 9212 reported 117 units at step 1"
       }
     ]
   }

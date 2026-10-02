@@ -45,7 +45,7 @@ export type Places = {
 
 export const workDir = (places: Places, base: Pick<Base, 'work'>) => join(places.box, 'work', base.work);
 
-type Conversation = { role: string; blocks: { type: string; text?: string; name?: string; input?: unknown; signatureChars?: number }[] }[];
+export type Conversation = { role: string; blocks: { type: string; text?: string; name?: string; input?: unknown; signatureChars?: number }[] }[];
 
 /** What was said to the agent in a published conversation, in order. */
 export const saidIn = (conversation: Conversation): string[] =>

@@ -134,6 +134,32 @@ export function report(units: readonly Unit[], grades: Grades | null, older = 0)
 }
 
 /**
+ * The units that asked the questions `find` is for, an agent in between: the
+ * plugin's arm with `recall` alone (`default`) and with `find` as well. Right
+ * is decided by the program: the line asked for is in the answer.
+ */
+export function finds(units: readonly Unit[]): string {
+  const rows = units
+    .filter((unit) => unit.mode === 'find')
+    .sort((a, b) => `${a.trace}${a.model}${a.run}${a.variant}`.localeCompare(`${b.trace}${b.model}${b.run}${b.variant}`))
+    .map((unit) => [
+      unit.trace,
+      unit.model,
+      String(unit.run),
+      unit.variant === 'default' ? '`recall` only' : '`recall` and `find`',
+      unit.compaction.line?.outcome ?? '—',
+      `${unit.questions.filter((one) => one.verdict === 'correct').length}/${unit.questions.length}`,
+      String(sum(unit.questions.map((one) => one.retrieval.finds))),
+      String(sum(unit.questions.map((one) => one.retrieval.recalls))),
+      String(sum(unit.questions.map((one) => one.retrieval.reads))),
+      (sum(unit.questions.map((one) => one.durationMs)) / 1000).toFixed(1),
+      String(sum(unit.questions.flatMap((one) => one.requests))),
+      sum(unit.questions.map((one) => one.own.costUSD)).toFixed(4),
+    ]);
+  return table(['Trace', 'Model', 'Run', 'Tools', 'Compaction', 'Right', '`find` calls', '`recall` calls', 'Files read again', 'Seconds', 'Input tokens', 'Cost, USD'], rows);
+}
+
+/**
  * What the plugin estimated a compaction would leave against what the next
  * request was sent, per checkout or setting of the plugin. Where the plugin
  * handed over, what was sent is what the built-in summary left, which its

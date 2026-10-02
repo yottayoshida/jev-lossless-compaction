@@ -71,7 +71,14 @@ export type Unit = {
   questions: Asked[];
 };
 
-export type Variant = { name: string; pluginDir: string; options?: Record<string, unknown>; tools?: readonly string[] };
+export type Variant = {
+  name: string;
+  pluginDir: string;
+  options?: Record<string, unknown>;
+  tools?: readonly string[];
+  /** The keys for `find`, in the variant that has the tool. They go to the session's environment and into no file: a unit names its variant, not what the variant was given. */
+  env?: Readonly<Record<string, string>>;
+};
 
 /** What a unit asks: the trace's questions, one question that needs no history, or the questions `find` is for. */
 export type Mode = 'ask' | 'probe' | 'find';
@@ -142,6 +149,7 @@ export async function unit(
     version: base.claudeCode,
     ...(arm === 'plugin' ? { pluginDir: variant.pluginDir } : {}),
     ...(variant.options !== undefined ? { pluginOptions: variant.options } : {}),
+    ...(arm === 'plugin' && variant.env !== undefined ? { env: variant.env } : {}),
   };
   const tools = variant.tools ?? QUESTION_TOOLS;
 
@@ -218,6 +226,9 @@ export async function unit(
   return measured;
 }
 
+/** Said after a question `find` is for, when an agent is asked it: which result it was is shown by a line of it, which a program can check. */
+export const QUOTE = { value: 'Quote that line in full.', meaning: 'Quote its first line in full.' } as const;
+
 /** A question that needs nothing of the conversation: what it was sent is the size of what the compaction left. */
 export const PROBE = [{ id: 'probe', kind: 'continuity' as Kind, ask: 'Reply with the single word: ok' }];
 
@@ -241,9 +252,9 @@ export async function runAll(plan: Plan, places: Places, log: (text: string) => 
         for (const arm of arms) {
           for (const variant of arm === 'plugin' ? (plan.variants ?? [standard]) : [standard]) {
             const questions =
-              plan.mode === 'probe' ? PROBE : plan.mode === 'find' ? trace.finds.map((find) => ({ id: find.id, kind: 'exact-gone' as Kind, ask: find.ask, needles: [find.target] })) : trace.questions;
-            // `find` is registered only when the plugin holds a key; the tool is allowed only in the variant that is given one.
-            const tools = plan.mode === 'find' && variant.options?.['apiKey'] !== undefined ? [...QUESTION_TOOLS, FIND_TOOL] : QUESTION_TOOLS;
+              plan.mode === 'probe' ? PROBE : plan.mode === 'find' ? trace.finds.map((find) => ({ id: find.id, kind: 'exact-gone' as Kind, ask: `${find.ask} ${QUOTE[find.by]}`, needles: [find.target] })) : trace.questions;
+            // `find` is registered only when the plugin has a key; the tool is named only in the variant that is handed one.
+            const tools = plan.mode === 'find' && variant.env !== undefined ? [...QUESTION_TOOLS, FIND_TOOL] : QUESTION_TOOLS;
             units.push(await unit(trace, base, model, run, arm, places, { ...variant, tools }, plan.mode, questions, arms[0] === arm, log));
           }
         }

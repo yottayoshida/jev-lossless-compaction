@@ -153,8 +153,42 @@ Everything comes from what a session printed (`--output-format stream-json`).
 Not measured: what brought-back results add to the context over many turns
 (each question is its own fork); a compaction on a store that already holds
 something (every attempt at a unit starts with an empty one); an image pasted
-into a message, and a document. The questions `find` is for are in
-`questions.json`; no command asks them yet.
+into a message, and a document.
+
+## `find`
+
+`find` is the plugin's other way to bring a result back: asked in words, it
+has Jev choose among the results moved out. It needs a key, sends Jev the
+call that made each result and a few hundred characters of its text, and is
+compared apart from everything above, which uses `recall` alone.
+
+The questions (`finds` in `questions.json`) come in two kinds. By a value:
+the question names a number or a checksum the result holds. By meaning: it
+says what the result was in other words than the call that made it or the
+text it holds, with no number and nothing quoted. The two logs every trace
+reads are asked for by what was to become of each, so that a guess between
+them is right for one and wrong for the other.
+
+- **What it picks** (`pick`): no agent, no session of Claude Code. The
+  results of a built conversation that are long enough for the plugin to
+  move out (2,000 characters, its default) are stored as the plugin stores
+  them, and the plugin's own `find` is called with each question. Beside it,
+  a plain word match picks the option sharing the most words with the
+  question, given the call and the whole text of each result; a tie goes to
+  the earliest. `find` either gives one result, lists the likeliest few, or
+  says it is none of them, and the table keeps those apart. One question
+  asks for a result too short to be an option: there "none of them" is the
+  right answer.
+- **With an agent in between** (`find`): the same questions asked of the
+  plugin's arm after a compaction, once with `recall` alone and once with
+  `find` as well, each ending "Quote that line in full" (or "its first
+  line"), which a program checks. The plugin is told which provider to ask
+  in its settings and finds the key in the session's environment; no other
+  session has it there, whatever the environment of whoever runs this.
+
+The key is read from the file `BENCH_JEV_ENV` names, lines of `NAME=value`:
+`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, or `TYPESAFE_API_KEY`.
+It is written to no file and is on no command line.
 
 ## Running it
 
@@ -166,6 +200,8 @@ node bench/main.ts run --traces results,writes,prose --models claude-sonnet-5-5 
 node bench/main.ts probe --plugin-dirs current=.,v0.5.2=../v0.5.2   # estimate against the next request
 node bench/main.ts grade
 node bench/main.ts report
+BENCH_JEV_ENV=~/somewhere/jev.env node bench/main.ts pick     # asks Jev: no session of Claude Code
+BENCH_JEV_ENV=~/somewhere/jev.env node bench/main.ts find     # results and short, with and without `find`
 ```
 
 A run that is stopped goes on where it was: each unit is written once, when

@@ -224,6 +224,27 @@ export function gapsOf(session: Session, what: 'compaction' | 'question'): strin
   return gaps;
 }
 
+/**
+ * What of the environment gives the plugin a key for `find`. A session is
+ * started without them unless it is one that compares `find`, which is handed
+ * them by name: a key lying in the environment of whoever runs the benchmark
+ * would otherwise give the plugin's arm a tool nobody named.
+ */
+export const KEY_VARS = ['TYPESAFE_API_KEY', 'CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID'] as const;
+
+/** The keys in a file of NAME=value lines, as a shell would read them. Other names are passed over, and no value is ever printed. */
+export function keysIn(text: string): Record<string, string> {
+  const keys: Record<string, string> = {};
+  for (const line of text.split('\n')) {
+    const match = /^\s*(?:export\s+)?([A-Z_]+)\s*=\s*(.*?)\s*$/.exec(line);
+    const name = match?.[1];
+    if (match === null || name === undefined || !(KEY_VARS as readonly string[]).includes(name)) continue;
+    const value = (match[2] ?? '').replace(/^(['"])(.*)\1$/, '$2');
+    if (value !== '') keys[name] = value;
+  }
+  return keys;
+}
+
 export type Line = {
   /** `moved`: the plugin compacted; the others name why the built-in compaction ran. */
   outcome: 'moved' | 'too-much' | 'nothing' | 'other';
