@@ -185,6 +185,59 @@ that is mostly prose and also holds results large enough to move is where an
 estimate this far over could hand over when it need not; none of the six is
 that conversation, and it was not measured.
 
+### `find`
+
+`find` needs a key and was compared apart, with Haiku 4.5 and Jev on
+Cloudflare Workers AI. Its questions ask which earlier result something was
+in, in two ways: by a value the result holds (a number, a checksum), or by
+what the result was, in other words than the call that made it or its text.
+
+**What it picks, with no agent in between.** The plugin's own `find` was
+called with each of 34 questions over the results of the six conversations
+that are long enough to be moved out: fifteen in `results`, three in each
+other. Beside it, a word match picked the result sharing the most words with
+the question, reading each result in full, a tie going to the earliest.
+
+| Asked by | Questions | Word match: right | `find`: gave the right one | listed it first | listed it further down | did not list it | said it was none of them |
+| -------- | --------: | ----------------: | -------------------------: | --------------: | ---------------------: | --------------: | -----------------------: |
+| A value  |        14 |                13 |                          1 |               0 |                      0 |               0 |                       13 |
+| Meaning  |        19 |                12 |                         11 |               5 |                      2 |               1 |                        0 |
+
+- Asked by a value, `find` said thirteen times of fourteen that no result
+  was about that. Jev is shown the call and the first 400 characters of a
+  result; a value further down is not in front of it. A phrase in double
+  quotes is looked for in the whole text first, but only from twelve
+  characters on, and the checksum the questions quote is eight. The word
+  match reads everything and found thirteen.
+- Asked by meaning, `find` gave or listed first the right result sixteen
+  times of nineteen. The word match's twelve are all questions where the
+  words tied and the right result happened to come first; where the right
+  one came later it was wrong all seven times.
+- `find` never gave a wrong result as the answer: where it was not sure it
+  listed, or said none. The one question that asks for a result too short to
+  be an option, it answered with none, which is right.
+- A call took 0.24 to 1.7 seconds, 0.28 the median.
+
+**With an agent in between.** The same questions asked of the plugin's arm
+after a compaction, each ending "Quote that line in full", one run: with
+`recall` alone, and with `find` registered as well.
+
+| Trace     | Tools               | Right  | `find` calls | `recall` calls | Seconds | USD  |
+| --------- | ------------------- | -----: | -----------: | -------------: | ------: | ---: |
+| `results` | `recall` only       | 5 of 8 |            0 |              3 |      59 | 0.59 |
+| `results` | `recall` and `find` | 6 of 8 |            0 |             11 |     169 | 0.75 |
+| `short`   | `recall` only       | 3 of 5 |            0 |              3 |      38 | 0.14 |
+| `short`   | `recall` and `find` | 4 of 5 |            0 |              4 |      41 | 0.15 |
+
+With `find` registered, the agent did not call it once in thirteen
+questions. The line that stands in a result's place names `recall`, and the
+agent loaded `recall` by that name each time; nothing in the conversation
+names `find`. The two rows of a trace therefore differ by what one run
+differs from the next, not by `find`. In the earlier measurement
+[below](#find-1), where the agent called `find` thirteen times of thirteen,
+the calls that made the results said nothing of their content; here each
+names its file.
+
 ### What this does not show
 
 - The conversations are made up, and each is one shape. A working session
@@ -198,6 +251,7 @@ that conversation, and it was not measured.
   several times, and automatic compaction, are not here.
 - A question may read and search but not run anything, which shuts out
   running a command again.
+- `find` with an agent is one run of thirteen questions on Haiku.
 - One window, 200,000 tokens.
 
 ## A compaction, and a result read back
@@ -254,6 +308,9 @@ seventh and tenth of thirteen. This is why a compaction asks Jev nothing
 (ADR 0003).
 
 ## `find`
+
+An earlier measurement than [the benchmark's](#find), with results chosen so
+that only their content tells them apart.
 
 Thirteen results whose calls say nothing of their content — `git show
 <hash>`, `gh issue view <number>`, `git cat-file -p <blob>` — moved out of a

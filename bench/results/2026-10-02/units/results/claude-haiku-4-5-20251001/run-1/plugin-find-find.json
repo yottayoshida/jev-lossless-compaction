@@ -1,0 +1,317 @@
+{
+ "trace": "results",
+ "version": 1,
+ "base": "5adde713-fb9d-46b7-99b5-f59b8c9c814f",
+ "plugin": "bfe9c5b1d1d4",
+ "pluginCommit": "01fa014b3e75",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 1,
+ "arm": "plugin",
+ "first": true,
+ "variant": "find",
+ "mode": "find",
+ "at": "2026-10-02T04:12:25.799Z",
+ "claudeCode": "2.1.287",
+ "compaction": {
+  "sessionId": "0e5d3505-96c1-48a7-b263-46cbb783e777",
+  "durationMs": 102,
+  "wallMs": 1899,
+  "preTokens": 102276,
+  "postTokens": 19191,
+  "line": {
+   "outcome": "moved",
+   "moved": 11,
+   "results": 15,
+   "images": 0,
+   "charsBefore": 235652,
+   "charsAfter": 76681,
+   "ms": 72,
+   "estimate": 36926,
+   "window": 167000
+  },
+  "summarized": false,
+  "own": {
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0,
+   "thinkingTokens": 0
+  }
+ },
+ "questions": [
+  {
+   "id": "find-report",
+   "kind": "exact-gone",
+   "answer": "The line is:\n\n**batch 58: 2 warnings, checksum d8923051**",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 2,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    37155,
+    37970,
+    45603,
+    47980
+   ],
+   "durationMs": 23403,
+   "wallMs": 24854,
+   "own": {
+    "inputTokens": 36,
+    "outputTokens": 1575,
+    "cacheReadInputTokens": 126525,
+    "cacheCreationInputTokens": 42147,
+    "costUSD": 0.10485749999999999,
+    "thinkingTokens": 1238
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-kept",
+   "kind": "exact-gone",
+   "answer": "I cannot find a station reporting 618 units at step 17 in log1 (which I was able to recall). Log1 shows at step 17: \"record 1-0017: station 5105 reported 528 units at step 17\". \n\nLooking at the pattern from logs 9-12 (which I have), step 17 shows units ranging from 536-539. The recall ID for log2 appears malformed. Could you clarify which log contains the 618 units entry at step 17, or provide the correct recall ID?",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 3,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 3,
+   "requests": [
+    37158,
+    37915,
+    45051,
+    45304,
+    47042
+   ],
+   "durationMs": 33168,
+   "wallMs": 34436,
+   "own": {
+    "inputTokens": 44,
+    "outputTokens": 3425,
+    "cacheReadInputTokens": 171217,
+    "cacheCreationInputTokens": 41209,
+    "costUSD": 0.11670870000000005,
+    "thinkingTokens": 2866
+   }
+  },
+  {
+   "id": "find-script",
+   "kind": "exact-gone",
+   "answer": "\"batch 01: 10 warnings, checksum 9e3817e8\"",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    37159,
+    37619,
+    39944
+   ],
+   "durationMs": 6699,
+   "wallMs": 8093,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 473,
+    "cacheReadInputTokens": 80583,
+    "cacheCreationInputTokens": 34111,
+    "costUSD": 0.0786733,
+    "thinkingTokens": 262
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-stays",
+   "kind": "exact-gone",
+   "answer": "Based on the file name, `kept-1.log` was the one to be left as is. Its first line in full is:\n\n`1\trecord 91-0001: station 9867 reported 122 units at step 1`",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    37168,
+    37858,
+    40460
+   ],
+   "durationMs": 11762,
+   "wallMs": 13088,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 881,
+    "cacheReadInputTokens": 80831,
+    "cacheCreationInputTokens": 34627,
+    "costUSD": 0.08177010000000001,
+    "thinkingTokens": 635
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-changes",
+   "kind": "exact-gone",
+   "answer": "record 81-0001: station 8557 reported 112 units at step 1",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    37168,
+    37956,
+    40565
+   ],
+   "durationMs": 9262,
+   "wallMs": 10630,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 854,
+    "cacheReadInputTokens": 80929,
+    "cacheCreationInputTokens": 34732,
+    "costUSD": 0.08185490000000001,
+    "thinkingTokens": 616
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-log-a",
+   "kind": "exact-gone",
+   "answer": "Found it!\n\n`record 2-0150: station 1325 reported 664 units at step 150`",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 2,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    37158,
+    37991,
+    45818,
+    53154
+   ],
+   "durationMs": 26090,
+   "wallMs": 27426,
+   "own": {
+    "inputTokens": 36,
+    "outputTokens": 2000,
+    "cacheReadInputTokens": 126764,
+    "cacheCreationInputTokens": 47321,
+    "costUSD": 0.11735440000000003,
+    "thinkingTokens": 1612
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-log-b",
+   "kind": "exact-gone",
+   "answer": "From log9.txt:\n\n`record 9-0203: station 3083 reported 320 units at step 203`",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    37154
+   ],
+   "durationMs": 3181,
+   "wallMs": 4965,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 176,
+    "cacheReadInputTokens": 5825,
+    "cacheCreationInputTokens": 31319,
+    "costUSD": 0.06411050000000001,
+    "thinkingTokens": 141
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-seventh",
+   "kind": "exact-gone",
+   "answer": "I apologize, but I'm having difficulty reconstructing the exact ID for log7.txt from the conversation. Could you provide the first line of log7.txt, or help me verify the correct compaction ID? The ID string I have appears to be either truncated or has a transcription error.",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    37158,
+    37765,
+    38012
+   ],
+   "durationMs": 55608,
+   "wallMs": 56766,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 6204,
+    "cacheReadInputTokens": 80728,
+    "cacheCreationInputTokens": 32179,
+    "costUSD": 0.10347879999999998,
+    "thinkingTokens": 5932
+   }
+  }
+ ]
+}
