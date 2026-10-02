@@ -5,6 +5,7 @@
 // after the summary.
 
 import { inputLine } from './ask.ts';
+import { changedLines } from './changed.ts';
 import { PART, PLUGIN, bytesOf, isPart, moveOut, partTicketText, readTicket, recall, type NotMoved } from './store.ts';
 import type { Files, Message, ToolResult, ToolUse } from './types.ts';
 
@@ -180,8 +181,12 @@ async function withTickets(files: Files, dir: string, message: Message, tools: R
  * Keeps `messages` in parts of at most PART_BYTES and returns the text of the
  * message that stands after the summary, or why nothing was kept. A part that
  * cannot be written keeps nothing: a ticket would point at what is not there.
+ *
+ * Under the parts, that message names the files the conversation read that
+ * are no longer on disk what the `Read` returned (src/changed.ts); `read` is
+ * where a reading moved out earlier is read from.
  */
-export async function keepConversation(files: Files, dir: string, messages: readonly Message[]): Promise<Kept> {
+export async function keepConversation(files: Files, dir: string, messages: readonly Message[], read: readonly string[] = [dir]): Promise<Kept> {
   const tools = new Map(messages.flatMap((message) => message.toolUses).map((use) => [use.tool_use_id, use.tool]));
   // Pieces of text, each with the number of the message it comes from, one based.
   // Every message ends in a line break, so the parts read in order are the messages in order.
@@ -213,6 +218,8 @@ export async function keepConversation(files: Files, dir: string, messages: read
     if ('reason' in moved) return { failed: moved.reason, ...(moved.code === undefined ? {} : { code: moved.code }) };
     lines.push(partTicketText({ part: index + 1, parts: parts.length, first: part.first, last: part.last, bytes: moved.bytes, id: moved.id }));
   }
+  // It throws nothing: the parts stand whatever it meets.
+  lines.push(...(await changedLines(files, dir, read, messages)));
   return { text: lines.join('\n'), parts: parts.length };
 }
 
@@ -255,7 +262,7 @@ export async function namedThroughParts(files: Files, dirs: readonly string[], l
 }
 
 /** What to keep before a summary, or why nothing can be. */
-export type ToKeep = { dir: string; messages: readonly Message[] } | { unkept: string };
+export type ToKeep = { dir: string; messages: readonly Message[]; read?: readonly string[] } | { unkept: string };
 
 /**
  * Keeps what `keep` names, then runs `summarize` — the built-in compaction —
@@ -278,7 +285,7 @@ export async function keepThenSummarize<R extends { messages?: readonly unknown[
     unkept(keep.unkept);
   } else {
     try {
-      const done = await keepConversation(files, keep.dir, keep.messages);
+      const done = await keepConversation(files, keep.dir, keep.messages, keep.read);
       if ('failed' in done && done.failed === 'write-failed') {
         const code = done.code ?? 'unknown';
         // Only a full disk is helped by making room; any other refusal is named and left to the reader.

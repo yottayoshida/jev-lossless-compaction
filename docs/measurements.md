@@ -105,9 +105,12 @@ two columns were graded by Haiku 4.5, which was not told the arm.
 - **What a file said when it was read, the file having changed since.** Both
   arms mostly answer with what the file says now: twelve of eighteen in each
   arm were wrong without anything being brought back. The plugin's five right
-  answers came after `recall`. Nothing in the question says the old reading
-  has to be fetched: the plugin's arm fetched it six times of eighteen (five
-  right, and once it still could not tell), and the built-in arm never.
+  answers came after `recall`: the plugin's arm fetched the old reading six
+  times of eighteen (five right, and once it still could not tell), and the
+  built-in arm never. The twelve were not answered from memory. After a
+  summary Claude Code shows the file again as it is now, in the words of a
+  `Read` result, and the agent took that for what it had read:
+  [A file shown again after a summary](#a-file-shown-again-after-a-summary).
 - **A file that is still there** was answered right by both arms every
   time: with no call at all in twelve of eighteen in each arm, and in the
   rest after reading the file again (three in the plugin's arm, six in the
@@ -440,6 +443,136 @@ was off with almost none: three characters a token underestimates what
 source code that was moved out took. The session of #24, which held
 228,230 characters of thinking, was 72 % over; its breakdown was not
 recorded.
+
+## A file shown again after a summary
+
+On 2026-10-02, Claude Code 2.1.287. [The benchmark](#what-could-be-answered-afterwards)
+asked what a file said when it was read, the file having been regenerated
+since, and in four of its conversations Haiku 4.5 answered with what the
+file says now twelve times of twelve in each arm. This is why, what was
+tried against it, and what the line the plugin now puts after a summary
+changes (#14, ADR 0014).
+
+### What Claude Code shows again
+
+A copy of the plugin that says what Claude Code injects for the model was
+run on `short`, which goes to the summary. In the first request after the
+summary came three attachments of the kind `file`, for the three files read
+last, each beginning
+
+```text
+Called the Read tool with the following input: {"file_path":"…/changing-4.log"}
+Result of calling the Read tool:
+1	record 84-0001: …
+```
+
+and holding the file as it was on disk then: for the file that had been
+regenerated, the new text. Which files and how many is Claude Code's to
+choose; three is what was seen in `short`. Asked what its line said when it was read, the
+agent called no tool and answered with the new line, in one answer "looking
+at the results shown in the system reminder from when I read" the file. The
+twelve wrong answers of the benchmark are these: `full`, `prose`, `short`
+and `thinking`, three runs each, no call in any. In `writes`, which goes to
+the summary too, the answers show no sign of the log being shown again: the
+agent had written eight files after reading it, the plugin's arm fetched
+the reading and was right three times of three, and the built-in arm said
+it could not tell.
+In `results`, which the plugin compacts by itself, nothing is shown again.
+
+### What was tried before anything was built
+
+In copies of the plugin, `short`, the same question asked five times of
+forks of one summary (once where the table says so). These units are not
+published.
+
+| What was done | Haiku 4.5: right | Sonnet 5.5: right |
+| --- | ---: | ---: |
+| Nothing | 0 of 5 | 5 of 5, and 5 of 5 in `prose` |
+| A line after the summary: files shown again are as they are now | 0 of 1 | |
+| A line after the summary listing the files read and the ids of their results | 0 of 1 | |
+| A line in front of the file as it is shown again, saying it is not the text that was read, with no id | 0 of 1 | |
+| A line after the summary naming the file as changed, with the id of its reading, in five wordings | 2, 3, 2, 2 and 2 of 5 | 5 of 5 |
+| The same line in front of the file as it is shown again | 2 of 5 | |
+| The line after the summary, and the changed file not shown again | 5 of 5 | 5 of 5 |
+
+Sonnet fetched the reading unprompted every time, with two calls to
+`recall` (the part, then the result named in it); with the line, one. With
+the changed file left out, both models also answered what the file says now
+five times of five, reading it again, and what an unchanged file says five
+times of five. Leaving it out needs a hook on what Claude Code injects, and
+was not built (ADR 0014).
+
+In one of the five wordings the agent called `recall` all five times and
+was refused three: it had copied the 64 characters of the id wrong, was
+told the id was not 64 hexadecimal characters, and gave up saying the id
+had been cut short. In the records of the sessions of 2026-10-02 kept
+beside the benchmark's box, which are not published, that happened in 4 of
+the 103 calls to `recall` found there.
+
+### With the line
+
+`bench/results/2026-10-02-changed/`: the five conversations that go to the
+summary, three runs each with Haiku 4.5 and `prose` and `writes` once with
+Sonnet 5.5, the plugin's arm, with the line (the plugin's code
+`5a66b262b91e`; its commit, `d3003af230fe`, is of a checkout made for
+measuring and is in no branch). They are set against the plugin's arm of
+[the benchmark](#the-benchmark), measured on the same buildings of the
+conversations with code that differs in how a size is counted, which moves
+nothing in these five either way. Right answers of three, without the line
+and with it:
+
+| Conversation | What the file said when it was read | What it says now | A file that is unchanged |
+| --- | ---: | ---: | ---: |
+| `full` | 0 · 3 | 3 · 3 | 3 · 3 |
+| `prose` | 0 · 0 | 3 · 3 | 3 · 3 |
+| `short` | 0 · 2 | 3 · 3 | 3 · 3 |
+| `thinking` | 0 · 1 | 3 · 3 | 3 · 3 |
+| `writes`, where the file is not shown again | 3 · 3 | 3 · 3 | 3 · 3 |
+
+- Where the file is shown again, six right of twelve where there were
+  none. The six came after one `recall` each by the id on the line; the
+  six misses called nothing and gave the file as it is now. It is three of
+  three in one conversation and none of three in another, and what tells
+  them apart was not found.
+- In `writes` the agent was right as before, with one `recall` an answer
+  where it had needed two.
+- A file that did not change is not named: the twelve questions about one
+  were answered with no call, as before.
+- Of the ninety-two calls to `recall` in these units none was refused for
+  its id, by the sessions' records, which are not published.
+- The questions the line has nothing to do with did not get worse: the
+  script's output that no file holds any more was right 29 times of 30,
+  where it was 26.
+- Sonnet answered all three questions right in both conversations, as it
+  had. For what the file said when it was read it called `recall` once in
+  each; without the line it had searched Claude Code's own record of the
+  session twice in `prose`, and called `recall` twice in `writes`.
+
+A test holds the table, the first three points, the count of calls to
+`recall` and Sonnet's answers to the units.
+
+The units were measured before review changed what the plugin does with a
+write that failed, with such a line outside its own message, with a path
+too long to name and with a file that is not UTF-8. None of those occurs
+in these conversations: with the code as it is, the message after the
+summary names the same file under the same id in each of the five as with
+the code that was measured (checked by compacting each once more with both,
+in sessions that are not published).
+
+In an interactive session, with `/compact` typed by hand, the plugin's
+message stood after the summary with the line in it and Claude Code's three
+files were shown under it; no question was asked there. And `short`
+compacted twice in a row named `changing-4.log` under the same id after
+both summaries: the second took it up from the first one's message.
+
+### What this does not show
+
+The question says the file has been regenerated; one that does not was not
+asked. One log of a hundred lines and one question about it, in five
+conversations: the same situation several times. Haiku and Sonnet only. A
+compaction Claude Code starts on its own. A conversation whose `Read`
+results had been moved out before it went to the summary, which the tests
+cover and no session did. A working session.
 
 ## The size after a compaction, counted again
 

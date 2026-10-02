@@ -18,6 +18,7 @@ test('every tool and the compaction read where results are through placesOf, so 
   assert.ok(!hooks.includes('storeDirFrom('), 'the plain default is never used on its own');
   assert.ok(hooks.includes('const config: Config = {\n      store,'), 'the compaction is handed both places');
   assert.ok(hooks.includes('recall(filesOf($), store.read,'), 'recall reads both');
+  assert.ok(hooks.includes('{ dir: keep.store.write, read: keep.store.read, messages: keep.messages }'), 'what is kept before a summary is handed both places: a reading moved out earlier may be in the older one');
   assert.ok(hooks.includes('dirs: store.read,'), 'find reads both');
 });
 

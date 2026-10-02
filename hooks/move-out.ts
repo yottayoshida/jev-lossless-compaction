@@ -437,7 +437,7 @@ async function summarizeKeeping(
   next: (e: SessionCompactInput) => Promise<SessionCompactResult>,
   keep: HandedOver['keep'],
 ): Promise<SessionCompactResult> {
-  const where = 'unkept' in keep ? keep : { dir: keep.store.write, messages: keep.messages };
+  const where = 'unkept' in keep ? keep : { dir: keep.store.write, read: keep.store.read, messages: keep.messages };
   return keepThenSummarize(storingFilesOf($), where, (text) => say($, text), () => next(handed), (why) => ({ skip: why }));
 }
 
