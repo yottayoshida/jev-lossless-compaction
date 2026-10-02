@@ -28,3 +28,6 @@ Why the plugin is built the way it is, one record a decision.
   result is moved out with the result.
 - [0013](0013-the-size-after-is-what-is-in-use-less-what-goes.md): how the
   size after a compaction is counted, which replaces the way of 0011.
+- [0014](0014-after-a-summary-files-changed-on-disk-are-named.md): why the
+  plugin reads the files a conversation read, and names the changed ones
+  after a summary.

@@ -33,9 +33,11 @@ export type SelectOptions = {
   minChars: number;
 };
 
-const WRITES = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
+/** The tools that write to the file their input names. */
+export const WRITES: ReadonlySet<string> = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 
-function fileOf(input: Record<string, unknown>): string | null {
+/** The file a call's input names, for the tools that read or write one. */
+export function fileOf(input: Record<string, unknown>): string | null {
   const path = input['file_path'] ?? input['notebook_path'];
   return typeof path === 'string' ? path : null;
 }
@@ -194,8 +196,8 @@ export function ruleOrder(candidates: readonly Candidate[], goal: string): Candi
   );
 }
 
-// Text the host writes into a person's turn. It is not what they are working on.
-const HOST_TEXT = /<(system-reminder|task-notification|local-command-[a-z]+|command-[a-z]+)>[\s\S]*?<\/\1>/g;
+/** Text the host writes into a person's turn. It is not what they said or are working on. */
+export const HOST_TEXT = /<(system-reminder|task-notification|local-command-[a-z]+|command-[a-z]+)>[\s\S]*?<\/\1>/g;
 
 /** The host hands a plugin the newest 4096 messages of a conversation and no more. */
 export const HOST_SHOWS = 4096;

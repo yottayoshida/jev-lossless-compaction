@@ -121,6 +121,58 @@ parts, it offers no more than make 1,200 tickets in all, and `recall` still
 reads the others by id. Whether the agent goes
 back to what was kept rather than trusting the summary is up to it.
 
+After a summary, Claude Code shows the files read most recently again in
+the next request (three of them, where it was measured), each as it is on
+disk then, in the words of a `Read` result. A file that changed since the conversation read it is shown
+as it is now, and an agent can take that for what it read. Right after a
+summary, the plugin names the files the conversation read whole whose text
+on disk is no longer what the last such `Read` returned, each with the id
+that reading comes back by (ADR 0014):
+
+```text
+Changed on disk since it was read in the conversation, as of this summary: /work/app/config.json. If it is shown again after the summary, that is the file as it is now; what the Read returned then comes back with mcp__lossless-compaction__recall id …
+```
+
+To tell, the plugin reads those files: paths the conversation read, the
+newest twenty of them, regular files of up to 256 KB and no links. It sends
+nothing, and writes nothing of them but a reading too short to have been
+stored, which is stored so that it can be named. Ten files are named and
+the rest counted. A path of over 512 characters is not named, nor one
+holding a control character, a line separator or a mark that turns the
+direction of text: the line stands in a message of your side of the
+conversation, and a path is all it holds that the plugin did not write.
+
+A reading is a `Read` without `offset`, `limit` or `pages` that returned
+the file's lines, the last such one of a path. A file the conversation
+wrote to afterwards with Edit, Write, MultiEdit or NotebookEdit is left
+out, unless that write failed; one changed through Bash is named like any
+other, and so is one written to under another spelling of its path. The
+file is set against the reading just before the summary runs, a carriage
+return at the end of a line and a byte order mark left out on both sides.
+What changes later is set against it again at the next summary, which
+names the file again while it differs: the line of the summary before is
+read for that, in the plugin's own message and nowhere else. A file that
+was still what was read at one summary and changes after it is not taken
+up at the next: its reading is in a part by then, and no line names it. A
+file that is gone, a notebook, an image, an empty file, a file that does
+not read as text (not UTF-8, or holding a NUL) and a reading the plugin
+could not have are not named, and nothing is named when the conversation
+could not be kept. The comparison rests on the form
+Claude Code 2.1.287 gives a `Read` result, a number and a tab before each
+line: without them nothing is named, and a form that kept them and cut the
+text short would name files that did not change.
+
+Whether the agent then fetches the reading is its own. In
+[the benchmark](measurements.md#a-file-shown-again-after-a-summary), asked
+what a file said when it was read, the question saying that the file has
+been regenerated since: Haiku 4.5 answered right six times of twelve in the four conversations
+where the file is shown again (three of three in one of them, none of
+three in another), where without the line it answered with the file as it
+is now twelve times of twelve; Sonnet 5.5 answered right with the line and without it, in one run on two conversations. An id is 64 characters, and an agent copying
+one gets it wrong now and then; `recall` refuses it. Measured with
+`claude -p` and a manual `/compact`; a compaction Claude Code starts on its
+own was not.
+
 Every summary keeps the whole conversation, so the directory grows faster
 than moving out alone makes it grow.
 
