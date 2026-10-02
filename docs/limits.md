@@ -26,12 +26,14 @@ session on average, such as Japanese left after source code was moved out.
 In the made-up conversations of [the benchmark](measurements.md#the-plugins-estimate-of-what-is-left)
 it was within 1 % where results were moved out with Haiku, and 2 % over
 with Sonnet. Where nothing could be moved, and the count can be set against
-what was in use, it was 34 % and 48 % over in two conversations that are
-mostly pasted prose, 41 % under in one that is a third thinking, and 26 %
-under in one of many short results. The first two go the way the floor of
-one token to three characters would, and the third the way leaving thinking
-out would; which of it each accounts for was not measured, and the fourth
-is not explained.
+what was in use, it ran from 48 % over to 41 % under in the five such
+conversations: 34 % and 48 % over in two that are mostly pasted prose, 6 %
+under in one that is mostly files the agent wrote, 26 % under in one of
+many short results, and 41 % under in one that is a third thinking. The
+three of them run with Sonnet came within two points of the same. The
+errors over go the way the floor of one token to three characters would,
+and the largest under the way leaving thinking out would; how much of each
+that accounts for was not measured, and the 26 % is not explained.
 When the breakdown cannot be relied on, the line a compaction shows names
 no token count, and what was in use less what was moved out is measured
 instead: that still counts the thinking, and with no response since the

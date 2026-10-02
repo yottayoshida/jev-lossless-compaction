@@ -12,7 +12,9 @@ What a run measured is in `results/<date>/`: each unit with its answers
 (`units/`), the grades (`grades.json`), what `find` picked (`picks.json`),
 and every table (`report.md`). `publish` writes them from the box, with the
 box's path and the home directory above it written `<box>` and `<home>`
-wherever an answer names them. `report --from results/<date>` makes the
+wherever an answer names them, in the form of a path or in the dashed form
+Claude Code files its records under. A user's name on its own is not
+replaced: search what was written for it before it goes anywhere. `report --from results/<date>` makes the
 tables again from what was published, and a test holds `report.md` to that.
 
 ## What is fixed before anything is compared

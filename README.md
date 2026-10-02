@@ -4,8 +4,10 @@
 
 The two figures in the picture are each from one recorded session
 ([how each was taken](docs/measurements.md)), and show the plugin where it
-does best. What it does over six kinds of conversation is
-[below](#against-the-built-in-compaction).
+does best. Of six kinds of conversation measured, five ended in Claude
+Code's summary with the plugin as without it, in about the same time, and
+with `find` registered the agent did not call it:
+[against the built-in compaction](#against-the-built-in-compaction).
 
 When a Claude Code conversation fills up, the built-in compaction replaces it
 with a summary, and what the summary leaves out is gone from the conversation.
@@ -135,7 +137,8 @@ first and the built-in compaction's second:
 - **`find` was compared apart**, on seven distinct questions about what a
   result was and six about a value in it. Asked what a result was about, it
   gave or listed first the right one 16 times of 19; asked by a value
-  further down a result, it said 13 times of 14 that none was about that.
+  further down a result, it said 13 times of 14 that none was about that,
+  where one was.
   With the tool registered and no question naming it, the agent did not
   call it.
 
