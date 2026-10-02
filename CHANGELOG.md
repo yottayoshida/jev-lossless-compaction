@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-02
+
 ### Added
 
 - A session where the plugin is enabled and is not running is now told at the first message you send, before any compaction, rather than only around one. One line, shown on the screen and not sent to the model, says that the plugin is not running in this session, that a compaction there would be Claude Code's own summary, which setting to add, and to start a new session. It is said once in a process, and again in the conversation reopened in another; a slash command does not bring it, so a session of slash commands alone is told at its first other message. The processes told are kept in `told` next to `held` under the plugin's data directory; when it cannot be kept, nothing is said. The `/compact` that is held and the line after a compaction are as before. A session that was already open when the plugin was installed or enabled is still not told. If you keep function hooks off on purpose with the plugin enabled, you now see this line once in each session as well; `LOSSLESS_COMPACTION_RUNNING` set to `any` under `env` in your settings ends it, together with the held `/compact` and the line after a compaction. Measured on Claude Code 2.1.286, interactively and with `-p`, including after `/reload-plugins` (ADR 0010).
