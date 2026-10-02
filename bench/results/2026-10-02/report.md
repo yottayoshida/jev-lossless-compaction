@@ -498,3 +498,29 @@ How the questions went, all runs together:
 | writes | claude-haiku-4-5-20251001 | default (bfe9c5b1d1d4) | 3 | nothing | 64406 | 68349 in use before | -5.8 % |
 | writes | claude-haiku-4-5-20251001 | v0.5.2 (fb0cbed94dd9) | 1 | nothing | 68204 | 68349 in use before | -0.2 % |
 | writes | claude-sonnet-5-5 | default (bfe9c5b1d1d4) | 1 | nothing | 65278 | 68349 in use before | -4.5 % |
+
+### The questions `find` is for, asked of an agent
+
+| Trace | Model | Run | Tools | Compaction | Right | `find` calls | `recall` calls | Files read again | Seconds | Input tokens | Cost, USD |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| results | claude-haiku-4-5-20251001 | 1 | `recall` only | moved | 5/8 | 0 | 3 | 1 | 59.3 | 568683 | 0.5876 |
+| results | claude-haiku-4-5-20251001 | 1 | `recall` and `find` | moved | 6/8 | 0 | 11 | 0 | 169.2 | 1051285 | 0.7488 |
+| short | claude-haiku-4-5-20251001 | 1 | `recall` only | nothing | 3/5 | 0 | 3 | 0 | 38.4 | 161473 | 0.1370 |
+| short | claude-haiku-4-5-20251001 | 1 | `recall` and `find` | nothing | 4/5 | 0 | 4 | 0 | 41.4 | 188390 | 0.1480 |
+
+### What `find` picks, against a word match
+
+| Trace | Asked by | Options | Questions | Word match: right | find: gave the right one | find: gave a wrong one | find: listed, the right one first | find: listed, the right one further down | find: listed without it | find: said none | find: did not answer | Answer not among the options: find said none |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| results | value | 15 | 4 | 3 | 1 | 0 | 0 | 0 | 0 | 3 | 0 | 0 of 0 |
+| results | meaning | 15 | 4 | 2 | 1 | 0 | 1 | 1 | 1 | 0 | 0 | 0 of 0 |
+| writes | value | 3 | 2 | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 0 | 1 of 1 |
+| writes | meaning | 3 | 3 | 2 | 2 | 0 | 0 | 1 | 0 | 0 | 0 | 0 of 0 |
+| prose | value | 3 | 2 | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 0 | 0 of 0 |
+| prose | meaning | 3 | 3 | 2 | 2 | 0 | 1 | 0 | 0 | 0 | 0 | 0 of 0 |
+| short | value | 3 | 2 | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 0 | 0 of 0 |
+| short | meaning | 3 | 3 | 2 | 2 | 0 | 1 | 0 | 0 | 0 | 0 | 0 of 0 |
+| full | value | 3 | 2 | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 0 | 0 of 0 |
+| full | meaning | 3 | 3 | 2 | 2 | 0 | 1 | 0 | 0 | 0 | 0 | 0 of 0 |
+| thinking | value | 3 | 2 | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 0 | 0 of 0 |
+| thinking | meaning | 3 | 3 | 2 | 2 | 0 | 1 | 0 | 0 | 0 | 0 | 0 of 0 |
