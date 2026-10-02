@@ -1,0 +1,23 @@
+{
+  "trace": "prose",
+  "version": 1,
+  "sessionId": "4e8761e2-1916-4468-88f3-4d0f7fb93a67",
+  "model": "claude-haiku-4-5-20251001",
+  "claudeCode": "2.1.287",
+  "tokens": 58967,
+  "thinkingTokens": 1017,
+  "toolCalls": 3,
+  "work": "prose-muqwi110",
+  "modelUsage": {
+    "claude-haiku-4-5-20251001": {
+      "inputTokens": 124,
+      "outputTokens": 1338,
+      "cacheReadInputTokens": 327237,
+      "cacheCreationInputTokens": 51007,
+      "costUSD": 0.1415517,
+      "thinkingTokens": 1017
+    }
+  },
+  "recordSha256": "86048f39fa134df53525fef5d7cc6387db0b0d3358cfc33b6560913494582d25",
+  "builtAt": "2026-10-02T11:50:25.842Z"
+}

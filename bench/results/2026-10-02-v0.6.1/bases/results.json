@@ -1,0 +1,23 @@
+{
+  "trace": "results",
+  "version": 1,
+  "sessionId": "98f76997-982f-415b-90de-c241e45d5756",
+  "model": "claude-haiku-4-5-20251001",
+  "claudeCode": "2.1.287",
+  "tokens": 102225,
+  "thinkingTokens": 931,
+  "toolCalls": 15,
+  "work": "results-muqwcd74",
+  "modelUsage": {
+    "claude-haiku-4-5-20251001": {
+      "inputTokens": 182,
+      "outputTokens": 2340,
+      "cacheReadInputTokens": 956925,
+      "cacheCreationInputTokens": 94265,
+      "costUSD": 0.2961045,
+      "thinkingTokens": 931
+    }
+  },
+  "recordSha256": "96741c0752ff265dd8468c2c1551dec15fc2a87fd98e6ce1d690ef4ffa5132fe",
+  "builtAt": "2026-10-02T11:46:15.572Z"
+}
