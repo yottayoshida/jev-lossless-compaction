@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1817" height="866" viewBox="0 0 1817 866" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1817" height="776" viewBox="0 90 1817 776" role="img" aria-labelledby="title desc">
 <title id="title">lossless-compaction — animated comparison</title>
 <desc id="desc">Built-in compaction turns a conversation into one summary. lossless-compaction moves tool results out of the conversation into a local store of files named by the SHA-256 of their content, and recall brings an exact result back. Measured figures: a compaction in 61 ms, and find answering 13 of 13 questions.</desc>
 <defs>
@@ -33,7 +33,6 @@
 </style>
 <rect width="1817" height="866" fill="url(#paper)"/>
 <ellipse cx="1430" cy="470" rx="345" ry="270" fill="#dffaf3" opacity=".24"><animate attributeName="opacity" values=".12;.45;.12" dur="4s" repeatCount="indefinite"/></ellipse>
-<text x="908.5" y="86" text-anchor="middle" font-size="82" letter-spacing="-3" class="bold">lossless-compaction</text>
 <text x="908.5" y="140" text-anchor="middle" font-size="36" class="sub">fast, lossless compaction</text>
 <path d="M909 232V804" stroke="#d9dfdd" stroke-width="2"/>
 
