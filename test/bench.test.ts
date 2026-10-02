@@ -617,12 +617,16 @@ test('what the plugin estimated is set against what the next request was sent', 
   const line = { outcome: 'moved' as const, moved: 3, results: 6, images: 0, charsBefore: 108144, charsAfter: 54793, estimate: 44333, window: 167000, ms: 55 };
   const probe = { ...unitOf('plugin', 1, [answered('probe', 'continuity', 'ok', [])], { line }), mode: 'probe' as const };
   const text = estimates([probe, { ...probe, variant: 'v0.5.2', compaction: { ...probe.compaction, line: { ...line, estimate: 91829 } } }, unitOf('builtin', 1, [])]);
-  assert.match(text, /\| results \| haiku \| default \(abc1234\) \| 1 \| moved \| 44333 \| 41176 \| 7\.7 % \|/);
-  assert.match(text, /\| results \| haiku \| v0\.5\.2 \(abc1234\) \| 1 \| moved \| 91829 \| 41176 \| 123\.0 % \|/);
+  assert.match(text, /\| results \| haiku \| default \(abc1234\) \| 1 \| moved \| 44333 \| 41176 sent next \| 7\.7 % \|/);
+  assert.match(text, /\| results \| haiku \| v0\.5\.2 \(abc1234\) \| 1 \| moved \| 91829 \| 41176 sent next \| 123\.0 % \|/);
   assert.ok(!text.includes('builtin'));
-  // Where the plugin handed over, what was sent next is what the summary left: its estimate was of something else, and no error is given.
-  const handed = estimates([{ ...probe, compaction: { ...probe.compaction, line: { ...line, outcome: 'nothing' as const } } }]);
-  assert.match(handed, /\| nothing \| 44333 \| 41176 \| — \|/);
+  // Where the plugin moved nothing and handed over, nothing had changed: its estimate is of what was in use before, not of what the summary left.
+  const untouched = estimates([{ ...probe, compaction: { ...probe.compaction, line: { ...line, outcome: 'nothing' as const } } }]);
+  assert.match(untouched, /\| nothing \| 44333 \| 60882 in use before \| -27\.2 % \|/);
+  // Where it moved some and still handed over, what it left was never sent: there is nothing to set the estimate against.
+  const stillTooMuch = estimates([{ ...probe, compaction: { ...probe.compaction, line: { ...line, outcome: 'too-much' as const } } }]);
+  assert.match(stillTooMuch, /\| too-much \| 44333 \| — \| — \|/);
+  assert.match(estimates([{ ...probe, compaction: { ...probe.compaction, line: { outcome: 'other' as const, moved: 0, results: 0, images: 0, charsBefore: 0, charsAfter: 0, ms: 0 } } }]), /\| other \| none stated \| — \| — \|/);
 });
 
 test('the conversations published in bench/bases are the traces as they are now: what was said, in order, at a size the trace accepts', () => {
