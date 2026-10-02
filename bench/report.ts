@@ -160,10 +160,13 @@ export function finds(units: readonly Unit[]): string {
 }
 
 /**
- * What the plugin estimated a compaction would leave against what the next
- * request was sent, per checkout or setting of the plugin. Where the plugin
- * handed over, what was sent is what the built-in summary left, which its
- * estimate was never of: no error is given.
+ * What the plugin estimated to be in use after it had moved what it would,
+ * against what was, per checkout or setting of the plugin. Where it compacted,
+ * that is what the next request was sent. Where it moved nothing and handed
+ * over, nothing had changed, and the estimate is of what was in use before the
+ * compaction, as Claude Code counted it. Where it moved some and still handed
+ * over, what it left was never sent, and there is nothing to set the estimate
+ * against.
  */
 export function estimates(units: readonly Unit[]): string {
   const probes = units.filter((unit) => unit.arm === 'plugin' && unit.compaction.line !== null);
@@ -173,8 +176,10 @@ export function estimates(units: readonly Unit[]): string {
       const line = unit.compaction.line;
       const actual = unit.questions[0]?.requests[0] ?? NaN;
       const estimate = line?.estimate;
-      const error = estimate === undefined || line?.outcome !== 'moved' ? '—' : `${(((estimate - actual) / actual) * 100).toFixed(1)} %`;
-      return [unit.trace, unit.model, `${unit.variant} (${unit.plugin ?? 'not recorded'})`, String(unit.run), line?.outcome ?? '—', estimate === undefined ? 'none stated' : String(estimate), String(actual), error];
+      const against = line?.outcome === 'moved' ? actual : line?.outcome === 'nothing' ? unit.compaction.preTokens : NaN;
+      const measured = line?.outcome === 'moved' ? `${actual} sent next` : line?.outcome === 'nothing' ? `${unit.compaction.preTokens} in use before` : '—';
+      const error = estimate === undefined || !(against > 0) ? '—' : `${(((estimate - against) / against) * 100).toFixed(1)} %`;
+      return [unit.trace, unit.model, `${unit.variant} (${unit.plugin ?? 'not recorded'})`, String(unit.run), line?.outcome ?? '—', estimate === undefined ? 'none stated' : String(estimate), measured, error];
     });
-  return table(['Trace', 'Model', 'Plugin', 'Run', 'Outcome', 'Estimated', 'Next request', 'Error'], rows);
+  return table(['Trace', 'Model', 'Plugin', 'Run', 'Outcome', 'Estimated', 'Measured', 'Error'], rows);
 }
