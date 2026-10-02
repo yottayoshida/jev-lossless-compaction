@@ -29,6 +29,11 @@ the plugin counts, with the count of ADR 0013 and with 0.6.0, set against
 what was in use afterwards. `publish --variants a,b` writes only the units of
 those variants out of a box that holds more.
 
+`results/2026-10-02-v0.6.1/` is the whole benchmark run again on 0.6.1, of
+conversations built again from the same traces. `bases/` there names each
+building by its size and the SHA-256 of its record; the conversations
+themselves are published once, in `bases/` here.
+
 ## What is fixed before anything is compared
 
 - **The traces** (`traces.ts`): six made-up conversations of different

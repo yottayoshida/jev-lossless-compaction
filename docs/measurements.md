@@ -33,6 +33,12 @@ is the code on `main` at `89c965b`: a unit names it by a hash of that code
 (`bfe9c5b1d1d4`), and beside it the commit of the branch the run was made
 on, which was rebased since and is not in the history.
 
+It was run again the same day on 0.6.1, which moves fewer results out where
+they are dense:
+[the benchmark, run again on 0.6.1](#the-benchmark-run-again-on-061). The
+README's figures are of that run; the tables of this section are of the
+first.
+
 The six conversations, and what was in use when each was compacted:
 
 | Trace      | What it is mostly                                                        | Tokens  |
@@ -292,6 +298,82 @@ names its file.
   running a command again.
 - `find` with an agent is one run of thirteen questions on Haiku.
 - One window, 200,000 tokens.
+
+## The benchmark, run again on 0.6.1
+
+On 2026-10-02, after 0.6.1 was released, with Claude Code 2.1.287: the same
+traces, questions and grading, Haiku 4.5 three times on every conversation
+and Sonnet 5.5 once on three. The six conversations were built again from
+the traces, so both arms were measured anew. Each building is named in
+`bench/results/2026-10-02-v0.6.1/bases/` by its size and the SHA-256 of its
+record; what was said in it and the files it worked on are those of
+`bench/bases/`, and the conversations themselves are not published a second
+time. The plugin is 0.6.1 (`66f2eb2b181e`). The units, their grades and
+every table are in `bench/results/2026-10-02-v0.6.1/`, and a test holds the
+tables to the units and the figures below to the tables.
+
+What 0.6.1 changed is how a size is counted (ADR 0013), and with it when
+moving out stops: what a result saves by leaving is counted at the
+conversation's own tokens a character, where 0.6.0 took a third of a token a
+character and moved more out than the target asked for.
+
+### What the compaction did
+
+Haiku 4.5, three runs. "Next request" is the median of the runs.
+
+| Trace      | The summary ran: plugin | built-in | Seconds: plugin | built-in  | Next request: plugin | built-in |
+| ---------- | ----------------------: | -------: | --------------: | --------: | -------------------: | -------: |
+| `results`  |                  0 of 3 |   3 of 3 |         0.1–0.3 | 20.4–26.4 |               43,995 |    8,313 |
+| `writes`   |                  3 of 3 |   3 of 3 |       30.1–31.3 | 27.5–30.5 |               27,152 |   26,034 |
+| `prose`    |                  3 of 3 |   3 of 3 |       28.4–34.1 | 20.3–26.5 |               13,810 |   12,573 |
+| `short`    |                  3 of 3 |   3 of 3 |       33.1–46.4 | 24.8–29.8 |               13,800 |   13,157 |
+| `full`     |                  3 of 3 |   3 of 3 |       31.0–48.8 | 22.1–26.4 |               14,484 |   12,557 |
+| `thinking` |                  3 of 3 |   3 of 3 |       31.4–39.8 | 28.6–34.4 |               14,191 |   12,781 |
+
+Each conversation went the way it had gone: the plugin compacted `results`
+by itself and handed the other five to Claude Code's summary.
+
+In `results` it moved 10 of the 15 results out, where the first run moved
+11, as 0.6.0 and 0.6.1 did of one building probed with both
+([counted again](#the-size-after-a-compaction-counted-again)), and the next
+request was 43,995 tokens where it had been 37,139: 26 % of the 167,000
+against 22 %, both under the 40 % it aims for. The nine questions were sent
+18 % more tokens for it, and with Sonnet they cost 1.57 USD where they had
+cost 1.29 (0.18 after the built-in compaction).
+
+In the other five the summary took longer in the plugin's arm in 14 of the
+15 pairs of runs, by a median 7.7 s; the first time it was 10 of 15 and
+1.4 s. The time went with what the summary wrote out, about 10 ms a token in
+both arms, and the summaries in the plugin's arm were longer: by a median
+793 tokens, 268 the first time. Looking for what to move took the plugin
+6 ms or less; what keeping the conversation took was not measured apart. Why
+the summary writes more in the plugin's arm was not measured.
+
+### What could be answered afterwards
+
+Haiku 4.5, right answers over the six conversations and three runs, beside
+those of the first run:
+
+| Kind of question                    | Asked | Plugin | first run | Built-in | first run |
+| ----------------------------------- | ----: | -----: | --------: | -------: | --------: |
+| Exact, source gone                  |    36 |     32 |        30 |       12 |         9 |
+| Exact, file unchanged               |    18 |     18 |        18 |       18 |        18 |
+| Exact, file changed: what it said   |    18 |      5 |         5 |        0 |         0 |
+| Exact, file changed: what it says   |    18 |     18 |        18 |       18 |        18 |
+| Where the work stands               |    36 |     34 |        32 |       34 |        33 |
+| A rule stated early                 |    36 |     36 |        36 |       36 |        36 |
+| All                                 |   162 |    143 |       139 |      118 |       114 |
+
+Both arms answered four more than the first time. The built-in arm runs
+none of the plugin's code, so four is what building the conversations again
+and three more runs come to: nothing here says that 0.6.1 answers more, or
+fewer.
+
+After a hand-over, a script's output that no file held any more was
+answered 26 times of 30 against 10 of 30 (26 against 8 the first time). What
+a file said before it changed was answered 5 times of 18 against none, as
+before. With Sonnet, on three of the conversations, both arms answered all
+27.
 
 ## A compaction, and a result read back
 
