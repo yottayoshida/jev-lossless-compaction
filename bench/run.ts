@@ -6,12 +6,12 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 import { build, workDir, type Base, type Places } from './build.ts';
 import { claude } from './cc.ts';
 import { gapsOf, holdsAll, lookedOutside, ownUsage, readLine, retrievalOf, tellsIn, type Arm, type Line, type Retrieval, type Usage } from './lib.ts';
-import { FIND_TOOL, QUESTION_TOOLS, TRACES, type Kind, type Trace } from './traces.ts';
+import { BUILT, FIND_TOOL, QUESTION_TOOLS, type Kind, type Trace } from './traces.ts';
 
 export type Asked = {
   id: string;
@@ -62,6 +62,12 @@ export type Unit = {
     wallMs: number;
     preTokens: number;
     postTokens: number;
+    /**
+     * The thinking in what was compacted, in tokens, as the session that built the
+     * trace counted it: no rebuilt message carries it. Absent in a unit measured
+     * before it was recorded.
+     */
+    thinkingBefore?: number;
     /** The plugin's line, read; null in the built-in arm. */
     line: Line | null;
     /** True when the built-in summary ran: always in the built-in arm, and in the plugin's when it handed over. */
@@ -216,6 +222,7 @@ export async function unit(
       wallMs: compacted.wallMs,
       preTokens: boundary.preTokens,
       postTokens: boundary.postTokens,
+      thinkingBefore: base.thinkingTokens,
       line,
       summarized: arm === 'builtin' || (line !== null && line.outcome !== 'moved'),
       own,
@@ -235,6 +242,22 @@ export const PROBE = [{ id: 'probe', kind: 'continuity' as Kind, ask: 'Reply wit
 
 export type Plan = { traces: string[]; models: string[]; runs: number; buildModel: string; mode: Mode; variants?: Variant[]; arms?: Arm[] };
 
+/**
+ * The variants of the plugin a command line names: checkouts by name
+ * (`name=path,name=path`), a share of the window that may stay in use, or each
+ * checkout at that share. Undefined when it names none.
+ */
+export function variantsOf(dirs: string | undefined, maxAfter: string | undefined, pluginDir: string): Variant[] | undefined {
+  const options = maxAfter === undefined ? undefined : { maxAfterPercent: Number(maxAfter) };
+  const setting = `max-after-${maxAfter}`;
+  if (dirs === undefined) return options === undefined ? undefined : [{ name: setting, pluginDir, options }];
+  return dirs.split(',').map((pair) => {
+    const [name, path] = pair.split('=');
+    if (name === undefined || path === undefined) throw new Error('--plugin-dirs takes name=path,name=path');
+    return options === undefined ? { name, pluginDir: resolve(path) } : { name: `${name}-${setting}`, pluginDir: resolve(path), options };
+  });
+}
+
 /** Which arm goes first: within one trace and model the two take turns from run to run, so that neither is always the one measured on a cache the other warmed. */
 export const armsOf = (run: number, traceAt: number, modelAt: number): Arm[] => ((run + traceAt + modelAt) % 2 === 1 ? ['plugin', 'builtin'] : ['builtin', 'plugin']);
 
@@ -244,8 +267,8 @@ export async function runAll(plan: Plan, places: Places, log: (text: string) => 
   const standard: Variant = { name: 'default', pluginDir: places.pluginDir };
   for (let run = 1; run <= plan.runs; run += 1) {
     for (const name of plan.traces) {
-      const traceAt = TRACES.findIndex((one) => one.name === name);
-      const trace = TRACES[traceAt];
+      const traceAt = BUILT.findIndex((one) => one.name === name);
+      const trace = BUILT[traceAt];
       if (trace === undefined) throw new Error(`no trace named ${name}`);
       const base = await build(trace, plan.buildModel, places, log);
       for (const [modelAt, model] of plan.models.entries()) {

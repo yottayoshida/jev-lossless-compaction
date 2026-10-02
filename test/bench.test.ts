@@ -28,8 +28,8 @@ import { argsOf, envOf, toolsOf } from '../bench/cc.ts';
 import { MISSED, batchName, currentOf, itemsOf, keyOf, promptOf, published, scrubbed, summed, unitsUnder, verdictsIn, type Grades } from '../bench/grade.ts';
 import { MIN_CHARS, pick, pickTable, readAnswer, resultsOf, staged, wentOf, type Pick } from '../bench/pick.ts';
 import { estimates, finds, graderOf, outcomesOf, overruled, report, verdictOf, whole } from '../bench/report.ts';
-import { QUOTE, armsOf, staleness, type Unit } from '../bench/run.ts';
-import { TRACES, described } from '../bench/traces.ts';
+import { QUOTE, armsOf, staleness, variantsOf, type Unit } from '../bench/run.ts';
+import { BUILT, PROBED, TRACES, described } from '../bench/traces.ts';
 import { reportLine, type Report } from '../src/compact.ts';
 import type { Http } from '../src/types.ts';
 import { ok, questionsOf, recordingHttp, type Sent } from './helpers.ts';
@@ -524,6 +524,43 @@ test('a unit measured against something else is not taken for this one: another 
   assert.equal(currentOf([{ run: 1 } as never]).units.length, 0, 'a file that says neither trace nor version is not a current unit');
 });
 
+test('probes alone are tabled without the tables of questions, and a checkout can be probed at another share of the window', () => {
+  const line = { outcome: 'moved' as const, moved: 3, results: 6, images: 0, charsBefore: 108144, charsAfter: 54793, estimate: 44333, window: 167000, ms: 55 };
+  const probe = { ...unitOf('plugin', 1, [answered('probe', 'continuity', 'ok', [])], { line }), mode: 'probe' as const, variant: 'v0.6.0' };
+  const alone = whole([probe], null);
+  assert.ok(alone.startsWith('### What the plugin estimated against what was in use\n'), alone.slice(0, 80));
+  assert.ok(!alone.includes('graded'));
+  assert.match(whole([{ ...probe, version: 0 }].filter(() => false), null, 2), /^2 unit\(s\) measured an older version of their trace and are left out\.\n/);
+  // The control: one unit that asked questions, and the tables of questions are there.
+  assert.ok(whole([probe, unitOf('plugin', 1, [])], null).includes('### results, haiku'));
+
+  assert.equal(variantsOf(undefined, undefined, '/here'), undefined);
+  assert.deepEqual(variantsOf(undefined, '100', '/here'), [{ name: 'max-after-100', pluginDir: '/here', options: { maxAfterPercent: 100 } }]);
+  assert.deepEqual(variantsOf('new=/a,v0.6.0=/b', undefined, '/here'), [{ name: 'new', pluginDir: '/a' }, { name: 'v0.6.0', pluginDir: '/b' }]);
+  assert.deepEqual(variantsOf('v0.6.0=/b', '100', '/here'), [{ name: 'v0.6.0-max-after-100', pluginDir: '/b', options: { maxAfterPercent: 100 } }]);
+  assert.throws(() => variantsOf('v0.6.0', undefined, '/here'), /name=path/);
+});
+
+test('two conversations are built and probed and asked nothing: they are no part of the questions, the grading or the comparison', () => {
+  assert.deepEqual(PROBED.map((trace) => trace.name), ['mixed', 'japanese']);
+  assert.deepEqual(BUILT, [...TRACES, ...PROBED]);
+  assert.equal(new Set(BUILT.map((trace) => trace.name)).size, 8);
+  const written = described().map((one) => one.trace);
+  assert.ok(PROBED.every((trace) => !written.includes(trace.name)));
+  // A probe of one is a current unit; a unit that asked its questions would have nothing to be graded by.
+  const probed = { ...unitOf('plugin', 1, []), trace: 'mixed', mode: 'probe' as const };
+  assert.equal(currentOf([probed]).units.length, 1);
+  assert.equal(itemsOf([probed]).length, itemsOf([]).length);
+  // What each is for: prose that stays with results that can leave, and Japanese that stays with ASCII that leaves.
+  const chars = (trace: (typeof BUILT)[number], test: (char: string) => boolean) =>
+    trace.steps.reduce((sum, step) => sum + ('say' in step ? [...step.say].filter(test).length : 0), 0);
+  const [mixed, japanese] = PROBED;
+  assert.ok(mixed !== undefined && japanese !== undefined);
+  assert.ok(chars(mixed, () => true) > 300_000 && mixed.files.filter((file) => file.text.length > 15_000).length >= 6);
+  assert.ok(chars(japanese, (char) => char > '\x7f') > 50_000 && japanese.files.filter((file) => file.text.length > 15_000).length >= 6);
+  assert.ok(japanese.files.every((file) => !/[^\x00-\x7f]/.test(file.text)), 'what is read, and can leave, is ASCII');
+});
+
 test('within a trace and model the arms take turns at going first from run to run', () => {
   for (let traceAt = 0; traceAt < TRACES.length; traceAt += 1) {
     for (let modelAt = 0; modelAt < 2; modelAt += 1) {
@@ -628,6 +665,11 @@ test('what the plugin estimated is set against what the next request was sent', 
   // Where the plugin moved nothing and handed over, nothing had changed: its estimate is of what was in use before, not of what the summary left.
   const untouched = estimates([{ ...probe, compaction: { ...probe.compaction, line: { ...line, outcome: 'nothing' as const } } }]);
   assert.match(untouched, /\| nothing \| 44333 \| 60882 in use before \| -27\.2 % \|/);
+  // No rebuilt message carries thinking: where the unit says how much of what was in use was thinking, the estimate is set against the rest.
+  const thought = estimates([{ ...probe, compaction: { ...probe.compaction, thinkingBefore: 15882, line: { ...line, outcome: 'nothing' as const } } }]);
+  assert.match(thought, /\| nothing \| 44333 \| 45000 in use before, without 15882 of thinking \| -1\.5 % \|/);
+  // Where results were moved out, what was sent next is the measure, whatever the thinking was.
+  assert.match(estimates([{ ...probe, compaction: { ...probe.compaction, thinkingBefore: 15882 } }]), /\| moved \| 44333 \| 41176 sent next \| 7\.7 % \|/);
   // Where it moved some and still handed over, what it left was never sent: there is nothing to set the estimate against.
   const stillTooMuch = estimates([{ ...probe, compaction: { ...probe.compaction, line: { ...line, outcome: 'too-much' as const } } }]);
   assert.match(stillTooMuch, /\| too-much \| 44333 \| — \| — \|/);
@@ -636,7 +678,7 @@ test('what the plugin estimated is set against what the next request was sent', 
 
 test('the conversations published in bench/bases are the traces as they are now: what was said, in order, at a size the trace accepts', () => {
   const read = (name: string) => JSON.parse(readFileSync(new URL(`../bench/bases/${name}`, import.meta.url), 'utf8'));
-  for (const trace of TRACES) {
+  for (const trace of BUILT) {
     const built = read(`${trace.name}.json`) as { trace: string; version: number; tokens: number; thinkingTokens: number };
     assert.equal(built.trace, trace.name);
     assert.equal(built.version, trace.version, `${trace.name}: built from another version of the trace`);
@@ -884,3 +926,79 @@ test('the results in the repository: of the traces as they are, of the conversat
   assert.ok(!/[\/-]Users[\/-]|[\/-]home[\/-][a-z]|cctmp|CLOUDFLARE_API_TOKEN|TYPESAFE_API_KEY/.test(text));
 });
 
+const ESTIMATE = fileURLToPath(new URL('../bench/results/2026-10-02-estimate', import.meta.url));
+
+test('the probes in the repository: the size the plugin counts against what was in use, with the count of ADR 0013 and with 0.6.0', () => {
+  assert.ok(existsSync(ESTIMATE));
+  const all = unitsUnder(ESTIMATE);
+  const { units, older } = currentOf(all);
+  assert.equal(older, 0);
+  assert.ok(units.every((unit) => unit.mode === 'probe' && unit.arm === 'plugin' && unit.questions.length === 1));
+  // The table is these units and nothing else: made again, it is the file.
+  assert.equal(whole(units, null, older, null), readFileSync(`${ESTIMATE}/report.md`, 'utf8'));
+
+  // Each unit is of a conversation in the repository: the one beside the traces, or, for the one Opus built, the one beside these results.
+  const built = (path: string) => (existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as { sessionId: string; model: string }) : null);
+  const baseOf = (unit: Unit) => {
+    const shared = built(fileURLToPath(new URL(`../bench/bases/${unit.trace}.json`, import.meta.url)));
+    const own = built(`${ESTIMATE}/bases/${unit.trace}.json`);
+    return [shared, own].find((base) => base?.sessionId === unit.base) ?? null;
+  };
+  for (const unit of units) assert.ok(baseOf(unit) !== null, `${unit.trace} ${unit.model} ${unit.variant}`);
+  // Two states of the plugin's code: the count of ADR 0013, and 0.6.0, also made to compact what it handed over.
+  const of = (...variants: string[]) => units.filter((unit) => variants.includes(unit.variant));
+  assert.equal(units.length, of('adr-0013', 'v0.6.0', 'v0.6.0-max-after-100').length);
+  assert.equal(new Set(of('adr-0013').map((unit) => unit.plugin)).size, 1);
+  assert.equal(new Set(of('v0.6.0', 'v0.6.0-max-after-100').map((unit) => unit.plugin)).size, 1);
+  // What was probed: every conversation with Haiku, two of them compacted by Sonnet, the Japanese one built and compacted by Opus.
+  const short = (model: string) => /haiku|sonnet|opus/.exec(model)?.[0] ?? model;
+  const probed = (variant: string) => of(variant).map((unit) => `${unit.trace} ${short(unit.model)}`).sort();
+  const eleven = [...BUILT.map((trace) => `${trace.name} haiku`), 'results sonnet', 'mixed sonnet', 'japanese opus'].sort();
+  assert.deepEqual(probed('adr-0013'), eleven);
+  assert.deepEqual(probed('v0.6.0'), eleven);
+  assert.deepEqual(probed('v0.6.0-max-after-100'), ['mixed haiku', 'mixed sonnet']);
+
+  // How far the size was off what was in use: against what was sent next where results were moved out, else
+  // against what was in use before, less the thinking.
+  const off = (unit: Unit): number => {
+    const line = unit.compaction.line;
+    assert.ok(line !== null && line.estimate !== undefined && unit.compaction.thinkingBefore !== undefined, `${unit.trace} ${unit.model} ${unit.variant}`);
+    const against = line.outcome === 'moved' ? (unit.questions[0]?.requests[0] ?? NaN) : unit.compaction.preTokens - unit.compaction.thinkingBefore;
+    assert.ok(line.outcome === 'moved' || line.outcome === 'nothing');
+    return (line.estimate - against) / against;
+  };
+  const sameModel = (unit: Unit) => baseOf(unit)?.model === unit.model;
+  // What docs/limits.md says of the count, compacted by the model that built the conversation. Where results were moved out,
+  // within 20 % of what was sent next and no more than 5 % under; where nothing could be, up to 7 % under what was in use less the thinking.
+  const own = of('adr-0013').filter(sameModel);
+  const movedOut = own.filter((unit) => unit.compaction.line?.outcome === 'moved').map(off);
+  const untouched = own.filter((unit) => unit.compaction.line?.outcome === 'nothing').map(off);
+  assert.deepEqual([movedOut.length, untouched.length], [4, 5]);
+  assert.ok(Math.max(...movedOut) <= 0.2 && Math.min(...movedOut) >= -0.05, movedOut.map((e) => (e * 100).toFixed(1)).join(' '));
+  assert.ok(Math.max(...untouched) <= 0 && Math.min(...untouched) >= -0.07, untouched.map((e) => (e * 100).toFixed(1)).join(' '));
+  // Compacted by another model before it has answered, the size is the other model's count: under by its tokenizer's share where the prose stays.
+  const others = of('adr-0013').filter((unit) => !sameModel(unit));
+  assert.deepEqual(others.map((unit) => `${unit.trace} ${short(unit.model)}`).sort(), ['mixed sonnet', 'results sonnet']);
+  const [mixedBySonnet] = others.filter((unit) => unit.trace === 'mixed').map(off);
+  assert.ok(mixedBySonnet !== undefined && mixedBySonnet < -0.15 && mixedBySonnet > -0.25, String(mixedBySonnet));
+  // What #37 was filed for: 0.6.0 handed `mixed` to the summary at a size 39 % over what it had left, and this count compacts it.
+  const mixed = (variant: string) => of(variant).find((unit) => unit.trace === 'mixed' && /haiku/.test(unit.model));
+  assert.equal(mixed('v0.6.0')?.compaction.line?.outcome, 'too-much');
+  assert.equal(mixed('v0.6.0')?.compaction.summarized, true);
+  assert.equal(mixed('adr-0013')?.compaction.line?.outcome, 'moved');
+  const forced = mixed('v0.6.0-max-after-100');
+  assert.ok(forced !== undefined && off(forced) > 0.35);
+  // And 0.6.0 was outside what this count keeps to, either way, on the same conversations.
+  const before = of('v0.6.0').filter(sameModel).filter((unit) => unit.compaction.line?.outcome !== 'too-much').map(off);
+  assert.ok(Math.max(...before) > 0.4 && Math.min(...before) < -0.19, before.map((e) => (e * 100).toFixed(1)).join(' '));
+
+  // Nothing of the machine: no home directory in either form a path of it takes, no key.
+  const read = (name: string) => readFileSync(`${ESTIMATE}/${name}`, 'utf8');
+  const text = JSON.stringify(all) + read('report.md') + read('bases/japanese.json') + read('bases/japanese.conversation.json');
+  assert.ok(!/[\/-]Users[\/-]|[\/-]home[\/-][a-z]|cctmp|CLOUDFLARE_API_TOKEN|TYPESAFE_API_KEY/.test(text));
+  // The conversation Opus built is the trace as it is now, as the ones beside the traces are held to be.
+  const japanese = BUILT.find((trace) => trace.name === 'japanese');
+  assert.ok(japanese !== undefined);
+  assert.deepEqual(saidIn(JSON.parse(read('bases/japanese.conversation.json')) as Conversation), saidBy(japanese));
+  assert.equal(built(`${ESTIMATE}/bases/japanese.json`)?.model, 'claude-opus-5-5');
+});

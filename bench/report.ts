@@ -138,9 +138,10 @@ export function report(units: readonly Unit[], grades: Grades | null, older = 0)
 
 /** Everything `report` prints: the tables per trace and model, the plugin's estimates, and, where they were measured, the questions `find` is for. */
 export function whole(units: readonly Unit[], grades: Grades | null, older = 0, picks: readonly Pick[] | null = null): string {
+  // Probes ask nothing of a conversation: where they are all there is, there is nothing to table or grade above the estimates.
+  const asked = units.some((unit) => unit.mode !== 'probe');
   const parts = [
-    report(units, grades, older),
-    '',
+    ...(asked ? [report(units, grades, older), ''] : older > 0 ? [`${older} unit(s) measured an older version of their trace and are left out.`, ''] : []),
     '### What the plugin estimated against what was in use',
     '',
     estimates(units.filter((unit) => unit.mode === 'probe' || (unit.mode === 'ask' && unit.variant === 'default'))),
@@ -181,9 +182,10 @@ export function finds(units: readonly Unit[]): string {
  * against what was, per checkout or setting of the plugin. Where it compacted,
  * that is what the next request was sent. Where it moved nothing and handed
  * over, nothing had changed, and the estimate is of what was in use before the
- * compaction, as Claude Code counted it. Where it moved some and still handed
- * over, what it left was never sent, and there is nothing to set the estimate
- * against.
+ * compaction, as Claude Code counted it, less the thinking, which no rebuilt
+ * message carries; a unit measured before the thinking was recorded is set
+ * against all that was in use. Where it moved some and still handed over, what
+ * it left was never sent, and there is nothing to set the estimate against.
  */
 export function estimates(units: readonly Unit[]): string {
   const probes = units.filter((unit) => unit.arm === 'plugin' && unit.compaction.line !== null);
@@ -193,8 +195,11 @@ export function estimates(units: readonly Unit[]): string {
       const line = unit.compaction.line;
       const actual = unit.questions[0]?.requests[0] ?? NaN;
       const estimate = line?.estimate;
-      const against = line?.outcome === 'moved' ? actual : line?.outcome === 'nothing' ? unit.compaction.preTokens : NaN;
-      const measured = line?.outcome === 'moved' ? `${actual} sent next` : line?.outcome === 'nothing' ? `${unit.compaction.preTokens} in use before` : '—';
+      const thinking = unit.compaction.thinkingBefore;
+      const before = unit.compaction.preTokens - (thinking ?? 0);
+      const against = line?.outcome === 'moved' ? actual : line?.outcome === 'nothing' ? before : NaN;
+      const measured =
+        line?.outcome === 'moved' ? `${actual} sent next` : line?.outcome === 'nothing' ? `${before} in use before${thinking === undefined ? '' : `, without ${thinking} of thinking`}` : '—';
       const error = estimate === undefined || !(against > 0) ? '—' : `${(((estimate - against) / against) * 100).toFixed(1)} %`;
       return [unit.trace, unit.model, `${unit.variant} (${unit.plugin ?? 'not recorded'})`, String(unit.run), line?.outcome ?? '—', estimate === undefined ? 'none stated' : String(estimate), measured, error];
     });

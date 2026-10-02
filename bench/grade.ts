@@ -13,7 +13,7 @@ import { type Places } from './build.ts';
 import { claude } from './cc.ts';
 import { shuffled } from './lib.ts';
 import { type Unit } from './run.ts';
-import { TRACES, type Question } from './traces.ts';
+import { BUILT, TRACES, type Question } from './traces.ts';
 
 export type Verdict = 'correct' | 'incorrect' | 'abstained';
 
@@ -45,7 +45,7 @@ export function unitsUnder(box: string): Unit[] {
 
 /** The units that measured the traces as they are now, and how many measured an older version of one and are left out. */
 export function currentOf(units: readonly Unit[]): { units: Unit[]; older: number } {
-  const versions = new Map(TRACES.map((trace) => [trace.name, trace.version]));
+  const versions = new Map(BUILT.map((trace) => [trace.name, trace.version]));
   const current = units.filter((unit) => typeof unit.version === 'number' && versions.get(unit.trace) === unit.version);
   return { units: current, older: units.length - current.length };
 }
