@@ -7,7 +7,7 @@
 
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { join } from 'node:path';
 
 import { type Places } from './build.ts';
 import { claude } from './cc.ts';
@@ -59,23 +59,23 @@ export const keyOf = (unit: Pick<Unit, 'trace' | 'model' | 'run' | 'arm' | 'vari
   [unit.trace, unit.model, unit.run, unit.arm, unit.variant, question, createHash('sha256').update(answer).digest('hex').slice(0, 12)].join('|');
 
 /**
- * A value as it is published: wherever a string in it names the box, the home
- * directory above it, or that directory's own name, `<box>`, `<home>` and
- * `<user>` stand there. Claude Code files its records of a session under the
- * working directory's path with every character that is no letter or digit made
- * `-`, and an answer that read one names it so: that form is replaced as well.
+ * A value as it is published: wherever a string in it names the box or the
+ * home directory above it, `<box>` and `<home>` stand there. Claude Code files
+ * its records of a session under the working directory's path with every
+ * character that is no letter or digit made `-`, and an answer that read one
+ * names it so: that form is replaced as well. Only whole paths are replaced.
+ * The name of the home directory by itself is left, since replacing a bare
+ * word could change a word of an answer, or a field's name; whoever publishes
+ * searches what was written for it.
  */
 export function scrubbed<T>(value: T, places: { box: string; home: string }): T {
   const inJson = (text: string) => JSON.stringify(text).slice(1, -1);
   const dashed = (path: string) => path.replace(/[^A-Za-z0-9]/g, '-');
-  const user = basename(places.home);
   const swaps: [string, string][] = [
     [inJson(places.box), '<box>'],
     [dashed(places.box), '<box>'],
     [inJson(places.home), '<home>'],
     [dashed(places.home), '<home>'],
-    // A name too short to be told from a word of an answer is left: the paths above have gone already.
-    ...(user.length >= 4 ? ([[inJson(user), '<user>'], [dashed(user), '<user>']] as [string, string][]) : []),
   ];
   let text = JSON.stringify(value);
   for (const [from, to] of swaps) text = text.split(from).join(to);

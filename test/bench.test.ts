@@ -835,12 +835,14 @@ test('published, an answer names no path of the machine it ran on, and keeps its
 
   // Claude Code names its record of a session after the working directory, every character that is no letter or digit made a dash: an answer that read one names it so.
   const machine = { box: '/Users/some.one/.tmp/box', home: '/Users/some.one' };
-  const record = 'from `/Users/some.one/.claude/projects/-Users-some-one--tmp-box-work-results-abc/1b5642a2.jsonl`, as some.one would';
-  assert.equal(scrubbed({ said: record }, machine).said, 'from `<home>/.claude/projects/<box>-work-results-abc/1b5642a2.jsonl`, as <user> would');
+  const record = 'from `/Users/some.one/.claude/projects/-Users-some-one--tmp-box-work-results-abc/1b5642a2.jsonl`';
+  assert.equal(scrubbed({ said: record }, machine).said, 'from `<home>/.claude/projects/<box>-work-results-abc/1b5642a2.jsonl`');
   assert.equal(scrubbed({ said: 'under -Users-some-one-elsewhere' }, machine).said, 'under <home>-elsewhere');
-  // What `find` said of each pick goes the same way; a home whose name is as short as a word is left as a word.
+  // What `find` said of each pick goes the same way.
   assert.deepEqual(scrubbed({ picks: [{ said: 'Read called with /Users/some.one/.tmp/box/x' }] }, machine), { picks: [{ said: 'Read called with <box>/x' }] });
-  assert.equal(scrubbed({ said: 'the box of u is /home/u/box' }, { box: '/home/u/box', home: '/home/u' }).said, 'the box of u is <box>');
+  // Only paths are replaced: a home directory named like a word, or like a field, changes no word and no field.
+  const wordy = { box: '/home/right/box', home: '/home/right' };
+  assert.deepEqual(scrubbed({ right: ['a'], words: 'the right one is in /home/right/box/work, not in /home/right' }, wordy), { right: ['a'], words: 'the right one is in <box>/work, not in <home>' });
 });
 
 const RESULTS = fileURLToPath(new URL('../bench/results/2026-10-02', import.meta.url));

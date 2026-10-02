@@ -106,7 +106,8 @@ two columns were graded by Haiku 4.5, which was not told the arm.
   arms mostly answer with what the file says now: twelve of eighteen in each
   arm were wrong without anything being brought back. The plugin's five right
   answers came after `recall`. Nothing in the question says the old reading
-  has to be fetched, and neither arm fetches it unasked.
+  has to be fetched: the plugin's arm fetched it six times of eighteen (five
+  right, and once it still could not tell), and the built-in arm never.
 - **A file that is still there** was answered right by both arms every
   time: with no call at all in twelve of eighteen in each arm, and in the
   rest after reading the file again (three in the plugin's arm, six in the
@@ -185,13 +186,14 @@ Where nothing was moved, nothing had changed, so the estimate can be set
 against what Claude Code counted before the compaction: v0.5.2 hands that
 count back, and this code counts again and is off by up to 48 %.
 
-Why was not measured apart. Two things
-[limits](limits.md#when-the-built-in-compaction-runs-instead) says the count
-does go the way of the largest errors: it takes no less than one token to
-three characters, which counts too much where text runs to more characters a
-token, as the pasted prose of `prose` and `full` may; and it leaves thinking
-out, which is a third of `thinking`. Neither accounts for the 26 % under in
-`short`.
+Why it is off was not measured.
+[Limits](limits.md#when-the-built-in-compaction-runs-instead) names two
+things about the count that would push it the way the largest errors go. It
+takes no less than one token to three characters, which counts too much
+where text runs to more characters a token, as the pasted prose of `prose`
+and `full` may. And it leaves thinking out, which is a third of `thinking`.
+Neither accounts for the 26 % under in `short`. With Sonnet, the three
+conversations run came within two points of Haiku's figures.
 
 In none of these six did either version hand over because of its estimate:
 the five hand-overs were for want of anything to move out. A conversation
