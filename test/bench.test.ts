@@ -1002,3 +1002,86 @@ test('the probes in the repository: the size the plugin counts against what was 
   assert.deepEqual(saidIn(JSON.parse(read('bases/japanese.conversation.json')) as Conversation), saidBy(japanese));
   assert.equal(built(`${ESTIMATE}/bases/japanese.json`)?.model, 'claude-opus-5-5');
 });
+
+test('the tables are of the plugin as it is set by default, or of the one other variant measured where there is no default', () => {
+  const changed = { ...unitOf('plugin', 1, []), variant: 'changed' };
+  const alone = report([changed], null);
+  assert.ok(alone.includes('### ') && alone.includes(' Variant: changed.'), alone.slice(0, 300));
+  // The default among them: it is what is tabled, and nothing says a variant.
+  const mixed = report([changed, unitOf('plugin', 1, [])], null);
+  assert.ok(mixed.includes('### ') && !mixed.includes('Variant:'));
+  assert.ok(mixed.includes('plugin 1,'), 'one run of the plugin, not two');
+  // Two variants and no default: they are not one comparison, and none is tabled.
+  assert.ok(!report([changed, { ...changed, variant: 'other' }], null).includes('### '));
+  // A probe asks no question of a trace and decides nothing.
+  assert.ok(report([changed, { ...changed, variant: 'probed', mode: 'probe' as const }], null).includes(' Variant: changed.'));
+  // What the plugin estimated is tabled for the same units: no table of no rows under the heading.
+  const line = { outcome: 'moved' as const, moved: 3, results: 6, images: 0, charsBefore: 108144, charsAfter: 54793, estimate: 44333, window: 167000, ms: 55 };
+  const said = { ...unitOf('plugin', 1, [answered('next', 'continuity', 'ok', [])], { line }), variant: 'changed' };
+  assert.match(whole([said], null), /\| changed \([0-9a-z ]+\) \| 1 \| moved \| 44333 \|/);
+  assert.ok(!whole([said, unitOf('plugin', 1, [])], null).includes('| changed ('));
+});
+
+const CHANGED = fileURLToPath(new URL('../bench/results/2026-10-02-changed', import.meta.url));
+/** The calls to `recall` in those units, as docs/measurements.md states them. */
+const RECALLS = 92;
+
+test('the units in the repository measured with the line after a summary: the reading is fetched where it was not, and nothing else moves (#14)', () => {
+  assert.ok(existsSync(CHANGED));
+  const all = unitsUnder(CHANGED);
+  const { units, older } = currentOf(all);
+  assert.equal(older, 0);
+  const grades = JSON.parse(readFileSync(`${CHANGED}/grades.json`, 'utf8')) as Grades;
+  // The tables are these units and grades and nothing else: made again, they are the file.
+  assert.equal(whole(units, grades, older, null), readFileSync(`${CHANGED}/report.md`, 'utf8'));
+  assert.equal(outcomesOf(units, grades).ungraded, 0);
+
+  // What was run: the plugin's arm of the five conversations that go to the summary, three times on Haiku, and two of them once on Sonnet.
+  assert.ok(units.every((unit) => unit.arm === 'plugin' && unit.variant === 'changed' && unit.mode === 'ask' && unit.questions.length === 9));
+  assert.ok(units.every((unit) => unit.compaction.summarized));
+  assert.equal(new Set(units.map((unit) => unit.plugin)).size, 1);
+  const SHOWN = ['full', 'prose', 'short', 'thinking'];
+  const of = (set: readonly Unit[], model: RegExp, traces: readonly string[]) => set.filter((unit) => model.test(unit.model) && traces.includes(unit.trace));
+  assert.deepEqual(of(units, /haiku/, [...SHOWN, 'writes']).map((unit) => `${unit.trace} ${unit.run}`).sort(), [...SHOWN, 'writes'].flatMap((trace) => [1, 2, 3].map((run) => `${trace} ${run}`)).sort());
+  assert.deepEqual(of(units, /sonnet/, TRACES.map((trace) => trace.name)).map((unit) => unit.trace).sort(), ['prose', 'writes']);
+
+  // What they are set against: the plugin's arm of the results of 2026-10-02, on the same buildings of the conversations.
+  const earlier = currentOf(unitsUnder(RESULTS)).units.filter((unit) => unit.arm === 'plugin' && unit.mode === 'ask' && unit.variant === 'default');
+  const earlierGrades = JSON.parse(readFileSync(`${RESULTS}/grades.json`, 'utf8')) as Grades;
+  for (const unit of units) assert.ok(earlier.some((one) => one.trace === unit.trace && one.base === unit.base), `${unit.trace} ${unit.model}`);
+
+  const answers = (set: readonly Unit[], id: string) => set.map((unit) => ({ unit, one: unit.questions.find((question) => question.id === id) as Unit['questions'][number] }));
+  const right = (set: readonly Unit[], id: string, g: Grades) => answers(set, id).filter(({ unit, one }) => verdictOf(unit, one, g) === 'correct').length;
+  const noCall = (set: readonly Unit[], id: string) => answers(set, id).filter(({ one }) => one.calls.length === 0).length;
+  const recalls = (set: readonly Unit[], id: string) => answers(set, id).reduce((sum, { one }) => sum + one.retrieval.recalls, 0);
+
+  // What the file said when it was read, where Claude Code shows the file again: none right of twelve, and six with the line.
+  assert.equal(right(of(earlier, /haiku/, SHOWN), 'then', earlierGrades), 0);
+  assert.equal(noCall(of(earlier, /haiku/, SHOWN), 'then'), 12);
+  assert.deepEqual(SHOWN.map((trace) => right(of(units, /haiku/, [trace]), 'then', grades)), [3, 0, 2, 1]);
+  // Every call to recall in these units, as the document counts them.
+  assert.equal(units.flatMap((unit) => unit.questions).reduce((sum, one) => sum + one.retrieval.recalls, 0), RECALLS);
+  // Each right answer came after one recall, and each miss called nothing.
+  assert.equal(recalls(of(units, /haiku/, SHOWN), 'then'), 6);
+  assert.equal(noCall(of(units, /haiku/, SHOWN), 'then'), 6);
+  // Where the file is not shown again, right as before, with one recall an answer where there were two.
+  assert.deepEqual([right(of(earlier, /haiku/, ['writes']), 'then', earlierGrades), right(of(units, /haiku/, ['writes']), 'then', grades)], [3, 3]);
+  assert.deepEqual([recalls(of(earlier, /haiku/, ['writes']), 'then'), recalls(of(units, /haiku/, ['writes']), 'then')], [6, 3]);
+  // A file that did not change is not named: answered right with no call, as before. What the changed file says now: right as before.
+  for (const [set, g] of [[earlier, earlierGrades], [units, grades]] as const) {
+    assert.deepEqual([right(of(set, /haiku/, SHOWN), 'unchanged', g), noCall(of(set, /haiku/, SHOWN), 'unchanged')], [12, 12]);
+    assert.equal(right(of(set, /haiku/, [...SHOWN, 'writes']), 'now', g), 15);
+  }
+  // The script's output that no file holds: 29 of 30, where it was 26.
+  const gone = (set: readonly Unit[], g: Grades) => right(of(set, /haiku/, [...SHOWN, 'writes']), 'gone-1', g) + right(of(set, /haiku/, [...SHOWN, 'writes']), 'gone-2', g);
+  assert.deepEqual([gone(earlier, earlierGrades), gone(units, grades)], [26, 29]);
+  // Sonnet: all three right in both conversations, with the line as without it.
+  for (const id of ['then', 'now', 'unchanged']) {
+    assert.equal(right(of(units, /sonnet/, ['prose', 'writes']), id, grades), 2, id);
+    assert.equal(right(of(earlier, /sonnet/, ['prose', 'writes']), id, earlierGrades), 2, id);
+  }
+
+  // Nothing of the machine: no home directory in either form a path of it takes, no key.
+  const text = JSON.stringify(all) + JSON.stringify(grades) + readFileSync(`${CHANGED}/report.md`, 'utf8');
+  assert.ok(!/[\/-]Users[\/-]|[\/-]home[\/-][a-z]|cctmp|CLOUDFLARE_API_TOKEN|TYPESAFE_API_KEY/.test(text));
+});

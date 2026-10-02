@@ -17,6 +17,13 @@ Claude Code files its records under. A user's name on its own is not
 replaced: search what was written for it before it goes anywhere. `report --from results/<date>` makes the
 tables again from what was published, and a test holds `report.md` to that.
 
+`results/2026-10-02-changed/` holds the plugin's arm alone, measured with a
+checkout that names, after a summary, the files that changed on disk since
+they were read (#14): the five conversations that go to the summary, set
+against the plugin's arm of `results/2026-10-02/`. Where every unit that
+asked questions is of one variant other than the default, the tables are
+of that variant and say so.
+
 `results/2026-10-02-estimate/` holds probes alone (see "A unit"): the size
 the plugin counts, with the count of ADR 0013 and with 0.6.0, set against
 what was in use afterwards. `publish --variants a,b` writes only the units of

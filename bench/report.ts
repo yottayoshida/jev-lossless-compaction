@@ -68,8 +68,18 @@ export function graderOf(grades: Grades | null): string {
 }
 
 /** The tables for the units that asked a trace's questions, one section per trace and model. `older` is how many units were left out for measuring an older version of their trace. */
+/**
+ * The variant whose units are tabled: the plugin as it is set by default, where units of it are among them;
+ * else, where every unit that asked questions is of one other variant (a checkout measured on its own), that one.
+ */
+function tabled(units: readonly Unit[]): string {
+  const variants = new Set(units.filter((unit) => unit.mode === 'ask').map((unit) => unit.variant));
+  return variants.has('default') || variants.size !== 1 ? 'default' : ([...variants][0] as string);
+}
+
 export function report(units: readonly Unit[], grades: Grades | null, older = 0): string {
-  const asked = units.filter((unit) => unit.mode === 'ask' && unit.variant === 'default');
+  const variant = tabled(units);
+  const asked = units.filter((unit) => unit.mode === 'ask' && unit.variant === variant);
   const groups = new Map<string, Unit[]>();
   for (const unit of asked) {
     const key = `${unit.trace}|${unit.model}`;
@@ -88,7 +98,7 @@ export function report(units: readonly Unit[], grades: Grades | null, older = 0)
     const lines = [
       `### ${trace}, ${model}`,
       '',
-      `Runs: ${ARMS.map((arm) => `${arm} ${by(arm).length}, first in ${by(arm).filter((unit) => unit.first).length}`).join('; ')}. The plugin's code: ${plugins.join(', ') || '—'}.`,
+      `Runs: ${ARMS.map((arm) => `${arm} ${by(arm).length}, first in ${by(arm).filter((unit) => unit.first).length}`).join('; ')}. The plugin's code: ${plugins.join(', ') || '—'}.${variant === 'default' ? '' : ` Variant: ${variant}.`}`,
       '',
     ];
     // What `run` would have stopped at can still sit side by side in the box: said here, where the figures are read.
@@ -144,7 +154,7 @@ export function whole(units: readonly Unit[], grades: Grades | null, older = 0, 
     ...(asked ? [report(units, grades, older), ''] : older > 0 ? [`${older} unit(s) measured an older version of their trace and are left out.`, ''] : []),
     '### What the plugin estimated against what was in use',
     '',
-    estimates(units.filter((unit) => unit.mode === 'probe' || (unit.mode === 'ask' && unit.variant === 'default'))),
+    estimates(units.filter((unit) => unit.mode === 'probe' || (unit.mode === 'ask' && unit.variant === tabled(units)))),
   ];
   if (units.some((unit) => unit.mode === 'find')) parts.push('', '### The questions `find` is for, asked of an agent', '', finds(units));
   if (picks !== null) parts.push('', '### What `find` picks, against a word match', '', pickTable(picks));
