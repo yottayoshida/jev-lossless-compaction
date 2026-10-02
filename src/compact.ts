@@ -487,3 +487,45 @@ export function reportLine(report: Report): string {
     (report.writeErrors.length === 0 ? '' : `; could not write: ${report.writeErrors.join(', ')}`)
   );
 }
+
+/** What a compaction that moved nothing out is decided by, see `leftUndone`. */
+export type Asked = {
+  /** Who asked for the compaction, as Claude Code says it. */
+  trigger: string | undefined;
+  /** What `/compact` was given to summarize by. */
+  instructions: string | undefined;
+  /**
+   * What is in use now, as Claude Code gives it, thinking included: a compaction left
+   * undone rebuilds nothing, so nothing of it goes. Not the size a report estimates,
+   * which is less the thinking.
+   */
+  inUse: number;
+  /** The size at which Claude Code compacts on its own, see `windowFrom`. */
+  window: number;
+  maxAfterPercent: number;
+  /** The results that could have left. */
+  candidates: number;
+};
+
+/**
+ * Whether a compaction that moved nothing out is left undone, where it would be
+ * handed to the built-in summary (ADR 0015): run by hand, with no instructions,
+ * with nothing that could leave, and with no more in use than may stay. An
+ * automatic compaction never is: it runs because the conversation is full.
+ */
+export function leftUndone(asked: Asked): boolean {
+  return (
+    asked.trigger === 'manual' &&
+    asked.candidates === 0 &&
+    (asked.instructions ?? '').trim() === '' &&
+    asked.inUse <= (asked.window * asked.maxAfterPercent) / 100
+  );
+}
+
+/** The line a `/compact` left undone shows. What is in use is named only when Claude Code gave the figure. */
+export function undoneLine(inUse: number | null, window: number): string {
+  return (
+    `nothing to move out${inUse === null ? '' : `, ${inUse} of ${window} tokens in use`}: ` +
+    "the conversation is left as it is. /compact with instructions runs Claude Code's summary"
+  );
+}
