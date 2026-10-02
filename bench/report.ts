@@ -112,6 +112,10 @@ export function report(units: readonly Unit[], grades: Grades | null, older = 0)
           ['Tokens before', ...ARMS.map((arm) => cell(arm, (unit) => unit.compaction.preTokens))],
           ['Tokens sent on the next request', ...ARMS.map((arm) => cell(arm, (unit) => unit.questions[0]?.requests[0] ?? NaN))],
           ['Built-in summary ran', ...ARMS.map((arm) => `${by(arm).filter((unit) => unit.compaction.summarized).length} of ${by(arm).length}`)],
+          // Only where there is one: a table made of units measured before a `/compact` could be left undone is the table it was.
+          ...(group.some((unit) => unit.compaction.undone === true)
+            ? [['Left as it was, nothing compacted', ...ARMS.map((arm) => `${by(arm).filter((unit) => unit.compaction.undone === true).length} of ${by(arm).length}`)]]
+            : []),
           // What a compaction costs turns on whether the trace is still in the cache, which lasts an hour: the tokens say which it was.
           ['Compaction: tokens read from cache', ...ARMS.map((arm) => cell(arm, (unit) => unit.compaction.own.cacheReadInputTokens))],
           ['Compaction: tokens written to cache or sent fresh', ...ARMS.map((arm) => cell(arm, (unit) => unit.compaction.own.cacheCreationInputTokens + unit.compaction.own.inputTokens))],
