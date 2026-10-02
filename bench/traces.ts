@@ -40,7 +40,18 @@ export type Question = {
 };
 
 /** A question `find` is for: which earlier result was about something, asked without naming where it came from. */
-export type FindQuestion = { id: string; ask: string; /** Text only the result asked for holds. */ target: string };
+export type FindQuestion = {
+  id: string;
+  /**
+   * `value`: the question names something the result holds, a number or a
+   * checksum, and matching words can find it. `meaning`: it says what the result
+   * was, in other words than the call that made it or the text it holds.
+   */
+  by: 'value' | 'meaning';
+  ask: string;
+  /** A line only the result asked for holds: the line the question is about, or for `meaning` the result's first line. */
+  target: string;
+};
 
 export type Trace = {
   name: string;
@@ -153,8 +164,12 @@ function trace(n: number, name: string, shape: string, task: string, rules: Rule
       { id: 'rule-2', kind: 'constraint', ask: rules.second.ask, reference: rules.second.reference, rubric: rules.second.rubric, right: rules.second.right, wrong: rules.second.wrong },
     ],
     finds: [
-      { id: 'find-report', ask: `Which earlier result held a line reading "${checksum(reportLine(n, 58))}"?`, target: reportLine(n, 58) },
-      { id: 'find-kept', ask: `Which earlier result listed a station that reported ${/reported (\d+) units/.exec(logLine(keptLog, 17))?.[1]} units at step 17?`, target: logLine(keptLog, 17) },
+      { id: 'find-report', by: 'value', ask: `Which earlier result held a line reading "${checksum(reportLine(n, 58))}"?`, target: reportLine(n, 58) },
+      { id: 'find-kept', by: 'value', ask: `Which earlier result listed a station that reported ${/reported (\d+) units/.exec(logLine(keptLog, 17))?.[1]} units at step 17?`, target: logLine(keptLog, 17) },
+      { id: 'find-script', by: 'meaning', ask: 'Which earlier result was what the shell script printed when it was run at the start?', target: reportLine(n, 1) },
+      // The two logs are asked for by what was to become of each: a guess between them is right for one and wrong for the other.
+      { id: 'find-stays', by: 'meaning', ask: 'Of the two log files looked at near the start, which earlier result was the one that was to be left as it is?', target: logLine(keptLog, 1) },
+      { id: 'find-changes', by: 'meaning', ask: 'Of the two log files looked at near the start, which earlier result was the one that was going to be made anew?', target: logLine(changingLog, 1) },
       ...(extra.finds ?? []),
     ],
     marks: [rules.first.mark, rules.second.mark],
@@ -218,8 +233,9 @@ const results = trace(
   {
     files: Array.from({ length: RESULTS_LOGS }, (_, i) => ({ path: `log${i + 1}.txt`, text: logFile(i + 1, RESULTS_LINES) })),
     finds: [
-      { id: 'find-log-a', ask: 'Which earlier result listed a station that reported 664 units at step 150?', target: logLine(2, 150) },
-      { id: 'find-log-b', ask: `Which earlier result held the record numbered 9-0203?`, target: logLine(9, 203) },
+      { id: 'find-log-a', by: 'value', ask: 'Which earlier result listed a station that reported 664 units at step 150?', target: logLine(2, 150) },
+      { id: 'find-log-b', by: 'value', ask: `Which earlier result held the record numbered 9-0203?`, target: logLine(9, 203) },
+      { id: 'find-seventh', by: 'meaning', ask: 'Which earlier result was the seventh of the station logs gone through one after another?', target: logLine(7, 1) },
     ],
     accept: { minTokens: 90_000, maxTokens: 160_000 },
   },
@@ -278,7 +294,8 @@ const writes = trace(
     },
   },
   {
-    finds: [{ id: 'find-edit', ask: 'Which earlier result confirmed a change to the limit 1234?', target: '1234' }],
+    // What confirms an edit is a line or two, too short to be moved out: the right answer of `find` here is that none of its options is it.
+    finds: [{ id: 'find-edit', by: 'value', ask: 'Which earlier result confirmed a change to the limit 1234?', target: '1234' }],
     accept: { minTokens: 60_000, maxTokens: 160_000 },
   },
 );

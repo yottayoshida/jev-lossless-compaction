@@ -3,9 +3,11 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import {
+  KEY_VARS,
   OUTCOMES,
   gapsOf,
   holdsAll,
+  keysIn,
   lexicalPick,
   lookedOutside,
   median,
@@ -20,13 +22,16 @@ import {
   tellsIn,
   type ToolCall,
 } from '../bench/lib.ts';
-import { saidBy, saidIn } from '../bench/build.ts';
-import { argsOf, toolsOf } from '../bench/cc.ts';
+import { saidBy, saidIn, type Conversation } from '../bench/build.ts';
+import { argsOf, envOf, toolsOf } from '../bench/cc.ts';
 import { MISSED, batchName, currentOf, itemsOf, keyOf, promptOf, summed, verdictsIn } from '../bench/grade.ts';
-import { estimates, graderOf, outcomesOf, overruled, report, verdictOf } from '../bench/report.ts';
-import { armsOf, staleness, type Unit } from '../bench/run.ts';
+import { MIN_CHARS, pick, pickTable, readAnswer, resultsOf, staged, wentOf, type Pick } from '../bench/pick.ts';
+import { estimates, finds, graderOf, outcomesOf, overruled, report, verdictOf } from '../bench/report.ts';
+import { QUOTE, armsOf, staleness, type Unit } from '../bench/run.ts';
 import { TRACES, described } from '../bench/traces.ts';
 import { reportLine, type Report } from '../src/compact.ts';
+import type { Http } from '../src/types.ts';
+import { ok, questionsOf, recordingHttp, type Sent } from './helpers.ts';
 
 // Sessions recorded on Claude Code 2.1.287 with Haiku 4.5, the user's settings left
 // out: one trace of six reads, compacted by each arm, and one question asked of each.
@@ -638,3 +643,163 @@ test('the conversations published in bench/bases are the traces as they are now:
     assert.ok(conversation.every((message) => message.blocks.every((block) => block.type !== 'thinking' || !('thinking' in block || 'signature' in block))), `${trace.name}: thinking is kept as a length only`);
   }
 });
+
+// --- find ---
+
+const published = (name: string) => JSON.parse(readFileSync(new URL(`../bench/bases/${name}.conversation.json`, import.meta.url), 'utf8')) as Conversation;
+
+test('the questions find is for: by a value or by what the result was, each about one result of the built conversation', async () => {
+  for (const trace of TRACES) {
+    const { stored } = await staged(resultsOf(published(trace.name)));
+    assert.ok(stored.length >= 3 && stored.every((one) => one.text.length >= MIN_CHARS), trace.name);
+    assert.equal(new Set(trace.finds.map((find) => find.id)).size, trace.finds.length, trace.name);
+    assert.ok(trace.finds.filter((find) => find.by === 'meaning').length >= 3 && trace.finds.filter((find) => find.by === 'value').length >= 2, trace.name);
+    for (const find of trace.finds) {
+      const right = stored.filter((one) => one.text.includes(find.target));
+      // One result holds the line, and so is the answer; what confirms an edit is too short to be an option at all.
+      assert.equal(right.length, find.id === 'find-edit' ? 0 : 1, `${trace.name} ${find.id}`);
+      // Asked by what the result was, a question holds no number and nothing in quotes: no word of it is the answer's own.
+      if (find.by === 'meaning') assert.ok(!/[0-9"]/.test(find.ask), `${trace.name} ${find.id}: ${find.ask}`);
+    }
+  }
+  // Results under the plugin's size to move out are no option: the short trace has thirty-eight results and three options.
+  assert.equal(resultsOf(published('short'), 0).length, 38);
+  assert.equal(resultsOf(published('short')).length, 3);
+  // An agent asked the same question is told how to show which result it means, so that a program can check it.
+  assert.deepEqual(QUOTE, { value: 'Quote that line in full.', meaning: 'Quote its first line in full.' });
+});
+
+const JEV = { kind: 'typesafe', key: 'test-key-for-typesafe', model: 'jev-latest' } as const;
+const keysAsked = (sent: Sent) => Object.keys((questionsOf(sent)['q'] as { criteria?: Record<string, string> } | undefined)?.criteria ?? {});
+/** Jev answering with `winner` at probability `p`, the rest sharing what is left. */
+const jev = (winner: string | null, p = 0.95) =>
+  recordingHttp((sent) => {
+    const keys = keysAsked(sent);
+    const rest = winner === null ? 1 / keys.length : (1 - p) / (keys.length - 1);
+    return ok({ answers: { q: { type: 'choice', choice: winner ?? keys[0], probabilities: Object.fromEntries(keys.map((key) => [key, key === winner ? p : rest])) } } });
+  });
+
+test('find is asked as the tool asks it, and what it answers is read: one result, a few to choose from, none, or no answer', async () => {
+  const trace = TRACES.find((one) => one.name === 'results');
+  const seventh = trace?.finds.find((find) => find.id === 'find-seventh');
+  assert.ok(trace !== undefined && seventh !== undefined);
+  const conversation = published('results');
+  const { stored } = await staged(resultsOf(conversation));
+  const right = stored.findIndex((one) => one.text.includes(seventh.target));
+  assert.ok(right >= 0);
+
+  // Jev sure of the right one: `find` gives that result.
+  const sure = jev(`t${right + 1}`);
+  const [gave] = await pick('results', [seventh], conversation, JEV, sure.http);
+  assert.ok(gave !== undefined);
+  assert.deepEqual([gave.jev.kind, gave.jev.ids, gave.right], ['gave', [stored[right]?.id], [stored[right]?.id]]);
+  assert.equal(wentOf(gave), 'gave the right one');
+  assert.equal(gave.options, 15);
+  assert.equal(gave.by, 'meaning');
+  // What was sent: the question, and for each option the call that made it and a few hundred characters, not the result.
+  assert.equal(sure.sent.length, 1);
+  const body = JSON.stringify(sure.sent[0]?.body);
+  assert.ok(body.includes('the seventh of the station logs') && body.includes('log7.txt'));
+  assert.ok(body.length < 15 * 1200, `${body.length} characters for fifteen results of up to eighteen thousand each`);
+  assert.equal(keysAsked(sure.sent[0] as Sent).length, 16, 'the fifteen results, and that it is none of them');
+
+  // Jev sure of another: `find` gives that one, and it is wrong.
+  const [wrong] = await pick('results', [seventh], conversation, JEV, jev(`t${((right + 1) % 15) + 1}`).http);
+  assert.ok(wrong !== undefined);
+  assert.equal(wentOf(wrong), 'gave a wrong one');
+  // Jev not sure: the likeliest few are listed, and the right one may or may not be among them.
+  const [listed] = await pick('results', [seventh], conversation, JEV, jev(null).http);
+  assert.ok(listed !== undefined);
+  assert.equal(listed.jev.kind, 'listed');
+  assert.ok(listed.jev.ids.length >= 1 && listed.jev.ids.length <= 3);
+  assert.match(wentOf(listed), /^listed/);
+  // Jev sure it is none of them.
+  const [none] = await pick('results', [seventh], conversation, JEV, jev('none').http);
+  assert.ok(none !== undefined);
+  assert.equal(wentOf(none), 'said none');
+  // Jev not reached: no answer, and nothing is made of it.
+  const refused: Http = async () => ({ status: 500, ok: false, text: 'no' });
+  const [failed] = await pick('results', [seventh], conversation, JEV, refused);
+  assert.ok(failed !== undefined);
+  assert.deepEqual([failed.jev.kind, failed.jev.ids, wentOf(failed)], ['failed', [], 'did not answer']);
+
+  // The word match reads the call and the whole text: a number in the question finds its line, another way of saying it does not.
+  const byValue = trace.finds.find((find) => find.id === 'find-log-a');
+  assert.ok(byValue !== undefined);
+  const [valued] = await pick('results', [byValue], conversation, JEV, jev(null).http);
+  assert.ok(valued !== undefined && valued.words !== null && valued.right.includes(valued.words));
+  assert.ok(gave.words === null || !gave.right.includes(gave.words), 'the seventh log is not found by its words');
+  // It is given the call that made each result, as Jev is: a file named in the question finds the read of it.
+  const [named] = await pick('results', [{ id: 'by-name', by: 'meaning', ask: 'Which earlier result came from reading log7.txt?', target: seventh.target }], conversation, JEV, jev(null).http);
+  assert.ok(named !== undefined && named.words !== null && named.right.includes(named.words));
+});
+
+test('the head of what find says is read, whatever follows it', () => {
+  const id = 'a'.repeat(64);
+  const other = 'b'.repeat(64);
+  assert.deepEqual(readAnswer(`[found] Read result, 6170 bytes; id ${id}; probability 0.95\n\nrecord … id ${other}`), { kind: 'gave', ids: [id] });
+  assert.deepEqual(readAnswer(`[not sure] The likeliest results, most likely first:\n- Read called with x; 9 bytes; probability 0.40; recall with mcp__lossless-compaction__recall id ${id}\n- Bash called with y; 9 bytes; probability 0.30; recall with mcp__lossless-compaction__recall id ${other}\n- or none of them; probability 0.20`), { kind: 'listed', ids: [id, other] });
+  assert.deepEqual(readAnswer('[not found] None of the moved-out results seems to be about that: it may still be in the conversation, or was never moved out.'), { kind: 'none', ids: [] });
+  assert.deepEqual(readAnswer('[lossless-compaction] Jev could not be asked: 500.'), { kind: 'failed', ids: [] });
+  assert.deepEqual(readAnswer(''), { kind: 'failed', ids: [] });
+});
+
+test('the table of picks keeps the two kinds of question apart, and a question with no answer among the options apart from both', () => {
+  const one = (question: string, by: Pick['by'], right: string[], words: string | null, kind: Pick['jev']['kind'], ids: string[]): Pick => ({
+    trace: 'writes', question, by, options: 3, right, words, jev: { kind, ids, ms: 900, said: '' },
+  });
+  const text = pickTable([
+    one('find-report', 'value', ['r'], 'r', 'gave', ['r']),
+    one('find-kept', 'value', ['k'], 'k', 'listed', ['r', 'k']),
+    one('find-edit', 'value', [], 'r', 'none', []),
+    one('find-script', 'meaning', ['r'], 'k', 'gave', ['k']),
+    one('find-stays', 'meaning', ['k'], 'k', 'listed', ['k', 'r']),
+    one('find-changes', 'meaning', ['c'], 'k', 'listed', ['r', 'k']),
+  ]);
+  const rows = text.split('\n').slice(2).map((row) => row.split('|').map((cell) => cell.trim()).slice(1, -1));
+  // Trace, kind, options, questions with an answer, word match right, then: gave right, gave wrong, listed first, listed further, listed without, none, no answer; and the unanswerable.
+  assert.deepEqual(rows, [
+    ['writes', 'value', '3', '2', '2', '1', '0', '0', '1', '0', '0', '0', '1 of 1'],
+    ['writes', 'meaning', '3', '3', '1', '0', '1', '1', '0', '1', '0', '0', '0 of 0'],
+  ]);
+});
+
+test('a key for find is in a session only when it was handed one, and in nothing that is written', () => {
+  const file = "# the key for Jev\nexport CLOUDFLARE_API_TOKEN='made-up-token'\nCLOUDFLARE_ACCOUNT_ID = 0123456789abcdef0123456789abcdef\nHOME=/somewhere\nTYPESAFE_API_KEY=\n";
+  const keys = keysIn(file);
+  assert.deepEqual(keys, { CLOUDFLARE_API_TOKEN: 'made-up-token', CLOUDFLARE_ACCOUNT_ID: '0123456789abcdef0123456789abcdef' });
+  assert.deepEqual(keysIn('nothing of the kind'), {});
+  assert.deepEqual([...KEY_VARS].sort(), ['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN', 'TYPESAFE_API_KEY']);
+
+  // Whoever runs the benchmark may have a key in the environment: no session gets it by that.
+  const around = { PATH: '/bin', TYPESAFE_API_KEY: 'lying-around', CLOUDFLARE_API_TOKEN: 'lying-around', CLOUDFLARE_ACCOUNT_ID: 'lying-around' };
+  const plain = envOf({}, around);
+  assert.equal(plain['PATH'], '/bin');
+  assert.ok(KEY_VARS.every((name) => !(name in plain)));
+  assert.equal(plain['CLAUDE_CODE_ENABLE_FUNCTION_HOOKS'], '1');
+  assert.equal(plain['CLAUDE_CODE_DISABLE_AUTO_MEMORY'], '1');
+  // The variant that compares find is handed the keys of the file, and only those.
+  const handed = envOf({ env: keys }, around);
+  assert.equal(handed['CLOUDFLARE_API_TOKEN'], 'made-up-token');
+  assert.ok(!('TYPESAFE_API_KEY' in handed));
+  // On the command line, which any process of the machine can read, there is no key: the plugin is told where to ask, not with what.
+  const args = argsOf({ out: '/o', cwd: '/w', model: 'm', arm: 'plugin', pluginDir: '/p', storeDir: '/s', pluginOptions: { provider: 'cloudflare' }, allowedTools: ['Read'], prompt: 'q', env: keys });
+  assert.ok(!args.join(' ').includes('made-up-token') && !args.join(' ').includes('0123456789abcdef'));
+  assert.ok(args.join(' ').includes('"provider":"cloudflare"'));
+});
+
+test('the questions find is for, asked of an agent, are tabled per unit: with recall alone and with find', () => {
+  const asked = (variant: string, right: boolean, calls: string[]): Unit => ({
+    ...unitOf('plugin', 1, [answered('find-script', 'exact-gone', 'batch 01', calls, right ? 'correct' : undefined), answered('find-stays', 'exact-gone', 'x', calls)]),
+    mode: 'find',
+    variant,
+  });
+  const found = asked('find', true, ['ToolSearch', 'mcp__lossless-compaction__find']);
+  found.questions.forEach((one) => (one.retrieval = { recalls: 0, finds: 1, searches: 1, reads: 0 }));
+  const text = finds([found, asked('default', false, ['ToolSearch', 'mcp__lossless-compaction__recall']), unitOf('plugin', 1, [])]);
+  const rows = text.split('\n').slice(2);
+  assert.equal(rows.length, 2, 'the units that asked the trace\'s own questions are not in it');
+  assert.match(rows[0] ?? '', /\| results \| haiku \| 1 \| `recall` only \| — \| 0\/2 \| 0 \| 2 \| 0 \|/);
+  assert.match(rows[1] ?? '', /\| results \| haiku \| 1 \| `recall` and `find` \| — \| 1\/2 \| 2 \| 0 \| 0 \|/);
+});
+

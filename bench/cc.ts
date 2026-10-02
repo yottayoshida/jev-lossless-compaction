@@ -7,7 +7,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-import { problemsOf, readSession, type Arm, type Session } from './lib.ts';
+import { KEY_VARS, problemsOf, readSession, type Arm, type Session } from './lib.ts';
 
 /** The window every session compacts against, whatever its model's own: 200,000 less Claude Code's reserve is the 167,000 the plugin sees. */
 export const AUTOCOMPACT = '200000';
@@ -38,6 +38,8 @@ export type Start = {
   version?: string;
   /** True at a question: a refused call does not stop the run, see `Expect`. */
   refusalsCounted?: boolean;
+  /** The keys `find` asks Jev with, in the sessions that compare it: handed to the session's environment, and written nowhere. */
+  env?: Readonly<Record<string, string>>;
   /** False for a session nothing goes on from: Claude Code keeps no record of it, so no later session can read what it was asked and answered. */
   kept?: boolean;
 };
@@ -81,6 +83,13 @@ export function argsOf(start: Start): string[] {
   ];
 }
 
+/** The environment a session is started in: that of whoever runs the benchmark, without a key for `find` unless the session was handed one. */
+export function envOf(start: Pick<Start, 'env'>, from: Readonly<Record<string, string | undefined>> = process.env): Record<string, string | undefined> {
+  const env = { ...from };
+  for (const name of KEY_VARS) delete env[name];
+  return { ...env, ...start.env, CLAUDE_CODE_ENABLE_FUNCTION_HOOKS: '1', CLAUDE_CODE_DISABLE_AUTO_MEMORY: '1' };
+}
+
 /** Runs the session to its end. Throws when it was not the session meant: a wrong arm, other tools than those named, a refused tool, a hook of the machine. */
 export async function claude(start: Start): Promise<Ran> {
   mkdirSync(dirname(start.out), { recursive: true });
@@ -88,7 +97,7 @@ export async function claude(start: Start): Promise<Ran> {
   const text = await new Promise<string>((resolve, reject) => {
     const child = spawn('claude', argsOf(start), {
       cwd: start.cwd,
-      env: { ...process.env, CLAUDE_CODE_ENABLE_FUNCTION_HOOKS: '1', CLAUDE_CODE_DISABLE_AUTO_MEMORY: '1' },
+      env: envOf(start),
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let out = '';
