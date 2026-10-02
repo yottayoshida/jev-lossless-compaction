@@ -1,0 +1,23 @@
+{
+  "trace": "full",
+  "version": 1,
+  "sessionId": "993557e5-7f4a-41f0-b186-e762abee967e",
+  "model": "claude-haiku-4-5-20251001",
+  "claudeCode": "2.1.287",
+  "tokens": 142966,
+  "thinkingTokens": 932,
+  "toolCalls": 3,
+  "work": "full-muqwisza",
+  "modelUsage": {
+    "claude-haiku-4-5-20251001": {
+      "inputTokens": 136,
+      "outputTokens": 1260,
+      "cacheReadInputTokens": 766804,
+      "cacheCreationInputTokens": 135006,
+      "costUSD": 0.3531284,
+      "thinkingTokens": 932
+    }
+  },
+  "recordSha256": "a77e552d0d62b8037bf8be87c144747ced6c2c15f21bfc6eece7b85c69b4d957",
+  "builtAt": "2026-10-02T11:51:07.023Z"
+}

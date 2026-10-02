@@ -1085,3 +1085,95 @@ test('the units in the repository measured with the line after a summary: the re
   const text = JSON.stringify(all) + JSON.stringify(grades) + readFileSync(`${CHANGED}/report.md`, 'utf8');
   assert.ok(!/[\/-]Users[\/-]|[\/-]home[\/-][a-z]|cctmp|CLOUDFLARE_API_TOKEN|TYPESAFE_API_KEY/.test(text));
 });
+
+const AGAIN = fileURLToPath(new URL('../bench/results/2026-10-02-v0.6.1', import.meta.url));
+
+test('the benchmark run again on 0.6.1: of conversations built again, every answer graded, the tables made from them, and what the documents say of them', () => {
+  assert.ok(existsSync(AGAIN));
+  const all = unitsUnder(AGAIN);
+  const { units, older } = currentOf(all);
+  assert.equal(older, 0);
+  const grades = JSON.parse(readFileSync(`${AGAIN}/grades.json`, 'utf8')) as Grades;
+  const tables = readFileSync(`${AGAIN}/report.md`, 'utf8');
+  // The tables are these units and grades and nothing else: made again, they are the file.
+  assert.equal(whole(units, grades, older, null), tables);
+
+  // Each unit is of a conversation built again from the traces as they are, which the file beside the results names, and of one state of the plugin's code.
+  const bases = TRACES.map((trace) => readFileSync(`${AGAIN}/bases/${trace.name}.json`, 'utf8'));
+  const built = new Map(TRACES.map((trace, at) => [trace.name, JSON.parse(bases[at] as string) as { sessionId: string; version: number }]));
+  for (const unit of units) {
+    assert.equal(unit.base, built.get(unit.trace)?.sessionId, `${unit.trace} ${unit.model} run ${unit.run} ${unit.arm}`);
+    assert.equal(unit.version, built.get(unit.trace)?.version, unit.trace);
+  }
+  assert.equal(new Set(units.filter((unit) => unit.arm === 'plugin').map((unit) => unit.plugin)).size, 1);
+
+  // What was run: as the first time, six traces three times on Haiku, three once on Sonnet, both arms each time, and nothing else.
+  assert.ok(units.every((unit) => unit.mode === 'ask' && unit.variant === 'default' && unit.questions.length === 9));
+  const count = (model: RegExp, arm: string) => units.filter((unit) => model.test(unit.model) && unit.arm === arm).length;
+  assert.deepEqual([count(/haiku/, 'plugin'), count(/haiku/, 'builtin'), count(/sonnet/, 'plugin'), count(/sonnet/, 'builtin')], [18, 18, 3, 3]);
+  // Every answer has a verdict, and the grader was right on every answer whose grade was known.
+  assert.equal(outcomesOf(units, grades).ungraded, 0);
+  assert.equal(grades.controls.asExpected, grades.controls.count);
+  assert.equal(grades.controls.toldPairsSame, grades.controls.toldPairs);
+
+  // What docs/measurements.md and the README say of them, read off the tables: the plugin's cell, then the built-in compaction's.
+  const row = (trace: string, label: string): string[] => {
+    const section = tables.split('\n### ').find((part) => part.startsWith(`${trace}, claude-haiku-4-5-20251001\n`)) ?? '';
+    const line = section.split('\n').find((one) => one.startsWith(`| ${label} |`)) ?? '';
+    return line.split('|').slice(2, 4).map((cell) => cell.trim());
+  };
+  const right = (traces: readonly string[], label: string, arm: 0 | 1): [number, number] => {
+    let [got, asked] = [0, 0];
+    for (const trace of traces) {
+      for (const one of (row(trace, label)[arm] ?? '').matchAll(/(\d+)\/(\d+)/g)) {
+        got += Number(one[1]);
+        asked += Number(one[2]);
+      }
+    }
+    return [got, asked];
+  };
+  assert.deepEqual(row('results', 'Built-in summary ran'), ['0 of 3', '3 of 3']);
+  assert.deepEqual(row('results', 'Tokens sent on the next request'), ['43995, 43995, 43995', '8246, 8313, 8353']);
+  assert.deepEqual(row('results', 'Exact, source gone'), ['2/2, 2/2, 2/2', '1/2, 1/2, 0/2']);
+  const handed = ['writes', 'prose', 'short', 'full', 'thinking'];
+  for (const trace of handed) assert.deepEqual(row(trace, 'Built-in summary ran'), ['3 of 3', '3 of 3'], trace);
+  assert.deepEqual([right(handed, 'Exact, source gone', 0), right(handed, 'Exact, source gone', 1)], [[26, 30], [10, 30]]);
+  const six = TRACES.map((trace) => trace.name);
+  assert.deepEqual([right(six, 'Exact, file changed: what it said then', 0), right(six, 'Exact, file changed: what it said then', 1)], [[5, 18], [0, 18]]);
+  // Every kind of question together: 143 and 118 of 162, where the first run had 139 and 114.
+  const kinds = ['Exact, source gone', 'Exact, file unchanged', 'Exact, file changed: what it said then', 'Exact, file changed: what it says now', 'Where the work stands', 'A rule stated early'];
+  const every = (arm: 0 | 1) => kinds.map((kind) => right(six, kind, arm)).reduce<[number, number]>(([got, asked], [g, a]) => [got + g, asked + a], [0, 0]);
+  assert.deepEqual([every(0), every(1)], [[143, 162], [118, 162]]);
+
+  // Where the conversation was handed over, the summary in the plugin's arm against the built-in one's, pair by pair: this run, and the first.
+  const pairsOf = (of: readonly Unit[]) =>
+    handed.flatMap((trace) =>
+      [1, 2, 3].map((run) => {
+        const one = (arm: string) => of.find((unit) => unit.trace === trace && /haiku/.test(unit.model) && unit.run === run && unit.arm === arm && unit.mode === 'ask' && unit.variant === 'default')?.compaction;
+        const [plugin, builtin] = [one('plugin'), one('builtin')];
+        assert.ok(plugin !== undefined && builtin !== undefined, `${trace} run ${run}`);
+        return { plugin, builtin };
+      }),
+    );
+  // Of fifteen: the eighth.
+  const median = (values: readonly number[]) => [...values].sort((a, b) => a - b)[(values.length - 1) / 2] as number;
+  const told = (of: readonly Unit[]) => {
+    const pairs = pairsOf(of);
+    return {
+      longer: pairs.filter(({ plugin, builtin }) => plugin.durationMs > builtin.durationMs).length,
+      of: pairs.length,
+      seconds: Math.round(median(pairs.map(({ plugin, builtin }) => plugin.durationMs - builtin.durationMs)) / 100) / 10,
+      tokens: median(pairs.map(({ plugin, builtin }) => plugin.own.outputTokens - builtin.own.outputTokens)),
+    };
+  };
+  assert.deepEqual(told(units), { longer: 14, of: 15, seconds: 7.7, tokens: 793 });
+  assert.deepEqual(told(currentOf(unitsUnder(RESULTS)).units), { longer: 10, of: 15, seconds: 1.4, tokens: 268 });
+  // About 10 ms for a token the summary wrote out, in both arms, and 6 ms or less for the plugin to look for what to move.
+  const rate = (arm: 'plugin' | 'builtin') => median(pairsOf(units).map((pair) => pair[arm].durationMs / pair[arm].own.outputTokens));
+  for (const arm of ['plugin', 'builtin'] as const) assert.ok(rate(arm) > 9.5 && rate(arm) < 11, `${arm} ${rate(arm)}`);
+  for (const { plugin } of pairsOf(units)) assert.ok(plugin.line !== null && plugin.line.ms <= 6);
+
+  // Nothing of the machine: no home directory in either form a path of it takes, no key.
+  const text = JSON.stringify(all) + JSON.stringify(grades) + tables + bases.join('');
+  assert.ok(!/[\/-]Users[\/-]|[\/-]home[\/-][a-z]|cctmp|CLOUDFLARE_API_TOKEN|TYPESAFE_API_KEY/.test(text));
+});

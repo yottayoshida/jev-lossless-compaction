@@ -1,0 +1,23 @@
+{
+  "trace": "short",
+  "version": 1,
+  "sessionId": "b62b62b3-61a6-4380-974c-48817a376513",
+  "model": "claude-haiku-4-5-20251001",
+  "claudeCode": "2.1.287",
+  "tokens": 28425,
+  "thinkingTokens": 1299,
+  "toolCalls": 38,
+  "work": "short-muqwahri",
+  "modelUsage": {
+    "claude-haiku-4-5-20251001": {
+      "inputTokens": 154,
+      "outputTokens": 4358,
+      "cacheReadInputTokens": 297311,
+      "cacheCreationInputTokens": 28415,
+      "costUSD": 0.1085051,
+      "thinkingTokens": 1299
+    }
+  },
+  "recordSha256": "8426e1a59a397dc77336e2883b9483c1c81f27189ce38919e8827525958251d6",
+  "builtAt": "2026-10-02T11:44:57.382Z"
+}
