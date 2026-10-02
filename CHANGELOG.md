@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+- Right after Claude Code's summary, the plugin names the files the conversation read whole whose text on disk is no longer what the `Read` returned, each with the id that reading comes back by (#14). After a summary Claude Code shows the files read most recently again, as they are on disk then and in the words of a `Read` result; an agent asked what such a file said when it was read answered with what it says now, calling no tool, twelve times of twelve with Haiku 4.5 in the benchmark, though `recall` had the reading. With the line it answered right six times of twelve (three of three in one conversation, none of three in another); Sonnet 5.5 answered right with the line and without it, in one run on two conversations. To tell which files changed, the plugin now reads files of the work: paths the conversation read, the newest twenty, regular files of up to 256 KB. It sends nothing. A file the conversation wrote to itself after reading it is not named, and a line that says files shown again are as they are now, without naming one or giving an id, moved no answer (ADR 0014, `docs/limits.md`). What #14 was opened for, a rule stated once and lost, did not occur in what was measured (36 of 36 in the benchmark, and 24 of 24 after five summaries in a measurement recorded on the issue), and the ledger and the retrieval before an action it proposed are not built.
+
 ## [0.6.1] - 2026-10-02
 
 ### Changed
