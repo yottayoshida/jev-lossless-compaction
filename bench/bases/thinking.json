@@ -1,0 +1,23 @@
+{
+  "trace": "thinking",
+  "version": 1,
+  "sessionId": "3844aff3-d0e2-4070-9837-280b46bab969",
+  "model": "claude-haiku-4-5-20251001",
+  "claudeCode": "2.1.287",
+  "tokens": 34364,
+  "thinkingTokens": 11195,
+  "toolCalls": 3,
+  "work": "thinking-muq8y0s8",
+  "modelUsage": {
+    "claude-haiku-4-5-20251001": {
+      "inputTokens": 156,
+      "outputTokens": 17016,
+      "cacheReadInputTokens": 312694,
+      "cacheCreationInputTokens": 26404,
+      "costUSD": 0.1693134,
+      "thinkingTokens": 11195
+    }
+  },
+  "recordSha256": "49eb10485a9f14ebac1a761e32a65270dcb26d5e567c555a6dc347bdcf0d1230",
+  "builtAt": "2026-10-02T00:52:30.865Z"
+}
