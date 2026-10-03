@@ -389,6 +389,47 @@ Files are plain text under `~/.claude/lossless-compaction/`, or under
 `CLAUDE_CONFIG_DIR` when that is set. A secret in a tool result stays there
 until no conversation holds it any more, as below, or until you delete it.
 
+`/lossless-store` says how much is kept, by what it was kept from, in the
+trash and left in `tmp/`, and when the clean-up last ended and last tried,
+how often it has been tried since and when and how it last stopped, without
+reading a stored result and naming no path but the places results are read
+from (ADR 0016):
+
+```text
+lossless-compaction: Results are kept in one place, set by storeDir:
+
+/Users/you/results
+  results: 3 (4.9 KB), 2026-09-30 to 2026-10-02; their entries: 2 (68 B)
+  kept from: tool results 1 (42 B), conversations before a summary 1 (4.9 KB), lossless-compaction's own tools 0 (0 B), no readable entry 1 (22 B)
+  trash: 3 (60 B) files, by day moved there: 2026-09-25 2 (58 B), 2026-10-01 1 (2 B)
+  tmp/: 2 (35 B) files, 1 over a day old, left by a write that stopped; those can be removed by hand
+
+clean-up:
+  last ended: 2026-09-21 03:40 UTC; last tried: 2026-10-03 02:40 UTC
+  tried since it last ended: 2; last stopped 2026-10-03 02:42 UTC: the transcripts could not be read to the end
+  next: one was tried less than a day ago
+```
+
+- It counts what the host lists of the directories, with sizes and times,
+  and reads the entries in `index/`, which hold a result's size and the
+  name of the tool it came from. A result is never opened, so one holding
+  an image is not told apart from one that does not.
+- Its answer is a command's output: Claude Code shows it as it is, and keeps
+  it in the conversation as it keeps any command's output, so the model
+  reads it with the next request (measured). It holds the places results
+  are read from, counts, times and the kind of the last stop. It is not a
+  tool: the agent is not offered it.
+- A clean-up that stops records only the kind of stop in `gc.json`, never
+  the words it is said in, which name directories of other repositories. A
+  try is counted when it starts, so one a short session cut off is counted
+  too; one that ends clears both.
+- It reads, and changes nothing. There is still no limit and nothing deletes
+  on a size (ADR 0008).
+
+Measured on Claude Code 2.1.288, with `-p` and in a terminal: the command
+answered in about 30 ms on a store of a few results, and a session started
+and answered in 1.4 s on one of 1,820.
+
 A write that fails — the disk is full, say — loses nothing: a result is
 ticketed only once all of it is written, a stored result or its entry is
 never written over by a failed write, and when a failed write leaves nothing

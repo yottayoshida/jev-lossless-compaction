@@ -1321,3 +1321,48 @@ What the 99 are: from 2026-09-03 to 10-01, 53 sessions in 5 projects, 72 of
 the 99 in one project. The window is the one the plugin stated in 19, 967,000
 where the session went over 200,000 tokens in 73, and not known in 7, taken
 as 167,000.
+
+## The store, counted
+
+On 2026-10-03, for #42 and ADR 0016: what the store of one machine held and
+how its clean-up stood, counted without opening a result (the start of each
+was read only to count those holding images, which `/lossless-store` does
+not do).
+
+| What                                   | Measured                                                                                                         |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| The place written to                   | `~/.claude/jev-lossless-compaction/`, the old name, since it was there first (`docs/limits.md`); mode 700        |
+| Results                                | 1,760, 21.0 MB, each with its entry; the newest from 2026-10-03, the oldest from 09-29                           |
+| By what each was kept from             | tool results 1,558 (about 14.3 MB), conversations before a summary 201 (6.7 MB), the plugin's own tools 1 (2.2 KB) |
+| Holding images                         | 6, 2.4 MB: told apart by the start of the result, which the index does not record                                |
+| Added a day, by a file's time          | 0.1, 3.9, 9.8, 5.7 and 1.5 MB, 09-29 to 10-03                                                                    |
+| The trash and `tmp/`                   | both empty                                                                                                       |
+| The clean-up                           | never run: the first place transcripts are in was recorded on 10-01, and the first week is waited out            |
+
+Of the ten results whose tool's name starts with `mcp__`, one is the
+plugin's own `recall`, under the old name; the other nine are of other MCP
+servers, and count as tool results.
+
+Reading the transcripts as the clean-up does — the same `grep`, one search
+per project directory — took 104 s over 3.5 GB in 103 directories, 75 s in
+the largest of them. A search is given up after five minutes, and then the
+clean-up stops. How long that leaves before the largest directory reaches it
+depends on how fast its transcripts grow, which was not measured.
+
+Had the clean-up run then, it would have moved 119 results, 1.3 MB, to the
+trash: put to the plan the clean-up makes (`planGc`), with the ids in use
+found as it finds them, nothing moved. Of the 1,820 results by then, 1,066
+were under a day old and stay regardless; the rest are named by a
+transcript or by a part kept before a summary.
+
+`/lossless-store` itself, on Claude Code 2.1.288 with Haiku 4.5: on a store
+made up for it — results of each kind and one with no entry, a trash of two
+days, a write left in `tmp/`, a record of two tries and a stop, a secret's
+shape in a result and a directory of another repository in the record — it
+answered in 31 ms with every count, day and kind as placed, and neither the
+secret nor the directory in it. In a terminal it is offered as you type
+`/lossless-st`, and its answer is printed under the command. In the session
+after it, asked for the answer's third line, the model quoted it: the answer
+is in the conversation. With a place recorded for transcripts that is gone,
+a session's clean-up stopped and `gc.json` held `{"tries":1,"stopped":{"kind":"place"}}`
+and the times, no path.
