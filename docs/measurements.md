@@ -1165,15 +1165,27 @@ over, as before.
   there and with no tool. On 0.6.1, after a summary, 2 of those 12 were.
 - A rule stated early was missed twice, both in `thinking`: left as it was,
   the agent asked whether to keep the format instead of stating it. After a
-  summary of the same conversation it had stated it every time.
+  summary of the same conversation it had stated it every time, the summary
+  having written the rule out. Asked six times more of that conversation
+  never compacted ("How do we write the answers?", Haiku 4.5, Claude Code
+  2.1.287, 2026-10-03), the agent stated it three times, asked back twice
+  and went on about the puzzles once: a conversation left as it was answers
+  as that conversation does.
 - Every later request carries the whole conversation, where a summary left
-  12,522 to 26,318 tokens. What the nine questions cost turns on the
-  prompt cache: the three runs of the plugin's arm were run one after
-  another, so the first wrote the conversation to the cache and the two
-  after it read it (on `writes` 1.12 USD, then 0.08 each, against 0.42 to
-  0.51 after a summary). In the run on 0.6.1 the arms took turns. With
-  Sonnet on `writes`, one run: 86,799 tokens and 2.81 USD against 28,400 and
-  1.00.
+  12,522 to 26,318 tokens; what that costs turns on the prompt cache. The
+  three runs of the plugin's arm were run one after another, so the first
+  wrote the conversation to the cache and the two after it read it. Warm,
+  the nine questions cost 0.04 to 0.08 USD on the four left as they were;
+  cold, 0.40 to 1.12. A summary and its nine questions came to 0.18 to
+  0.61: a summary starts a new cache, written at its first question, and
+  the agent read files again 1 to 22 times a unit where it read them once
+  on a conversation left as it was. In the run on 0.6.1 the arms took
+  turns. With Sonnet on `writes`, one run, cold: 86,799 tokens and 2.81 USD
+  against 28,400 and 1.00.
+- Whether the cache is warm at a `/compact` by hand: of 42 in working
+  sessions on one machine, 40 came within an hour of the reply before them,
+  28 within five minutes; the median was 2.2 minutes. Claude Code keeps the
+  conversation in the cache for an hour.
 - How often a `/compact` with room and nothing to move out happens in use is
   [above](#how-often-in-working-sessions): two of thirty by hand, on one
   machine.
