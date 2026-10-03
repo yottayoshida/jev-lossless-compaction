@@ -34,9 +34,6 @@ All notable changes to this project are documented here. The format follows [Kee
 ### Fixed
 
 - `find` describes to Jev a long input kept in a part of the conversation by the call it is of (#72). It had described it by the call of the result written above it: a `Write` over 40,000 bytes, kept after a `Read` of another file, was offered as that `Read`, and a question about the file read could be answered with what was written to the other one.
-
-### Fixed
-
 - `docs/usage.md` now says what `find` sends of a part of the conversation that was kept: a 400-character digest made as a result's is, its first lines, up to five lines between that look like failures, and its last lines, which are its newest messages, or those of its first 8 KB when it is over 256 KB (#71). It said the head only. What is sent did not change.
 
 ## [0.6.1] - 2026-10-02
