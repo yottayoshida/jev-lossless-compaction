@@ -52,32 +52,35 @@ file or anything it imports does not parse, Claude Code still lists the plugin
 as installed but loads no hook from it: the `recall` tool is missing from the
 tools, and a `/compact` is held by `hooks/notice.sh`.
 
-`hooks/notice.sh` leans on two things Claude Code's type declarations do not
-promise: a classic hook sees a variable the module set with `$.env.set`, and
-it is handed `CLAUDE_PID`; and it reads its input by its text
-(`"trigger":"manual"`, `"source":"compact"`, `"session_id":"…"`, as 2.1.286
-writes them); and that a `systemMessage` from `UserPromptSubmit` is shown and
-not sent to the model. No test in CI can see any of these. With every version,
-two runs, each a new conversation that has used no tool, so that the module
-hands it to the built-in compaction and `PreCompact` runs (when the module
-compacts by itself, that hook does not run at all):
+`npm run check:host` loads the working tree into the Claude Code you have and
+checks, without a person watching, that `recall` is registered, that a
+`/compact` of a made-up conversation moves results out and `recall` returns
+one of them as it was, and that with the plugin enabled and not running the
+first message is told and a `/compact` is held; it prints the version it ran
+on. Run it with every new Claude Code and before a release. It signs in as you
+do and spends a few cents of Haiku. `node bench/host.ts --plugin-dir <copy>`
+runs the checks of the running plugin on another copy (the copy that is not
+running is always made from the working tree); given the copy
+`test/fixtures/validate/` breaks, they fail.
 
-```sh
-# The module runs: no line at the first message, /compact is not held, and no
-# "was not running" line follows.
-env -u LOSSLESS_COMPACTION_RUNNING claude --plugin-dir . --settings on.json --debug
-# The module does not run, with another process's mark handed down: the first
-# message is followed by the line and the second is not, /compact is held, and
-# run again in that session it is followed by the line.
-env LOSSLESS_COMPACTION_RUNNING=99999 claude --plugin-dir . --settings off.json
-```
+"Not running" is made the way it was met in #51: a copy of the working tree
+whose hook file Claude Code does not load (`pass-to-import.patch` applied),
+which still lists the plugin as installed. On Claude Code 2.1.288,
+`CLAUDE_CODE_ENABLE_FUNCTION_HOOKS` set to `0`, in the shell or in the settings
+a session is started with, no longer turned function hooks off.
 
-`on.json` is `{ "enabledPlugins": { "lossless-compaction@lossless-compaction":
-false } }`, so that an installed copy does not run next to the working tree;
-`off.json` adds `"env": { "CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "0" }`, since a
-value in settings wins over one set in the shell. The second run's mark is
-not its own, so being held there shows the hook telling a mark handed down
-from its own.
+What `hooks/notice.sh` leans on that Claude Code's type declarations do not
+promise: a classic hook sees a variable the module set with `$.env.set`, and is
+handed `CLAUDE_PID`; it reads its input by its text (`"trigger":"manual"`,
+`"source":"compact"`, `"session_id":"…"`); and a `systemMessage` from
+`UserPromptSubmit` is shown and not sent to the model. The command sees the
+first two: in a running session nothing is told, and in one not running, with
+another process's mark handed down, the line comes and the `/compact` is held.
+It also checks that every session ran on one Claude Code version and loaded
+the plugin once, from the copy checked, not an installed one. What it reads is a session started with
+`-p` and `--include-hook-events`. Still for a person to look at, in an
+interactive session (`claude --plugin-dir .`): that the line is shown on the
+screen, and is not in what the model is sent.
 
 ## What Claude Code requires of the hook file
 

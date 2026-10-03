@@ -125,6 +125,8 @@ Not measured: the moments right after `/reload-plugins` or an enable.
   is started through something that stands between it and Claude Code, which
   was not met. None of it can be tested in CI, so two live runs go with
   every version (`docs/development.md`).
+  (Since #56 those runs are one command, `npm run check:host`, and "not
+  running" is made by a hook file Claude Code does not load.)
 
 ## The notice at the first prompt
 
