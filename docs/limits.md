@@ -509,6 +509,24 @@ too, so they are counted without the plugin keeping a list of its own.
   reports is counted on disk afterwards.
 - A collection that a short session cuts off is tried again a day later;
   only one that went to the end waits a week.
+- A session that can read where results are kept — as `/lossless-store`
+  does — says when it starts that no clean-up has ended for 14 days, when
+  none has: since the last that ended, or, if none ever has, since a place
+  transcripts are kept in was first recorded, or, if none is on record,
+  since the oldest result kept (ADR 0016). It says so whether it then tries or
+  not, once a process, and adds when no place is on record:
+
+  ```text
+  moved-out results have not been cleaned up since 2026-09-13 UTC (20 days); /lossless-store says how the clean-up went
+  ```
+
+  Fourteen days is two of the clean-up's weeks, so one missed is not said.
+  A clean-up that keeps stopping, one never tried because the place cannot
+  be made private, one that sessions too short keep cutting off, and one
+  with no place recorded are each said this way. A session that tries and
+  ends the clean-up has said it all the same; the next does not. A time
+  ahead of the clock — written while it ran ahead — holds back both the
+  clean-up and this line until it is reached.
 - A transcript outside a recorded place — copied from another machine, or of
   a `CLAUDE_CONFIG_DIR` that shares a `storeDir` and has not compacted since
   — is not counted. Resuming it can find a result gone. Starting a session
