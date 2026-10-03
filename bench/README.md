@@ -55,6 +55,11 @@ is handed to the summary.
   (pasted English prose with logs that can leave; Japanese with logs that
   can leave, and some thinking). They are no part of the questions, the
   grading or the comparison of the two arms.
+  One more, `large`, is the shape of `results` in a window of 1,000,000
+  tokens: thirty-two logs read, about 575,000 tokens. It is asked the nine
+  questions and two about logs deleted before the compaction, one read
+  early and one read last, and is run by name only: it costs more than the
+  six together.
 - **The questions, their answers and how each is graded**
   (`questions.json`, which is `traces.ts` written out; a test holds the two
   together). Nine per trace:
@@ -117,6 +122,11 @@ What a run repeats: the trace is built once and shared. The plugin's
 compaction is decided by rules and comes out the same every run; what varies
 between runs is the built-in summary and the answers.
 
+Where the model asked for refuses, its safeguards having stopped a response,
+Claude Code goes on with another model, and what the session answers is that
+model's. A unit names it at the question (`fellBackTo`), and the table of
+`find` counts such answers. A compaction it happens at makes no unit.
+
 Where the plugin leaves a `/compact` undone (ADR 0015), nothing was
 compacted and Claude Code writes no boundary: the unit is read from what
 Claude Code said of the skip, its questions are asked of the conversation as
@@ -156,7 +166,8 @@ Every session is started the same way (`cc.ts`):
   keeps no record of a session nothing goes on from, so no later question
   can read what an earlier one was asked and answered.
 - `--autocompact 200000`: the same window for every model (the plugin sees
-  167,000).
+  167,000). A trace that names a window of its own is built, compacted and
+  asked in that one: `large` in 1,000,000, where the plugin sees 967,000.
 - `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`: no memory shared between forks.
 - The plugin's store is a directory in the box, never the store of the
   person running it.
@@ -258,12 +269,14 @@ It is written to no file and is on no command line.
 
 ```sh
 export BENCH_BOX=~/somewhere/outside/the/repository
-node bench/main.ts build                                   # the six traces, and the two that are only probed
+node bench/main.ts build                                   # every conversation but `large`, which is built by name
 node bench/main.ts run --runs 3                            # every trace, Haiku 4.5
 node bench/main.ts run --traces results,writes,prose --models claude-sonnet-5-5 --runs 1
+node bench/main.ts build --traces large --build-model claude-sonnet-5-5   # the conversation in a window of 1,000,000
+node bench/main.ts run --traces large --models claude-opus-5-5 --build-model claude-sonnet-5-5   # asked by another model than built it
 node bench/main.ts probe --plugin-dirs current=.,v0.5.2=../v0.5.2   # estimate against the next request
 node bench/main.ts probe --traces mixed --plugin-dirs v0.6.0=../v0.6.0 --max-after 100   # a checkout made to compact what it would hand over
-node bench/main.ts grade
+node bench/main.ts grade                                   # every answer in the box, again when a unit was added: grade what is to be published in a box of its own
 node bench/main.ts report
 node bench/main.ts publish --to bench/results/2026-10-02   # the units, grades and tables, for the repository
 node bench/main.ts publish --to bench/results/2026-10-02-estimate --variants adr-0013,v0.6.0   # only those variants' units

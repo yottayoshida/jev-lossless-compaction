@@ -28,8 +28,8 @@ import { argsOf, envOf, toolsOf } from '../bench/cc.ts';
 import { MISSED, batchName, currentOf, itemsOf, keyOf, promptOf, published, scrubbed, summed, unitsUnder, verdictsIn, type Grades } from '../bench/grade.ts';
 import { MIN_CHARS, pick, pickTable, readAnswer, resultsOf, staged, wentOf, type Pick } from '../bench/pick.ts';
 import { estimates, finds, graderOf, outcomesOf, overruled, report, verdictOf, whole } from '../bench/report.ts';
-import { QUOTE, armsOf, staleness, variantsOf, type Unit } from '../bench/run.ts';
-import { BUILT, FOUND, PROBED, TRACES, described } from '../bench/traces.ts';
+import { QUOTE, armsOf, leaf, staleness, variantsOf, type Unit } from '../bench/run.ts';
+import { BUILT, FOUND, LARGE, PROBED, TRACES, described, unnamed, type Question } from '../bench/traces.ts';
 import { unnumbered } from '../src/changed.ts';
 import { find, lineHolds, valuesOf } from '../src/find.ts';
 import { termsOf } from '../src/select.ts';
@@ -389,6 +389,9 @@ test('every session of the benchmark is started without the user\'s settings, wi
   assert.equal(at('--allowedTools'), 'Read,Grep');
   assert.equal(at('--tools'), 'Read,Grep', 'the built-in tools there are, not only the ones allowed');
   assert.equal(at('--autocompact'), '200000');
+  // A trace that names a window of its own has every session of it started in that one.
+  const wide = argsOf({ out: '/o', cwd: '/w', model: 'm', arm: 'builtin', storeDir: '/s', allowedTools: ['Read'], prompt: 'hello', window: 1_000_000 });
+  assert.equal(wide[wide.indexOf('--autocompact') + 1], '1000000');
   assert.equal(at('--plugin-dir'), '/p');
   assert.deepEqual(JSON.parse(at('--settings') ?? ''), { pluginConfigs: { 'lossless-compaction@inline': { options: { storeDir: '/s' } } } });
   assert.deepEqual(args.slice(args.indexOf('--resume'), args.indexOf('--resume') + 3), ['--resume', 'abc', '--fork-session']);
@@ -486,13 +489,14 @@ test('the grader is sent a number, the question, the facts, the rubric and the a
   assert.match(keyOf(first, 'next', 'Next is log13 to log16.'), /^results\|haiku\|1\|plugin\|default\|next\|[0-9a-f]{12}$/);
   assert.notEqual(keyOf(first, 'next', 'Next is log13 to log16.'), keyOf(first, 'next', 'Next is log13 to log17.'));
   assert.deepEqual(toGrade.map((item) => item.rubric === MISSED), [false, false, true]);
-  // For each of the 24 questions a model grades: a right and a wrong answer, each plain and with two openings that tell an arm.
+  // For each of the 28 questions a model grades: a right and a wrong answer, each plain and with two openings that tell an arm.
   // For each trace's first exact question: another line and a plain "cannot tell", each plain and with the two openings, and the other line behind a hedge.
   const controls = items.filter((item) => item.expected !== undefined);
-  assert.equal(controls.length, 24 * 2 * 3 + 6 * 7);
-  assert.equal(controls.filter((item) => item.expected === 'correct').length, 24 * 3);
-  assert.equal(controls.filter((item) => item.expected === 'abstained').length, 6 * 3);
-  assert.equal(controls.filter((item) => item.rubric === MISSED && item.key.includes('|told-')).length, 6 * 4);
+  // Of the seven conversations asked their own questions: the six, and the large one.
+  assert.equal(controls.length, 28 * 2 * 3 + 7 * 7);
+  assert.equal(controls.filter((item) => item.expected === 'correct').length, 28 * 3);
+  assert.equal(controls.filter((item) => item.expected === 'abstained').length, 7 * 3);
+  assert.equal(controls.filter((item) => item.rubric === MISSED && item.key.includes('|told-')).length, 7 * 4);
   assert.ok(controls.filter((item) => item.rubric === MISSED).every((item) => item.expected !== 'correct'), 'no answer under that rubric is right');
   // Only the units that asked a trace's questions are graded: a probe asks nothing of the conversation.
   assert.equal(itemsOf(units.map((unit) => ({ ...unit, mode: 'probe' as const }))).filter((item) => item.expected === undefined).length, 0);
@@ -516,13 +520,13 @@ test('the grader is measured on what was mixed in: answers known right and wrong
   const fair = new Map(items.map((item) => [item.key, item.expected ?? ('correct' as const)]));
   const marked = summed(items, [biased, fair], 'a-model');
   assert.equal(marked.model, 'a-model');
-  assert.equal(marked.controls.count, 186);
-  assert.equal(marked.controls.graded, 186);
-  assert.equal(marked.controls.asExpected, 48 + 48 + 6 + 6 + 12 + 6, 'the plain ones; the wrong answers that open with a tell; of the exact ones the hedged line, the other line however it opens, and the plain "cannot tell"');
-  assert.equal(marked.controls.toldPairs, 96 + 24);
-  assert.equal(marked.controls.toldPairsGraded, 120);
-  assert.equal(marked.controls.toldPairsSame, 48 + 12, 'the right answers, and "cannot tell", were marked down for how they open');
-  assert.equal(summed(items, [fair, fair]).controls.toldPairsSame, 120);
+  assert.equal(marked.controls.count, 217);
+  assert.equal(marked.controls.graded, 217);
+  assert.equal(marked.controls.asExpected, 56 + 56 + 7 + 7 + 14 + 7, 'the plain ones; the wrong answers that open with a tell; of the exact ones the hedged line, the other line however it opens, and the plain "cannot tell"');
+  assert.equal(marked.controls.toldPairs, 112 + 28);
+  assert.equal(marked.controls.toldPairsGraded, 140);
+  assert.equal(marked.controls.toldPairsSame, 56 + 14, 'the right answers, and "cannot tell", were marked down for how they open');
+  assert.equal(summed(items, [fair, fair]).controls.toldPairsSame, 140);
   assert.equal(summed(items, [fair, fair]).disagreements, 0);
   const answer = items.find((item) => item.expected === undefined)?.key ?? '';
   assert.match(answer, /\|next\|/);
@@ -536,10 +540,10 @@ test('the grader is measured on what was mixed in: answers known right and wrong
   // One of a pair left out: that pair says nothing either.
   const half = new Map(fair);
   half.delete('control|results|next|right');
-  assert.deepEqual([summed(items, [half]).controls.toldPairsGraded, summed(items, [half]).controls.toldPairsSame], [118, 118]);
+  assert.deepEqual([summed(items, [half]).controls.toldPairsGraded, summed(items, [half]).controls.toldPairsSame], [138, 138]);
   // A pass keeps its place: the first pass giving no grade is not replaced by the second.
   assert.deepEqual(silent.verdicts[answer], [null, 'correct']);
-  assert.match(graderOf(marked), /Graded by a-model.*Of 186 answers mixed in.*graded 186, 126 as expected.*both of 120, 60 alike/);
+  assert.match(graderOf(marked), /Graded by a-model.*Of 217 answers mixed in.*graded 217, 147 as expected.*both of 140, 70 alike/);
   assert.match(graderOf(null), /Nothing has been graded/);
 });
 
@@ -588,8 +592,8 @@ test('probes alone are tabled without the tables of questions, and a checkout ca
 
 test('two conversations are built and probed and asked nothing: they are no part of the questions, the grading or the comparison', () => {
   assert.deepEqual(PROBED.map((trace) => trace.name), ['mixed', 'japanese']);
-  assert.deepEqual(BUILT, [...TRACES, ...PROBED, ...FOUND]);
-  assert.equal(new Set(BUILT.map((trace) => trace.name)).size, 9);
+  assert.deepEqual(BUILT, [...TRACES, ...PROBED, ...FOUND, ...LARGE]);
+  assert.equal(new Set(BUILT.map((trace) => trace.name)).size, 10);
   const written = described().map((one) => one.trace);
   assert.ok(PROBED.every((trace) => !written.includes(trace.name)));
   // A probe of one is a current unit; a unit that asked its questions would have nothing to be graded by.
@@ -719,6 +723,65 @@ test('what the plugin estimated is set against what the next request was sent', 
   const stillTooMuch = estimates([{ ...probe, compaction: { ...probe.compaction, line: { ...line, outcome: 'too-much' as const } } }]);
   assert.match(stillTooMuch, /\| too-much \| 44333 \| — \| — \|/);
   assert.match(estimates([{ ...probe, compaction: { ...probe.compaction, line: { outcome: 'other' as const, moved: 0, results: 0, images: 0, charsBefore: 0, charsAfter: 0, ms: 0 } } }]), /\| other \| none stated \| — \| — \|/);
+});
+
+test('a session whose model refused and was replaced says by which: the answer is then not that of the model asked for, and the table of find counts it', () => {
+  const events = [
+    { type: 'system', subtype: 'init', session_id: 'abc', model: 'claude-opus-5-5', claude_code_version: '2.1.288' },
+    { type: 'system', subtype: 'model_refusal_fallback', trigger: 'refusal', original_model: 'claude-opus-5-5', fallback_model: 'claude-opus-4-8', api_refusal_category: 'cyber' },
+    { type: 'result', result: 'None of the earlier results covered that.', is_error: false },
+  ];
+  const printed = (kept: readonly object[]) => kept.map((event) => JSON.stringify(event)).join('\n');
+  assert.equal(readSession(printed(events)).fellBackTo, 'claude-opus-4-8');
+  assert.equal(readSession(printed(events.filter((event) => event.subtype !== 'model_refusal_fallback'))).fellBackTo, null);
+  // An event that names no model is still one: the answer is counted as another model's.
+  assert.equal(readSession(printed(events.map((event) => (event.subtype === 'model_refusal_fallback' ? { type: 'system', subtype: 'model_refusal_fallback' } : event)))).fellBackTo, 'unknown');
+  // The column is in the table only where it happened: a table of units in which no model was replaced is as it was.
+  const asked = (fellBack: boolean) => ({
+    ...unitOf('plugin', 1, [{ ...answered('find-doc-1', 'exact-gone', 'None of them.', []), ...(fellBack ? { fellBackTo: 'claude-opus-4-8' } : {}) }, answered('find-doc-2', 'exact-gone', 'the line', [], 'correct')]),
+    mode: 'find' as const,
+  });
+  assert.match(finds([asked(true)]), /\| Right \| Answered by another model after a refusal \| `find` calls \|/);
+  assert.match(finds([asked(true)]), /\| 1\/2 \| 1 \| 0 \|/);
+  assert.ok(!finds([asked(false)]).includes('another model'));
+  assert.match(finds([asked(false)]), /\| Right \| `find` calls \|/);
+  // The table of a trace's own questions has the row on the same terms.
+  const own = (arm: 'plugin' | 'builtin', fellBack: boolean) =>
+    unitOf(arm, 1, [{ ...answered('next', 'continuity', 'Next is log13 to log16.', []), ...(fellBack ? { fellBackTo: 'claude-opus-4-8' } : {}) }]);
+  assert.match(report([own('plugin', true), own('builtin', false)], null), /\| Answered by another model after a refusal \| 1 \| 0 \|/);
+  assert.ok(!report([own('plugin', false), own('builtin', false)], null).includes('another model'));
+});
+
+test('one conversation is built in a window of 1,000,000: the questions of the six, and two about logs that are gone, one read early and one read last', () => {
+  assert.deepEqual(LARGE.map((trace) => trace.name), ['large']);
+  const [large] = LARGE;
+  assert.ok(large !== undefined);
+  // The others name no window: they are built and compacted in the 200,000 a session is started with.
+  assert.ok([...TRACES, ...PROBED, ...FOUND].every((trace) => trace.window === undefined));
+  assert.equal(large.window, 1_000_000);
+  assert.equal(described().find((one) => one.trace === 'large')?.window, 1_000_000);
+  // Taken by name only: with no trace named a `run` asks the six, and a `build` builds every conversation but this one.
+  assert.ok(!TRACES.includes(large));
+  assert.deepEqual(unnamed('run'), TRACES);
+  assert.deepEqual(unnamed('probe'), [...TRACES, ...PROBED]);
+  assert.deepEqual(unnamed('build'), BUILT.filter((trace) => trace !== large));
+  assert.equal(unnamed('build').length, 9);
+  assert.deepEqual(large.questions.map((question) => question.id), [...(TRACES[0]?.questions.map((question) => question.id) ?? []), 'gone-early', 'gone-last']);
+  // Thirty-two logs read four at a time; the fifth and the last are removed before the compaction, with the script every trace removes.
+  const reads = saidBy(large).filter((say) => say.startsWith('Read log'));
+  assert.equal(reads.length, 8);
+  assert.ok(reads[1]?.includes('log5.txt') && reads.at(-1)?.includes('log32.txt'));
+  assert.deepEqual(large.beforeCompaction.flatMap((step) => ('remove' in step ? [step.remove] : [])), ['report.sh', 'log5.txt', 'log32.txt']);
+  for (const [id, log] of [['gone-early', 5], ['gone-last', 32]] as const) {
+    const question: (typeof large.questions)[number] | undefined = large.questions.find((one) => one.id === id);
+    assert.ok(question !== undefined && question.kind === 'exact-gone');
+    assert.ok(question.ask.includes(`log${log}.txt has been deleted`) && question.ask.includes(`record ${log}-0412`), question.ask);
+    // What a right answer holds is on that line of that log, and in no other file of the trace: no file still there gives it.
+    const needle: string = question.needles?.[0] ?? '';
+    assert.match(needle, /^station \d+ reported \d+ units$/);
+    assert.deepEqual(large.files.filter((file) => file.text.includes(needle)).map((file) => file.path), [`log${log}.txt`]);
+    assert.ok(large.files.find((file) => file.path === `log${log}.txt`)?.text.includes(`record ${log}-0412: ${needle} at step 412\n`));
+  }
 });
 
 test('the conversations published in bench/bases are the traces as they are now: what was said, in order, at a size the trace accepts', () => {
@@ -1723,4 +1786,216 @@ test('the units and picks in the repository measured with the value match: every
       `Jev, asked for ${put} of them, is told of one result each time, the right one; the other ${again - put === 1 ? 'one is' : `${again - put} are`} settled by a phrase the agent quoted.`,
     'measurements',
   );
+});
+
+const OPUS_AT = fileURLToPath(new URL('../bench/results/2026-10-03-opus', import.meta.url));
+
+test('the units in the repository measured with Opus 5.5, three conversations and one in a window of 1,000,000: every figure the documents give of them (#57)', () => {
+  const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
+  const [measurements, readme, changelog, limits] = [read('../docs/measurements.md'), read('../README.md'), read('../CHANGELOG.md'), read('../docs/limits.md')];
+  const has = (text: string, phrase: string, what: string) => assert.ok(text.replace(/\s+/g, ' ').includes(phrase), `${what}: ${phrase}`);
+  /** A row of a table in the section on Opus, whatever its padding. */
+  const section = measurements.slice(measurements.indexOf('## With Opus 5.5, and in a window of 1,000,000'), measurements.indexOf('## A compaction, and a result read back'));
+  const row = (...cells: string[]) => assert.match(section, new RegExp(`\\| ${cells.map((cell) => cell.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join(' +\\| +')} +\\|`), cells.join(' | '));
+  const sum = (values: readonly number[]) => values.reduce((a, b) => a + b, 0);
+  const seconds = (ms: number) => (ms / 1000).toFixed(ms < 1000 ? 2 : 1);
+  const usd = (value: number) => (value === 0 ? '0' : value.toFixed(2));
+  const thousands = (value: number) => value.toLocaleString('en-US');
+  const listed = (values: readonly number[]) => `${values.slice(0, -1).join(', ')} and ${values.at(-1)}`;
+
+  // What is published is what the tables beside it are made of, and every answer in it has a verdict: the program's, or the grader's.
+  const { units, older } = currentOf(unitsUnder(OPUS_AT));
+  const grades = JSON.parse(read('../bench/results/2026-10-03-opus/grades.json')) as Grades;
+  assert.equal(older, 0);
+  assert.equal(whole(units, grades, older, null), read('../bench/results/2026-10-03-opus/report.md'));
+  assert.deepEqual(
+    units.map((unit) => `${unit.trace} ${leaf(unit.arm, unit.variant, unit.mode)}`).sort(),
+    ['large builtin', 'large plugin', 'opaque plugin-find', 'opaque plugin-find-find', 'prose builtin', 'prose plugin', 'results builtin', 'results plugin'],
+  );
+  // One run of Opus 5.5, with the plugin's code as the units of the value match were measured with it.
+  assert.ok(units.every((unit) => unit.model === 'claude-opus-5-5' && unit.run === 1 && unit.plugin === (unit.arm === 'plugin' ? VALUES_CODE : null)));
+  assert.deepEqual([grades.ungraded.length, grades.disagreements, grades.controls.asExpected], [0, 0, grades.controls.count]);
+  const of = (trace: string, arm: 'plugin' | 'builtin') => {
+    const unit = units.find((one) => one.trace === trace && one.arm === arm && one.mode === 'ask');
+    assert.ok(unit !== undefined, `${trace} ${arm}`);
+    return unit;
+  };
+  const THREE = ['results', 'prose', 'large'] as const;
+  const [ours, theirs] = [THREE.map((trace) => of(trace, 'plugin')), THREE.map((trace) => of(trace, 'builtin'))];
+  for (const unit of [...ours, ...theirs]) for (const asked of unit.questions) assert.ok(verdictOf(unit, asked, grades) !== undefined, `${unit.trace} ${unit.arm} ${asked.id}`);
+  // The large one was built and compacted in its own window: the plugin read it as that less Claude Code's reserve.
+  const large = of('large', 'plugin');
+  assert.equal(LARGE[0]?.window, 1_000_000);
+  assert.equal(large.compaction.line?.window, 967_000);
+  assert.ok(THREE.slice(0, 2).every((trace) => of(trace, 'plugin').compaction.line?.window === 167_000));
+  has(section, `thirty-two logs of 700 lines read, ${thousands(large.compaction.preTokens)} tokens when it was compacted`, 'measurements');
+
+  // The compaction: each cell the plugin's figure, then the built-in's.
+  const cells = (cell: (unit: Unit) => string) => THREE.map((trace) => `${cell(of(trace, 'plugin'))} · ${cell(of(trace, 'builtin'))}`);
+  const next = (unit: Unit) => unit.questions[0]?.requests[0] ?? 0;
+  const asked = (unit: Unit) => sum(unit.questions.map((one) => one.own.costUSD));
+  row('The summary ran', ...cells((unit) => (unit.compaction.summarized ? 'yes' : 'no')));
+  row('`/compact` took, s', ...cells((unit) => seconds(unit.compaction.durationMs)));
+  row('The compaction cost, USD', ...cells((unit) => usd(unit.compaction.own.costUSD)));
+  row('The next request, tokens', ...cells((unit) => thousands(next(unit))));
+  row('Its questions cost, USD', ...cells((unit) => usd(asked(unit))));
+  const [resultsLine, largeLine] = [of('results', 'plugin').compaction.line, large.compaction.line];
+  has(
+    section,
+    `In \`results\` the plugin moved ${resultsLine?.moved} of ${resultsLine?.results} results out, and in \`large\` ${largeLine?.moved} of ${largeLine?.results}, ` +
+      `in a window it read as ${thousands(largeLine?.window ?? 0)} tokens: it estimated ${thousands(largeLine?.estimate ?? 0)} tokens in use afterwards, and ${thousands(next(large))} were sent next.`,
+    'measurements',
+  );
+  assert.equal(of('prose', 'plugin').compaction.undone, true);
+  has(section, '`prose` holds nothing to move out and had room, and was left as it was.', 'measurements');
+
+  // The answers: right as the program and the grader have it.
+  const rightOf = (unit: Unit, ids: readonly string[]) => unit.questions.filter((one) => ids.includes(one.id) && verdictOf(unit, one, grades) === 'correct').length;
+  const kinds: [label: string, ids: string[], onlyLarge?: true][] = [
+    ["A script's output, the script gone, of 2", ['gone-1', 'gone-2']],
+    ['A line of a deleted log read early, moved out', ['gone-early'], true],
+    ['A line of a deleted log read last, kept', ['gone-last'], true],
+    ['A file that is unchanged', ['unchanged']],
+    ['What a file said before it changed', ['then']],
+    ['What that file says now', ['now']],
+    ['Where the work stands, of 2', ['next', 'decided']],
+    ['A rule stated once, of 2', ['rule-1', 'rule-2']],
+  ];
+  for (const [label, ids, onlyLarge] of kinds) row(label, ...THREE.map((trace) => (onlyLarge && trace !== 'large' ? '—' : `${rightOf(of(trace, 'plugin'), ids)} · ${rightOf(of(trace, 'builtin'), ids)}`)));
+  assert.deepEqual(kinds.flatMap(([, ids]) => ids).sort(), large.questions.map((one) => one.id).sort());
+
+  // The exact answers counted wrong that hold the right line once the prefix a rule of the conversation asks for is taken off the station's id.
+  const written = new Map(BUILT.flatMap((trace) => trace.questions.map((question): [string, Question] => [`${trace.name} ${question.id}`, question])));
+  const exact = (unit: Unit) => unit.questions.filter((one) => one.kind.startsWith('exact'));
+  const prefixed = (unit: Unit) =>
+    exact(unit).filter((one) => {
+      const needles = written.get(`${unit.trace} ${one.id}`)?.needles ?? [];
+      const bare = one.answer.replace(/\bS[TN]-(\d)/g, '$1');
+      return one.verdict === undefined && needles.length > 0 && needles.every((needle) => bare.includes(needle) && !one.answer.includes(needle));
+    });
+  const count = (set: readonly Unit[], those: (unit: Unit) => readonly unknown[]) => sum(set.map((unit) => those(unit).length));
+  assert.equal(count(ours, prefixed) + count(theirs, prefixed), 6);
+  has(section, 'Six answers are counted wrong for how they write a station.', 'measurements');
+  // In the two conversations whose first message states that rule, and not in the third.
+  assert.deepEqual(THREE.filter((trace) => prefixed(of(trace, 'plugin')).length + prefixed(of(trace, 'builtin')).length > 0), ['results', 'large']);
+  assert.ok(['results', 'large'].every((name) => /A station id is always written with the prefix S[TN]-/.test(saidBy(BUILT.find((trace) => trace.name === name) ?? { steps: [] })[0] ?? '')));
+  has(section, "The first message of `results` and of `large` states a rule, that a station's id is written with a prefix (ST-1325, SN-2044)", 'measurements');
+  const byProgram = (set: readonly Unit[]) => count(set, (unit) => exact(unit).filter((one) => one.verdict === 'correct'));
+  assert.deepEqual([count(ours, exact), count(theirs, exact)], [17, 17]);
+  has(
+    section,
+    `${count(ours, prefixed)} in the plugin's arm and ${count(theirs, prefixed)} in the built-in arm are counted wrong, which leaves ${byProgram(ours)} of ${count(ours, exact)} questions about an exact text right ` +
+      `in the plugin's arm and ${byProgram(theirs)} in the built-in arm. With the prefix taken off, a count made after the answers were seen, all ${count(ours, exact)} are right in both.`,
+    'measurements',
+  );
+  // Every exact answer is right by the program or is one of those: none was wrong otherwise, in either arm.
+  for (const set of [ours, theirs]) assert.equal(count(set, exact), byProgram(set) + count(set, prefixed));
+  assert.ok(of('results', 'plugin').questions.some((one) => one.answer.includes('station ST-6303 reported 985 units')));
+  has(section, '`station ST-6303 reported 985 units`', 'measurements');
+
+  // Where the answers came from.
+  const outside = (unit: Unit) => unit.questions.filter((one) => one.outside);
+  assert.equal(count(ours, outside), 0);
+  assert.ok(theirs.every((unit) => outside(unit).every((one) => one.verdict === 'correct' || prefixed(unit).includes(one))));
+  has(
+    section,
+    `${count(theirs, outside)} of its answers came after reading outside the working directory (${listed(theirs.map((unit) => outside(unit).length))}), ` +
+      `all of them holding the right line, ${count(theirs, (unit) => outside(unit).filter((one) => prefixed(unit).includes(one)))} with the prefix.`,
+    'measurements',
+  );
+  // Set beside Haiku on the questions Haiku's figure is of: a script's output, the script gone.
+  const scripts = (unit: Unit) => unit.questions.filter((one) => one.id === 'gone-1' || one.id === 'gone-2');
+  assert.equal(count(theirs, scripts), count(theirs, (unit) => scripts(unit).filter((one) => one.outside)));
+  // Haiku on the same questions, in its three runs on the six conversations: how often it read that record, and how often it was then right.
+  const haiku = currentOf(unitsUnder(fileURLToPath(new URL('../bench/results/2026-10-02', import.meta.url)))).units.filter((unit) => /haiku/.test(unit.model) && unit.arm === 'builtin' && unit.mode === 'ask');
+  const readOutside = (set: readonly Unit[]) => count(set, (unit) => scripts(unit).filter((one) => one.outside));
+  const rightOutside = (set: readonly Unit[]) => count(set, (unit) => scripts(unit).filter((one) => one.outside && one.verdict === 'correct'));
+  assert.equal(count(haiku, scripts), 36);
+  has(
+    section,
+    `Of the questions about a script's output it read that record for all ${readOutside(theirs)} and was right on all ${rightOutside(theirs)}, ` +
+      `where Haiku read it for ${readOutside(haiku)} of ${count(haiku, scripts)} and was right on ${rightOutside(haiku)}.`,
+    'measurements',
+  );
+  const recalls = (unit: Unit) => sum(unit.questions.map((one) => one.retrieval.recalls));
+  has(section, `\`recall\` was called ${recalls(of('results', 'plugin'))} times in \`results\` and ${recalls(large)} in \`large\`, and the line of the log read last was given with no tool.`, 'measurements');
+  const last = large.questions.find((one) => one.id === 'gone-last');
+  assert.ok(last !== undefined && last.calls.length === 0 && last.verdict === 'correct');
+  const slowest = Math.max(...ours.map((unit) => unit.compaction.durationMs));
+  assert.ok(ours.every((unit) => unit.compaction.own.costUSD === 0 && !unit.compaction.summarized));
+  const summary = of('large', 'builtin');
+  has(
+    section,
+    `It took ${seconds(slowest)} s or less and called no model, where the summary of \`large\` took ${seconds(summary.compaction.durationMs)} s and cost ${usd(summary.compaction.own.costUSD)} USD. ` +
+      `Then every request carried what the plugin had left, ${thousands(next(large))} tokens in \`large\` against ${thousands(next(summary))} after a summary, ` +
+      `and the eleven questions cost ${usd(asked(large))} USD against ${usd(asked(summary))}: ` +
+      `with the compaction, ${usd(asked(large) + large.compaction.own.costUSD)} against ${usd(asked(summary) + summary.compaction.own.costUSD)}.`,
+    'measurements',
+  );
+  assert.equal(large.questions.length, 11);
+
+  // `find`, on `opaque`: with `recall` alone, and with `find` as well. Where Opus 5.5 was stopped, another model answered.
+  const found = (variant: string) => {
+    const unit = units.find((one) => one.trace === 'opaque' && one.variant === variant);
+    assert.ok(unit !== undefined && unit.mode === 'find' && unit.questions.length === 10);
+    return unit;
+  };
+  const pair = [found('default'), found('find')];
+  const replaced = (unit: Unit) => unit.questions.filter((one) => one.fellBackTo !== undefined);
+  const right = (unit: Unit) => unit.questions.filter((one) => one.verdict === 'correct');
+  row('Right, of 10', ...pair.map((unit) => `${right(unit).length}`));
+  row('Answered by another model after Opus 5.5 was stopped', ...pair.map((unit) => `${replaced(unit).length}`));
+  row('Right, of those Opus 5.5 answered', ...pair.map((unit) => `${right(unit).filter((one) => one.fellBackTo === undefined).length} of ${unit.questions.length - replaced(unit).length}`));
+  row('`find` calls', ...pair.map((unit) => `${sum(unit.questions.map((one) => one.retrieval.finds))}`));
+  row('`recall` calls', ...pair.map((unit) => `${sum(unit.questions.map((one) => one.retrieval.recalls))}`));
+  row('The ten questions cost, USD', ...pair.map((unit) => usd(asked(unit))));
+  const fell = pair.flatMap(replaced);
+  assert.ok(fell.length > 0 && fell.every((one) => one.fellBackTo === 'claude-opus-4-8' && one.verdict !== 'correct'));
+  has(section, `In ${fell.length} of the ${count(pair, (unit) => unit.questions)} sessions Opus 5.5's safeguards stopped the response and Claude Code went on with Opus 4.8`, 'measurements');
+  has(section, `None of the ${fell.length} answers was right, and they are not Opus 5.5's`, 'measurements');
+  assert.equal(count([...ours, ...theirs], replaced), 0);
+  has(section, 'In `results`, `prose` and `large` it happened in no session.', 'measurements');
+  // The two columns were not stopped at the same questions, which the section says of the one that differs.
+  const stopped = pair.map((unit) => replaced(unit).map((one) => one.id));
+  assert.deepEqual((stopped[0] ?? []).filter((id) => !(stopped[1] ?? []).includes(id)), ['find-code-6']);
+  assert.ok((stopped[1] ?? []).every((id) => (stopped[0] ?? []).includes(id)));
+  assert.equal(pair[1]?.questions.find((one) => one.id === 'find-code-6')?.verdict, 'correct');
+  has(section, '`find-code-6` was stopped with `recall` alone and answered with `find`.', 'measurements');
+
+  // What the other documents say of it.
+  // The promise names what was set against what: against the built-in compaction where both arms were measured, and `find` against none where they were not.
+  const compared = [...new Set(units.filter((unit) => unit.arm === 'builtin').map((unit) => unit.trace))];
+  assert.deepEqual(compared.sort(), [...THREE].sort());
+  assert.deepEqual(compared.filter((name) => BUILT.find((trace) => trace.name === name)?.window === undefined).length, 2);
+  assert.deepEqual([...new Set(pair.map((unit) => unit.trace))], ['opaque']);
+  assert.ok(pair.every((unit) => unit.arm === 'plugin'));
+  has(
+    limits,
+    `It is measured with Opus 5.5 as well, at the default settings, in one run: on \`${THREE[0]}\`, \`${THREE[1]}\` and \`${THREE[2]}\`, a conversation built in a window of 1,000,000, ` +
+      "against Claude Code's own compaction on the same; and on `opaque` with `find` and without",
+    'limits',
+  );
+  has(
+    limits,
+    `Of ${count(ours, exact)} questions about an exact text, ${byProgram(ours)} are counted right in the plugin's arm and ${byProgram(theirs)} in the built-in arm; ` +
+      `the other ${count(ours, prefixed) + count(theirs, prefixed)} answers hold the right line with a station's id written with the prefix`,
+    'limits',
+  );
+  has(
+    readme,
+    `of ${count(ours, exact)} questions about an exact text, ${byProgram(ours)} were counted right with the plugin and ${byProgram(theirs)} without, which one run does not tell apart. ` +
+      `The plugin's \`/compact\` of ${thousands(large.compaction.preTokens)} tokens took ${seconds(large.compaction.durationMs)} s against ${seconds(summary.compaction.durationMs)} s ` +
+      `and left more to send, ${thousands(next(large))} tokens a request against ${thousands(next(summary))}`,
+    'README',
+  );
+  has(
+    changelog,
+    `of ${count(ours, exact)} questions about an exact text, ${byProgram(ours)} were counted right in the plugin's arm and ${byProgram(theirs)} in the built-in arm, ` +
+      `and the other ${count(ours, prefixed) + count(theirs, prefixed)} answers held the right line with a station's id written with the prefix a rule of the conversation asks for. ` +
+      `The plugin's \`/compact\` of ${thousands(large.compaction.preTokens)} tokens took ${seconds(large.compaction.durationMs)} s and cost nothing ` +
+      `where the summary took ${seconds(summary.compaction.durationMs)} s and ${usd(summary.compaction.own.costUSD)} USD; it then left ${thousands(next(large))} tokens for the next request against ${thousands(next(summary))}, ` +
+      `and its eleven questions cost ${usd(asked(large))} USD against ${usd(asked(summary))}.`,
+    'CHANGELOG',
+  );
+  has(changelog, `as it did in ${fell.length} of the ${count(pair, (unit) => unit.questions)} questions asked of \`opaque\``, 'CHANGELOG');
 });

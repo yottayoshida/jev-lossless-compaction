@@ -39,6 +39,12 @@ export type Session = {
   skipped: string | null;
   /** Classic hooks that ran, by name. */
   hooks: string[];
+  /**
+   * The model Claude Code went on with after the session's own model refused
+   * (its safeguards stopped a response), or null: what the session answered
+   * then is that other model's.
+   */
+  fellBackTo: string | null;
 };
 
 const number = (value: unknown): number => (typeof value === 'number' && Number.isFinite(value) ? value : 0);
@@ -65,6 +71,7 @@ export function readSession(text: string): Session {
     compaction: null,
     skipped: null,
     hooks: [],
+    fellBackTo: null,
   };
   const seen = new Set<string>();
   const called = new Set<string>();
@@ -111,6 +118,10 @@ export function readSession(text: string): Session {
           break;
         case 'hook_started':
           session.hooks.push(String(event['hook_name'] ?? ''));
+          break;
+        case 'model_refusal_fallback':
+          // Named or not, another model went on: the answer is not the session's own model's.
+          session.fellBackTo = String(event['fallback_model'] || 'unknown');
           break;
       }
     } else if (event['type'] === 'assistant') {

@@ -151,6 +151,7 @@ export async function build(trace: Trace, model: string, places: Places, log: (t
       prompt: step.say,
       ...(sessionId !== undefined ? { resume: sessionId, fork: false } : {}),
       ...(step.effort !== undefined ? { effort: step.effort } : {}),
+      ...(trace.window !== undefined ? { window: trace.window } : {}),
     });
     if (last.session.compaction !== null) throw new Error(`${trace.name}: the conversation was compacted while it was built, at step ${said}`);
     sessionId = last.session.sessionId;

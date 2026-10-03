@@ -9,7 +9,7 @@ import { dirname } from 'node:path';
 
 import { KEY_VARS, problemsOf, readSession, type Arm, type Session } from './lib.ts';
 
-/** The window every session compacts against, whatever its model's own: 200,000 less Claude Code's reserve is the 167,000 the plugin sees. */
+/** The window a session compacts against, whatever its model's own, unless its trace names another: 200,000 less Claude Code's reserve is the 167,000 the plugin sees. */
 export const AUTOCOMPACT = '200000';
 
 /** The id Claude Code gives a plugin loaded with `--plugin-dir`. */
@@ -42,6 +42,8 @@ export type Start = {
   env?: Readonly<Record<string, string>>;
   /** False for a session nothing goes on from: Claude Code keeps no record of it, so no later session can read what it was asked and answered. */
   kept?: boolean;
+  /** The window to compact against, in tokens, where the trace names one. */
+  window?: number;
 };
 
 export type Ran = { session: Session; text: string; wallMs: number };
@@ -72,7 +74,7 @@ export function argsOf(start: Start): string[] {
     '--allowedTools',
     start.allowedTools.join(','),
     '--autocompact',
-    AUTOCOMPACT,
+    start.window === undefined ? AUTOCOMPACT : String(start.window),
     ...(start.arm === 'plugin' && start.pluginDir !== undefined ? ['--plugin-dir', start.pluginDir] : []),
     ...(start.resume !== undefined ? ['--resume', start.resume, ...(start.fork === false ? [] : ['--fork-session'])] : []),
     ...(start.effort !== undefined ? ['--effort', start.effort] : []),

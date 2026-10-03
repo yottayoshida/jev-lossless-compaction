@@ -63,6 +63,8 @@ export type Trace = {
   beforeCompaction: Step[];
   /** What a built trace has to look like to be used: no compaction on the way, and a size within these. */
   accept: { minTokens: number; maxTokens: number; minThinkingTokens?: number };
+  /** The window its sessions compact against, in tokens, where it is not the 200,000 of the others. */
+  window?: number;
   questions: Question[];
   finds: FindQuestion[];
   /** A phrase of each rule stated early: it is in the first message and nowhere else, which a test holds. */
@@ -77,6 +79,8 @@ export { BUILD_TOOLS };
 
 const REPORT_BATCHES = 120;
 const LOG_LINES = 100;
+/** What a line of a station log says, without the record's number in front: what an answer about that line has to hold. */
+const units = (line: string) => / (station \d+ reported \d+ units) /.exec(line)?.[1] ?? line;
 
 type Rules = {
   /** Said in the first message, never again. `mark` is a phrase of the rule that nothing else in the trace holds: no file, no later message, no question. */
@@ -96,17 +100,26 @@ type Standing = {
  * once and then removed, a file that stays and one that is regenerated, and
  * where the work stands, said last.
  */
-function trace(n: number, name: string, shape: string, task: string, rules: Rules, bulk: Step[], standing: Standing, extra: Partial<Pick<Trace, 'accept' | 'finds' | 'files' | 'version'>> = {}): Trace {
+function trace(
+  n: number,
+  name: string,
+  shape: string,
+  task: string,
+  rules: Rules,
+  bulk: Step[],
+  standing: Standing,
+  extra: Partial<Pick<Trace, 'accept' | 'finds' | 'files' | 'version' | 'window' | 'questions' | 'beforeCompaction'>> = {},
+): Trace {
   const kept = `kept-${n}.log`;
   const changing = `changing-${n}.log`;
   const keptLog = 90 + n;
   const changingLog = 80 + n;
-  const units = (line: string) => / (station \d+ reported \d+ units) /.exec(line)?.[1] ?? line;
   const checksum = (line: string) => /checksum ([0-9a-f]{8})/.exec(line)?.[1] ?? line;
   return {
     name,
     version: extra.version ?? 1,
     shape,
+    ...(extra.window !== undefined ? { window: extra.window } : {}),
     files: [
       { path: 'report.sh', text: reportScript(n, REPORT_BATCHES) },
       { path: kept, text: logFile(keptLog, LOG_LINES) },
@@ -120,7 +133,7 @@ function trace(n: number, name: string, shape: string, task: string, rules: Rule
       ...bulk,
       { say: `${standing.status}\n\nReply only: noted.` },
     ],
-    beforeCompaction: [{ remove: 'report.sh' }, { write: changing, text: logFile(changingLog, LOG_LINES, 2) }],
+    beforeCompaction: [{ remove: 'report.sh' }, { write: changing, text: logFile(changingLog, LOG_LINES, 2) }, ...(extra.beforeCompaction ?? [])],
     accept: extra.accept ?? { minTokens: 30_000, maxTokens: 160_000 },
     questions: [
       {
@@ -162,6 +175,7 @@ function trace(n: number, name: string, shape: string, task: string, rules: Rule
       { id: 'decided', kind: 'continuity', ...standing.decided },
       { id: 'rule-1', kind: 'constraint', ask: rules.first.ask, reference: rules.first.reference, rubric: rules.first.rubric, right: rules.first.right, wrong: rules.first.wrong },
       { id: 'rule-2', kind: 'constraint', ask: rules.second.ask, reference: rules.second.reference, rubric: rules.second.rubric, right: rules.second.right, wrong: rules.second.wrong },
+      ...(extra.questions ?? []),
     ],
     finds: [
       { id: 'find-report', by: 'value', ask: `Which earlier result held a line reading "${checksum(reportLine(n, 58))}"?`, target: reportLine(n, 58) },
@@ -177,6 +191,13 @@ function trace(n: number, name: string, shape: string, task: string, rules: Rule
 }
 
 const said = (count: number, each: (n: number) => string): Step[] => Array.from({ length: count }, (_, i) => ({ say: each(i + 1) }));
+
+/** What is said to have four station logs read: the first four at step 1, the next four at step 2. */
+const readFourLogs = (step: number) => {
+  const from = (step - 1) * 4 + 1;
+  const names = Array.from({ length: 4 }, (_, i) => `log${from + i}.txt`).join(', ');
+  return `Read ${names} with the Read tool, one file per call, in that order. Then reply only: read.`;
+};
 
 // T1. Results-heavy: twelve large files read, nothing written.
 const RESULTS_LOGS = 12;
@@ -206,11 +227,7 @@ const results = trace(
       wrong: 'As the bare number, exactly as the log prints it.',
     },
   },
-  said(3, (step) => {
-    const from = (step - 1) * 4 + 1;
-    const names = Array.from({ length: 4 }, (_, i) => `log${from + i}.txt`).join(', ');
-    return `Read ${names} with the Read tool, one file per call, in that order. Then reply only: read.`;
-  }),
+  said(RESULTS_LOGS / 4, readFourLogs),
   {
     status:
       'Where we stand. Logs 1 to 12 are read. We decided to flag a station only when it reports more than 990 units in two different logs, not in one. ' +
@@ -628,6 +645,78 @@ const opaque: Trace = {
   marks: [],
 };
 
+// T10. Large: the shape of T1 in a window of 1,000,000, thirty-two files of about 43,000 characters read, nothing written.
+const LARGE_LOGS = 32;
+const LARGE_LINES = 700;
+/**
+ * Two logs that are gone before the compaction, so that what they said is in the
+ * conversation and nowhere else: one read early, which a compaction moves out,
+ * and the last one read, which it keeps.
+ */
+const LARGE_EARLY = 5;
+const LARGE_LAST = LARGE_LOGS;
+const LARGE_STEP = 412;
+const goneLog = (id: string, log: number): Question => ({
+  id,
+  kind: 'exact-gone',
+  ask: `log${log}.txt has been deleted since you read it. What did its line for record ${log}-${String(LARGE_STEP).padStart(4, '0')} say?`,
+  reference: logLine(log, LARGE_STEP),
+  needles: [units(logLine(log, LARGE_STEP))],
+});
+const large = trace(
+  10,
+  'large',
+  'large: thirty-two files of about 43,000 characters read in a window of 1,000,000 tokens, nothing written',
+  'We are auditing station logs, a long run of them. I will ask you to read log files; later we will look for stations that reported unusually many units.',
+  {
+    first: {
+      rule: 'Conclusions are written to audit-notes.md and nowhere else.',
+      mark: 'audit-notes.md',
+      ask: 'Where are we supposed to write our conclusions?',
+      reference: 'Conclusions go in audit-notes.md and nowhere else.',
+      rubric: 'Right if it names audit-notes.md as the place for conclusions. Wrong if it names another file or says there is no rule.',
+      right: 'In audit-notes.md, and only there.',
+      wrong: 'In a summary.txt file next to each log.',
+    },
+    second: {
+      rule: 'A station id is always written with the prefix SN-, as in SN-2044.',
+      mark: 'SN-2044',
+      ask: 'How do we write a station id in our notes?',
+      reference: 'With the prefix SN-, as in SN-2044.',
+      rubric: 'Right if it says station ids take the prefix SN-. Wrong if it gives another form or says there is no rule.',
+      right: 'Always with the SN- prefix, for example SN-2044.',
+      wrong: 'As the bare number, exactly as the log prints it.',
+    },
+  },
+  said(LARGE_LOGS / 4, readFourLogs),
+  {
+    status:
+      'Where we stand. Logs 1 to 32 are read. We decided to flag a station only when it reports more than 990 units in three different logs, not in one or two. ' +
+      'Next you will read log33.txt to log36.txt and list the stations over 990 units in each. Still open: whether log19.txt, which looked truncated, has to be fetched again.',
+    next: {
+      ask: 'Without starting on it yet: what is the next step, and which files does it involve?',
+      reference: 'Read log33.txt to log36.txt and list the stations reporting more than 990 units in each.',
+      rubric: 'Right if it says the next step is reading log33 to log36 (those four files) and listing stations over 990 units. Wrong if it names other files or another task, or does not know.',
+      right: 'Next is reading log33.txt through log36.txt and listing, for each, the stations that reported over 990 units.',
+      wrong: 'Next is to re-read logs 1 to 4 and compute the average units per station.',
+    },
+    decided: {
+      ask: 'What did we decide about when to flag a station, and what is still open?',
+      reference: 'Flag a station only when it reports more than 990 units in three different logs. Still open: whether log19.txt, which looked truncated, must be fetched again.',
+      rubric: 'Right if it gives both: the three-different-logs rule for flagging (over 990 units), and that log19.txt possibly being truncated is the open point. Wrong if either is missing or different.',
+      right: 'A station is flagged only if it is over 990 units in three different logs; open is whether the truncated-looking log19.txt needs fetching again.',
+      wrong: 'A station is flagged as soon as it is over 990 units in any one log; nothing is open.',
+    },
+  },
+  {
+    window: 1_000_000,
+    files: Array.from({ length: LARGE_LOGS }, (_, i) => ({ path: `log${i + 1}.txt`, text: logFile(i + 1, LARGE_LINES) })),
+    beforeCompaction: [{ remove: `log${LARGE_EARLY}.txt` }, { remove: `log${LARGE_LAST}.txt` }],
+    questions: [goneLog('gone-early', LARGE_EARLY), goneLog('gone-last', LARGE_LAST)],
+    accept: { minTokens: 500_000, maxTokens: 750_000 },
+  },
+);
+
 export const TRACES: readonly Trace[] = [results, writes, prose, short, full, thinking];
 
 /**
@@ -644,15 +733,35 @@ export const PROBED: readonly Trace[] = [mixed, japanese];
  */
 export const FOUND: readonly Trace[] = [opaque];
 
+/**
+ * Conversations built in another window than the 200,000 of the rest, and asked
+ * the questions of `TRACES`. Run by name only: one costs more than those six.
+ */
+export const LARGE: readonly Trace[] = [large];
+
+/** The conversations asked their own questions, and so those whose answers are graded. */
+export const ASKED: readonly Trace[] = [...TRACES, ...LARGE];
+
 /** Every conversation that can be built. */
-export const BUILT: readonly Trace[] = [...TRACES, ...PROBED, ...FOUND];
+export const BUILT: readonly Trace[] = [...TRACES, ...PROBED, ...FOUND, ...LARGE];
+
+/**
+ * The conversations a command takes when none is named: `build` every one but
+ * the large one, `probe` those whose size was set against the count, the rest
+ * the six their questions were written for. The large one is taken by name
+ * only: it costs more than all the others, and is built by another model.
+ */
+export function unnamed(command: string): readonly Trace[] {
+  return command === 'build' ? [...TRACES, ...PROBED, ...FOUND] : command === 'probe' ? [...TRACES, ...PROBED] : TRACES;
+}
 
 /** What `bench/questions.json` holds: every question, its answer and how it is graded. */
 export function described() {
-  return [...TRACES, ...FOUND].map((one) => ({
+  return [...TRACES, ...FOUND, ...LARGE].map((one) => ({
     trace: one.name,
     version: one.version,
     shape: one.shape,
+    ...(one.window !== undefined ? { window: one.window } : {}),
     said: one.steps.filter((step): step is { say: string } => 'say' in step).length,
     filesBeforeCompaction: one.beforeCompaction.map((step) => ('remove' in step ? `removed: ${step.remove}` : 'write' in step ? `regenerated: ${step.write}` : '')),
     questions: one.questions,

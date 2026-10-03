@@ -26,7 +26,7 @@ import { keysIn } from './lib.ts';
 import { pick, pickTable, wentOf, type Pick } from './pick.ts';
 import { whole } from './report.ts';
 import { leaf, runAll, variantsOf } from './run.ts';
-import { BUILT, FOUND, PROBED, TRACES, described } from './traces.ts';
+import { BUILT, FOUND, PROBED, TRACES, described, unnamed } from './traces.ts';
 
 const HAIKU = 'claude-haiku-4-5-20251001';
 
@@ -82,9 +82,9 @@ async function main(): Promise<void> {
   if (`${resolve(box)}${sep}`.startsWith(`${pluginDir}${sep}`)) throw new Error(`BENCH_BOX is inside the repository (${pluginDir}): records of sessions stay outside it`);
   const places: Places = { box: resolve(box), pluginDir };
   const log = (text: string) => console.error(text);
-  // Every conversation is built and probed; questions are asked of the six they were written for.
-  // A probe of every conversation leaves out those asked only what `find` is for: their size was not set against the count (#37).
-  const traces = list(flag(args, 'traces'), (command === 'build' ? BUILT : command === 'probe' ? [...TRACES, ...PROBED] : TRACES).map((trace) => trace.name));
+  // With no trace named: every conversation but the large one is built; questions are asked of the six they were written for.
+  // A probe leaves out those asked only what `find` is for: their size was not set against the count (#37).
+  const traces = list(flag(args, 'traces'), unnamed(command ?? '').map((trace) => trace.name));
   const buildModel = flag(args, 'build-model') ?? HAIKU;
   if (command === 'build') {
     for (const name of traces) {

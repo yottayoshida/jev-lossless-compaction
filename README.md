@@ -148,6 +148,13 @@ figure is first and the built-in compaction's second:
   new cache and read files again. With the cache cold they cost 0.40 to
   1.12. On one machine, 40 of 42 `/compact`s by hand came within the hour
   Claude Code keeps it.
+- **Opus 5.5 was asked once.** After the built-in compaction it searched
+  Claude Code's own record of the session: of 17 questions about an exact
+  text, 13 were counted right with the plugin and 15 without, which one run
+  does not tell apart. The plugin's `/compact` of 575,632 tokens took 0.35 s
+  against 51.4 s and left more to send, 272,428 tokens a request against
+  6,538
+  ([measurements](docs/measurements.md#with-opus-55-and-in-a-window-of-1000000)).
 - **What goes the other way.** Where the plugin compacted by itself the next
   request was 43,995 tokens against 8,313. A rule stated in the first
   message was answered 34 times of 36 against 36: in the conversation that
