@@ -93,6 +93,8 @@ test('not found: when "none of these" wins, no text comes back and the answer sa
 
   assert.ok(text.startsWith('[not found] None of the moved-out results seems to be about that'), text);
   assert.ok(!text.includes('line 1:'));
+  // Jev sees the start of each result only: the answer says so and how to look further, so that an agent does not stop at it (#38).
+  assert.ok(text.includes('first lines') && text.includes('can be missed') && text.includes(`read the results with ${RECALL_TOOL}`), text);
 });
 
 test('when "none of these" is among the likeliest but not decisive, the list says so', async () => {
@@ -361,4 +363,29 @@ test('a result whose stored text no longer matches its id is not offered, and th
 
   assert.deepEqual(keysOf(sent[0] as Sent), ['none', 't1', 't2']);
   assert.ok(text.startsWith('[found] Bash result'));
+});
+
+test('not found with a quoted phrase: it was looked for in the whole of each result, so the answer says so and not that a value can be missed', async () => {
+  const files = new MemoryFiles();
+  const messages = await compacted(files, [call('a'), call('b'), call('c')]);
+  const { http } = recordingHttp((request) => answer(keysOf(request), 'none', 0.9));
+
+  const text = await find(input(files, messages, 'Which result has "z line 99: nothing" in it?', http));
+
+  assert.ok(text.startsWith('[not found] None of the moved-out results holds the quoted phrase as written, looked for in the whole of each'), text);
+  assert.ok(!text.includes('can be missed'), text);
+});
+
+test('when several results hold the quoted phrase and Jev says none, they are listed rather than said to be none', async () => {
+  const files = new MemoryFiles();
+  const shared = { tool: 'Bash', input: { command: 'show d' }, text: `${output('d', 30)}\nc line 17: value 3` };
+  const messages = await compacted(files, [call('a'), call('b'), call('c'), shared]);
+  const { http } = recordingHttp((request) => answer(keysOf(request), 'none', 0.9));
+
+  const text = await find(input(files, messages, 'Which result has "c line 17: value" and shows nothing else?', http));
+
+  assert.ok(text.startsWith('[not sure] The likeliest results, most likely first:'), text);
+  assert.equal(text.split('\n').filter((line) => line.includes(`recall with ${RECALL_TOOL} id `)).length, 2, text);
+  assert.ok(text.includes('show c') && text.includes('show d'), text);
+  assert.match(text, /- or none of them; probability 0\.90$/);
 });

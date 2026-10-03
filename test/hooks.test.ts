@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
+import type { Provider } from '../src/ask.ts';
+import { FIND_IN_RECALL, recallDescription } from '../src/tools.ts';
 import { FIND_TOOL, RECALL_TOOL } from '../src/store.ts';
 import { KEY_VARIABLES, PLACE_VARIABLES, ROUTE_VARIABLES } from '../src/trust.ts';
 
@@ -160,4 +162,54 @@ test('a result that holds an image is told from the blocks, handed to the compac
   assert.ok(hooks.includes('whyNotRebuilt(messages, api) ?? (media.why === null ? null :'), 'what cannot be carried stops the rebuild');
   const handler = hooks.slice(hooks.indexOf(`{ tool: '${RECALL_TOOL}' }`), hooks.indexOf(`{ tool: '${FIND_TOOL}' }`));
   assert.ok(handler.includes('return { result: found.parts === undefined ? found.text : blocksOf(found.parts) };'), 'text as before, and what holds an image as its blocks (src/media.ts decides their form)');
+});
+
+test('recall names find in its description when find is registered, and only then', async () => {
+  // Claude Code takes up the tools a plugin registers only where the hook file itself calls $.tool.register:
+  // moved to another module, neither recall nor find was there (measured on 2.1.288).
+  assert.equal(hooks.split('await $.tool.register({').length - 1, 2);
+  assert.ok(hooks.includes('name: FIND,') && hooks.includes('name: RECALL,') && hooks.includes('description: recallDescription(withFind),'));
+  // Loaded by its URL, so that the type check of the tests does not take in the host's types the hook is written against.
+  const { registerTools } = (await import(new URL('../hooks/move-out.ts', import.meta.url).href)) as {
+    registerTools: (
+      $: { tool: { register: (tool: { name: string; description: string }) => Promise<unknown> }; ui: { log: (text: string) => void; toast: (text: string) => void } },
+      provider: Provider | null | { error: string } | undefined,
+    ) => Promise<void>;
+  };
+  const provider = { kind: 'typesafe', key: 'test-key-for-typesafe', model: 'jev-latest' } as unknown as Provider;
+  const run = async (given: Parameters<typeof registerTools>[1], failFind = false) => {
+    const registered: { name: string; description: string }[] = [];
+    const said: string[] = [];
+    await registerTools(
+      {
+        tool: {
+          register: async (tool) => {
+            if (failFind && tool.name === 'find') throw new Error('refused');
+            registered.push({ name: tool.name, description: tool.description });
+          },
+        },
+        ui: { log: (text) => said.push(text), toast: () => {} },
+      },
+      given,
+    );
+    return { names: registered.map((one) => one.name), recall: registered.find((one) => one.name === 'recall')?.description ?? '', said };
+  };
+  // A key: find first, then recall, which names it by the name the agent loads it by.
+  const keyed = await run(provider);
+  assert.deepEqual(keyed.names, ['find', 'recall']);
+  assert.ok(keyed.recall.endsWith(` ${FIND_IN_RECALL}`));
+  assert.ok(FIND_IN_RECALL.includes(FIND_TOOL));
+  // No key, a key that may not be used, a lookup that failed, find refused: recall says nothing of find.
+  for (const [what, outcome] of [
+    ['no key', await run(null)],
+    ['a key that may not be used', await run({ error: 'set the key in your user settings' })],
+    ['looking for the key failed', await run(undefined)],
+    ['find could not be registered', await run(provider, true)],
+  ] as const) {
+    assert.deepEqual(outcome.names, ['recall'], what);
+    assert.equal(outcome.recall, recallDescription(false), what);
+    assert.ok(!outcome.recall.includes('find'), what);
+  }
+  assert.match((await run({ error: 'no' })).said.join('\n'), /: the find tool is not registered: no$/m);
+  assert.match((await run(provider, true)).said.join('\n'), /: the find tool could not be registered: refused$/m);
 });

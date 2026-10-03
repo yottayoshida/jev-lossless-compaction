@@ -29,6 +29,7 @@ import { ownProcessId } from '../src/mark.ts';
 import { closeStore, type Run } from '../src/private.ts';
 import { goalOf, whyNotRebuilt } from '../src/select.ts';
 import { FIND, PLUGIN, RECALL, placesOf, recall, type StoreDirs } from '../src/store.ts';
+import { recallDescription } from '../src/tools.ts';
 import { describeTaints, placeTaints, sendTaints, taintsFrom, type RepoSettings, type Seen, type Taint } from '../src/trust.ts';
 import type { DirEntry, Exec, FileStat, Files, HttpResponse, Message } from '../src/types.ts';
 import {
@@ -452,52 +453,67 @@ async function summarizeKeeping(
   return keepThenSummarize(storingFilesOf($), where, (text) => say($, text), () => next(handed), (why) => ({ skip: why }));
 }
 
-export const register: Register = (on, options) => {
-  on('session.start', async ($, e, next) => {
-    await markRunning($);
+type WithTools = { tool: { register: (tool: { name: string; description: string; inputSchema: Record<string, unknown> }) => Promise<unknown> } };
+
+/**
+ * Registers `find` when there is a key it may use, then `recall`, whose
+ * description names `find` only if `find` was registered. `provider` is
+ * undefined when looking for the key failed: that was said where it failed.
+ */
+export async function registerTools($: WithTools & WithUi, provider: Provider | null | { error: string } | undefined): Promise<void> {
+  let withFind = false;
+  // Only with a key: without one the tool would have nothing to answer with.
+  if (provider !== undefined && provider !== null && 'error' in provider) {
+    say($, `the find tool is not registered: ${provider.error}`);
+  } else if (provider !== undefined && provider !== null) {
     try {
       await $.tool.register({
-        name: RECALL,
+        name: FIND,
         description:
-          `Returns, unchanged, a tool result that ${PLUGIN} moved out of the conversation, or a part of the ` +
-          'conversation it kept before a summary replaced it. ' +
-          "Call it with the id written in the line that stands in the result's place, or in the lines right after the summary.",
+          `Finds, among the tool results that ${PLUGIN} moved out of this conversation and the parts of it kept before ` +
+          'a summary replaced them, the one a question is about, and returns it unchanged. Ask in words what the result contains or is about; a phrase of twelve characters ' +
+          'or more in double quotes is looked for as written. When Jev is not sure which result it is, the likeliest few ' +
+          'are listed with the ids to recall them by; when none of them seems to be about it, it says so.',
         inputSchema: {
           type: 'object',
           properties: {
-            id: { type: 'string', description: "The 64 hexadecimal characters at the end of the line that stands in the result's place." },
+            question: { type: 'string', description: 'What the result is about, in words; an exact phrase, twelve characters or more, in double quotes.' },
           },
-          required: ['id'],
+          required: ['question'],
         },
       });
-    } catch (error) {
-      say($, `the recall tool could not be registered: ${error instanceof Error ? error.message : String(error)}`);
-    }
-    // Only with a key: without one the tool would have nothing to answer with.
-    try {
-      const provider = await providerOf($, options);
-      if (provider !== null && 'error' in provider) {
-        say($, `the find tool is not registered: ${provider.error}`);
-      } else if (provider !== null) {
-        await $.tool.register({
-          name: FIND,
-          description:
-            `Finds, among the tool results that ${PLUGIN} moved out of this conversation and the parts of it kept before ` +
-            'a summary replaced them, the one a question is about, and returns it unchanged. Ask in words what the result contains or is about; a phrase of twelve characters ' +
-            'or more in double quotes is looked for as written. When Jev is not sure which result it is, the likeliest few ' +
-            'are listed with the ids to recall them by; when none of them seems to be about it, it says so.',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              question: { type: 'string', description: 'What the result is about, in words; an exact phrase, twelve characters or more, in double quotes.' },
-            },
-            required: ['question'],
-          },
-        });
-      }
+      withFind = true;
     } catch (error) {
       say($, `the find tool could not be registered: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+  try {
+    await $.tool.register({
+      name: RECALL,
+      description: recallDescription(withFind),
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: "The 64 hexadecimal characters at the end of the line that stands in the result's place." },
+        },
+        required: ['id'],
+      },
+    });
+  } catch (error) {
+    say($, `the recall tool could not be registered: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+export const register: Register = (on, options) => {
+  on('session.start', async ($, e, next) => {
+    await markRunning($);
+    let provider: Awaited<ReturnType<typeof providerOf>> | undefined;
+    try {
+      provider = await providerOf($, options);
+    } catch (error) {
+      say($, `the find tool could not be registered: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    await registerTools($, provider);
     // Not waited for: reading every transcript can take a minute, and the session should not.
     void collectOnce($, options);
     return next(e);

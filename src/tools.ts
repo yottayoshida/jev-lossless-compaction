@@ -1,0 +1,21 @@
+// The tools the plugin registers at the start of a session, and what each says of itself.
+
+import { FIND_TOOL, PLUGIN } from './store.ts';
+
+/**
+ * What `recall`'s description says of `find` when `find` is registered. Where
+ * Claude Code loads tools on demand, an agent sees a tool's description only
+ * once it has loaded it, and it loads `recall`, which the tickets name; so this
+ * is where it learns that a result can be asked for by what it was about.
+ */
+export const FIND_IN_RECALL = `When no id at hand is known to be the result that is wanted, ${FIND_TOOL} finds it from what it was about, asked in words.`;
+
+/** `recall`'s description, naming `find` only when `find` is there to be called. */
+export function recallDescription(withFind: boolean): string {
+  return (
+    `Returns, unchanged, a tool result that ${PLUGIN} moved out of the conversation, or a part of the ` +
+    'conversation it kept before a summary replaced it. ' +
+    "Call it with the id written in the line that stands in the result's place, or in the lines right after the summary." +
+    (withFind ? ` ${FIND_IN_RECALL}` : '')
+  );
+}
