@@ -23,12 +23,22 @@ Not compacted · lossless-compaction: nothing to move out, 28425 of 167000 token
 ```
 
 - The line is the one Claude Code shows for a compaction a plugin skipped,
-  and it records the compaction as failed. Nothing is kept, rebuilt or sent,
-  and the line is all that is added to the conversation.
+  and it records the compaction as failed. Nothing of the conversation is
+  kept, rebuilt or sent, and the line is all that is added to it. As at any
+  compaction, the place results are kept in is made private first and what
+  a clean-up moved to the trash is put back.
+- With `claude -p --resume … "/compact"`, such a session ends without an
+  error, exit 0, and prints that line: a script that compacts this way to
+  make a conversation smaller gets it back as it was. `/compact` with
+  instructions summarizes.
 - What is in use is Claude Code's own figure, thinking included, since
   nothing is rebuilt. Right after a summary Claude Code gives none: the
   conversation's characters over three are measured instead, which holds no
-  system prompt and no tools, and the line names no figure.
+  system prompt and no tools, and the line names no figure. A conversation
+  of text that comes to a token a character or more, Japanese say, can then
+  be counted under the line where it is over. Right after a summary the
+  conversation is the summary, which a summary would not make smaller; where
+  else Claude Code gives no figure was not measured.
 - `/compact` with instructions is summarized as before, the conversation
   kept first. So is an automatic compaction, which runs because the
   conversation is full, and a `/compact` with `maxAfterPercent` set under

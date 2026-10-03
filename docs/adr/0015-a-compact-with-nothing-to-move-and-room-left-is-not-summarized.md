@@ -2,6 +2,10 @@
 
 - Status: Accepted
 - Date: 2026-10-03
+- Narrows [0007](0007-keep-what-the-summary-replaces.md): what 0007 keeps
+  and hands to the summary when nothing can be moved out is, in the case
+  below, not summarized at all. What it decided for every other hand-over
+  stands.
 
 ## Context
 
