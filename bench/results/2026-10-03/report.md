@@ -472,9 +472,6 @@ How the questions went, all runs together:
 | full | claude-haiku-4-5-20251001 | default (cd125deb5b55) | 1 | nothing | 141275 | 142134 in use before, without 932 of thinking | -0.6 % |
 | full | claude-haiku-4-5-20251001 | default (cd125deb5b55) | 2 | nothing | 141275 | 142134 in use before, without 932 of thinking | -0.6 % |
 | full | claude-haiku-4-5-20251001 | default (cd125deb5b55) | 3 | nothing | 141275 | 142134 in use before, without 932 of thinking | -0.6 % |
-| prose | claude-haiku-4-5-20251001 | default (cd125deb5b55) | 1 | undone | none stated | — | — |
-| prose | claude-haiku-4-5-20251001 | default (cd125deb5b55) | 2 | undone | none stated | — | — |
-| prose | claude-haiku-4-5-20251001 | default (cd125deb5b55) | 3 | undone | none stated | — | — |
 | prose | claude-haiku-4-5-20251001 | max-after-1 (cd125deb5b55) | 1 | nothing | 56741 | 58079 in use before, without 1017 of thinking | -2.3 % |
 | prose | claude-haiku-4-5-20251001 | max-after-1 (cd125deb5b55) | 2 | nothing | 56741 | 58079 in use before, without 1017 of thinking | -2.3 % |
 | prose | claude-haiku-4-5-20251001 | max-after-1 (cd125deb5b55) | 3 | nothing | 56741 | 58079 in use before, without 1017 of thinking | -2.3 % |
@@ -482,22 +479,12 @@ How the questions went, all runs together:
 | results | claude-haiku-4-5-20251001 | default (cd125deb5b55) | 2 | moved | 45316 | 43995 sent next | 3.0 % |
 | results | claude-haiku-4-5-20251001 | default (cd125deb5b55) | 3 | moved | 45316 | 43995 sent next | 3.0 % |
 | results | claude-sonnet-5-5 | default (cd125deb5b55) | 1 | moved | 45841 | 43919 sent next | 4.4 % |
-| short | claude-haiku-4-5-20251001 | default (cd125deb5b55) | 1 | undone | none stated | — | — |
-| short | claude-haiku-4-5-20251001 | default (cd125deb5b55) | 2 | undone | none stated | — | — |
-| short | claude-haiku-4-5-20251001 | default (cd125deb5b55) | 3 | undone | none stated | — | — |
 | short | claude-haiku-4-5-20251001 | max-after-1 (cd125deb5b55) | 1 | nothing | 25638 | 27247 in use before, without 1299 of thinking | -5.9 % |
 | short | claude-haiku-4-5-20251001 | max-after-1 (cd125deb5b55) | 2 | nothing | 25638 | 27247 in use before, without 1299 of thinking | -5.9 % |
 | short | claude-haiku-4-5-20251001 | max-after-1 (cd125deb5b55) | 3 | nothing | 25638 | 27247 in use before, without 1299 of thinking | -5.9 % |
-| thinking | claude-haiku-4-5-20251001 | default (cd125deb5b55) | 1 | undone | none stated | — | — |
-| thinking | claude-haiku-4-5-20251001 | default (cd125deb5b55) | 2 | undone | none stated | — | — |
-| thinking | claude-haiku-4-5-20251001 | default (cd125deb5b55) | 3 | undone | none stated | — | — |
 | thinking | claude-haiku-4-5-20251001 | max-after-1 (cd125deb5b55) | 1 | nothing | 22468 | 23218 in use before, without 9083 of thinking | -3.2 % |
 | thinking | claude-haiku-4-5-20251001 | max-after-1 (cd125deb5b55) | 2 | nothing | 22468 | 23218 in use before, without 9083 of thinking | -3.2 % |
 | thinking | claude-haiku-4-5-20251001 | max-after-1 (cd125deb5b55) | 3 | nothing | 22468 | 23218 in use before, without 9083 of thinking | -3.2 % |
-| writes | claude-haiku-4-5-20251001 | default (cd125deb5b55) | 1 | undone | none stated | — | — |
-| writes | claude-haiku-4-5-20251001 | default (cd125deb5b55) | 2 | undone | none stated | — | — |
-| writes | claude-haiku-4-5-20251001 | default (cd125deb5b55) | 3 | undone | none stated | — | — |
 | writes | claude-haiku-4-5-20251001 | max-after-1 (cd125deb5b55) | 1 | nothing | 65686 | 67081 in use before, without 1161 of thinking | -2.1 % |
 | writes | claude-haiku-4-5-20251001 | max-after-1 (cd125deb5b55) | 2 | nothing | 65686 | 67081 in use before, without 1161 of thinking | -2.1 % |
 | writes | claude-haiku-4-5-20251001 | max-after-1 (cd125deb5b55) | 3 | nothing | 65686 | 67081 in use before, without 1161 of thinking | -2.1 % |
-| writes | claude-sonnet-5-5 | default (cd125deb5b55) | 1 | undone | none stated | — | — |

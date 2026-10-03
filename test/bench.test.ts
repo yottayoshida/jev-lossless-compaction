@@ -457,6 +457,11 @@ test('a unit whose /compact was left undone is tabled as that: no summary, and a
   assert.ok(tables.includes('| Built-in summary ran | 0 of 1 | 1 of 1 |'));
   assert.ok(tables.includes('| Left as it was, nothing compacted | 1 of 1 | 0 of 1 |'));
   assert.ok(tables.includes('| Compaction, ms | 52 | 25730 |'));
+  // It estimated nothing, so it has no row where estimates are set against what was in use; one that compacted has.
+  const line = { outcome: 'undone' as const, moved: 0, results: 0, images: 0, charsBefore: 0, charsAfter: 0, ms: 0, inUse: 28425, window: 167000 };
+  const moved = { outcome: 'moved' as const, moved: 6, results: 21, images: 0, charsBefore: 9, charsAfter: 5, ms: 61, estimate: 52357, window: 167000 };
+  const rows = estimates([{ ...undone, compaction: { ...undone.compaction, line } }, unitOf('plugin', 2, asked, { line: moved })]).split('\n').slice(2);
+  assert.deepEqual(rows.map((row) => row.split(' | ')[4]), ['moved']);
 });
 
 test('the grader is sent a number, the question, the facts, the rubric and the answer: nothing of the arm, the model or the run', () => {
@@ -1280,6 +1285,12 @@ test('the benchmark with a /compact left undone (ADR 0015): the plugin measured 
   const nextRequest = (arm: 0 | 1) => sixTraces.map((trace) => middle(rowOf(tables, trace, 'Tokens sent on the next request')[arm] ?? ''));
   assert.deepEqual(nextRequest(0), [43995, 69039, 59893, 29343, 14671, 33098]);
   assert.deepEqual(nextRequest(1), [8313, 26034, 12573, 13157, 12557, 12781]);
+  // Over every run of the four: what the next request carried left as it was, and after a summary.
+  const span = (arm: 0 | 1) => {
+    const all = four.flatMap((trace) => (rowOf(tables, trace, 'Tokens sent on the next request')[arm] ?? '').split(', ').map(Number));
+    return [Math.min(...all), Math.max(...all)];
+  };
+  assert.deepEqual([span(0), span(1)], [[29343, 69039], [12522, 26318]]);
   // The script's output that no file holds any more, right of six, per trace: the README's table.
   assert.deepEqual(sixTraces.map((trace) => rightOf(tables, [trace], 'Exact, source gone', 0)[0]), [6, 5, 4, 6, 6, 6]);
   assert.deepEqual(sixTraces.map((trace) => rightOf(tables, [trace], 'Exact, source gone', 1)[0]), [2, 1, 4, 1, 3, 1]);

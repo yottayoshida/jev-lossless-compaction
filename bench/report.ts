@@ -202,7 +202,8 @@ export function finds(units: readonly Unit[]): string {
  * it left was never sent, and there is nothing to set the estimate against.
  */
 export function estimates(units: readonly Unit[]): string {
-  const probes = units.filter((unit) => unit.arm === 'plugin' && unit.compaction.line !== null);
+  // A compaction left undone estimated nothing: there is no afterwards to set against.
+  const probes = units.filter((unit) => unit.arm === 'plugin' && unit.compaction.line !== null && unit.compaction.undone !== true);
   const rows = probes
     .sort((a, b) => `${a.trace}${a.model}${a.variant}${a.run}`.localeCompare(`${b.trace}${b.model}${b.variant}${b.run}`))
     .map((unit) => {
