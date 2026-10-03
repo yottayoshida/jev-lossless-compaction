@@ -14,7 +14,7 @@ const read = (path: string) => readFileSync(join(ROOT, path), 'utf8');
 const README = read('README.md');
 
 /** What the README may come to, its words counted as `wc -w` counts them. Past any of these, a section goes to docs/ and a link stays. */
-const PAGE = { lines: 120, words: 850, headings: 7, tables: 1 };
+const PAGE = { lines: 100, words: 760, headings: 7, tables: 1 };
 
 /** A document without its code blocks, where a line starting `#` is a comment and not a heading. */
 const prose = (text: string) => text.replace(/^```[\s\S]*?^```$/gm, '');
