@@ -143,3 +143,65 @@ export function jaPuzzle(n: number): string {
     `取り除く項を一つずつ確かめながら順に計算し、最後の行を「ANSWER ${n}: <数>」とせよ。`
   );
 }
+
+/**
+ * Thirteen documents on unrelated subjects, for the conversation whose calls say
+ * nothing of what they print (`opaque`). The first two lines say what each is
+ * about; the rest is plain prose shared by none of the subjects' words, and none
+ * of the words of a station log, so that what a result is about is in its first
+ * lines alone.
+ */
+export const OPAQUE_SUBJECTS = [
+  ['Runbook: rotating the signing key used for release builds', 'Who holds the old key, how the new one is made, and how every builder is moved over to it.'],
+  ['Incident report: the payment webhook that stopped answering', 'What customers saw while checkout hung, what was found, and what was changed afterwards.'],
+  ['How to set up the printer pool on the third floor', 'Drivers, paper trays, the queue that holds jobs overnight, and who to call when it jams.'],
+  ['Onboarding a contractor onto the company VPN', 'The request form, the hardware token, the groups a contractor joins, and the day access ends.'],
+  ['Why the object storage bill doubled', 'Which buckets grew, what was left behind by old experiments, and what is now cleaned up each week.'],
+  ['Moving the team wiki to a new host', 'Exporting pages, keeping old links working, and the weekend the old host was switched off.'],
+  ['What to do during a fire drill', 'Where to gather, who sweeps each floor, and what happens to visitors and deliveries meanwhile.'],
+  ['Tuning garbage collection on the search service', 'Heap sizes tried, the pauses seen under each, and the settings that were kept.'],
+  ['The holiday rota for the support desk', 'Who covers which days over the winter break, how swaps are agreed, and the escalation chain.'],
+  ['Post-mortem: a database table deleted by mistake', 'How a cleanup script removed the wrong table, how it was brought back, and the guard added since.'],
+  ['How the mobile app delivers push notifications', 'The path from the backend to the phone, the retries, and why some notifications arrive late.'],
+  ['Renewing the TLS certificates before they expire', 'Which certificates there are, who is warned and when, and how a renewal is checked.'],
+  ['Looking after the coffee machine in the kitchen', 'Descaling, the filter, the beans that are ordered, and the sign to put up when it is broken.'],
+] as const;
+
+const PLAIN = [
+  'This part was written down so that whoever comes later does not have to ask.',
+  'Most of it was learned the slow way, by doing it wrong at the start.',
+  'Nobody owns this alone; whoever notices a gap fills it in.',
+  'If something here is out of date, change it rather than adding a note beside it.',
+  'The order below is the order it is usually done in, though not every time.',
+  'A short message to the team before starting saves a long one afterwards.',
+  'Anything that cannot be undone is said so where it comes up.',
+  'Where a choice was made, the reason is kept next to it.',
+  'The earliest attempt took most of an afternoon; it is quicker now.',
+  'Questions go to the shared channel, where the answer helps others too.',
+  'Some of this is habit more than rule, and is marked as such.',
+  'When in doubt, stop and ask; waiting a little costs less than guessing.',
+];
+
+/** A reference code only one document holds, for the questions asked by a value. */
+export const opaqueCode = (doc: number) => `RX-${pad((doc * 4441) % 9000 + 1000, 4)}-${'KMPTW'[doc % 5]}`;
+
+/** The line a value question is about: one in the middle of a document. */
+export const opaqueCodeLine = (doc: number) => `Reference code ${opaqueCode(doc)} was given to this document when it was filed.`;
+
+/** Document `doc` (1 to 13): two lines of what it is about, then about `lines` lines of plain prose. */
+export function opaqueDoc(doc: number, lines: number): string {
+  const [title, about] = OPAQUE_SUBJECTS[doc - 1] ?? ['', ''];
+  const body = Array.from({ length: lines }, (_, i) => {
+    const a = PLAIN[(i * 5 + doc) % PLAIN.length];
+    const b = PLAIN[(i * 7 + doc * 3 + 1) % PLAIN.length];
+    return `${doc}.${pad(i + 1, 3)} ${a} ${b}`;
+  });
+  body.splice(Math.floor(lines / 2), 0, opaqueCodeLine(doc));
+  return `${title}\n${about}\n\n${body.join('\n')}\n`;
+}
+
+/** A shell script that prints, by number, each of `outputs` and nothing else: once it is removed, none of them can be had again. */
+export function showScript(outputs: readonly string[]): string {
+  const cases = outputs.map((text, i) => `${pad(i + 1, 2)}) cat <<'SHOWN'\n${text}SHOWN\n;;`);
+  return `#!/bin/sh\ncase "$1" in\n${cases.join('\n')}\n*) echo "no output $1"; exit 1 ;;\nesac\n`;
+}

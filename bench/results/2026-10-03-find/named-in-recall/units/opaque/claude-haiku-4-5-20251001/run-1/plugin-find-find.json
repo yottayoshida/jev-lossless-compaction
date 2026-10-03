@@ -1,0 +1,408 @@
+{
+ "trace": "opaque",
+ "version": 1,
+ "base": "a6fdff77-4483-4549-9453-4a63c157653f",
+ "plugin": "288266aa862c",
+ "pluginCommit": "944055260476",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 1,
+ "arm": "plugin",
+ "first": true,
+ "variant": "find",
+ "mode": "find",
+ "at": "2026-10-03T01:43:54.194Z",
+ "claudeCode": "2.1.288",
+ "compaction": {
+  "sessionId": "81207dfd-bf8c-4e2f-b50e-b8ed3ea47e3d",
+  "durationMs": 163,
+  "wallMs": 2378,
+  "preTokens": 91601,
+  "postTokens": 22054,
+  "thinkingBefore": 693,
+  "line": {
+   "outcome": "moved",
+   "moved": 16,
+   "results": 20,
+   "images": 0,
+   "charsBefore": 250457,
+   "charsAfter": 88103,
+   "ms": 110,
+   "estimate": 39328,
+   "window": 167000
+  },
+  "summarized": false,
+  "own": {
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0,
+   "thinkingTokens": 0
+  }
+ },
+ "questions": [
+  {
+   "id": "find-doc-1",
+   "kind": "exact-gone",
+   "answer": "\"Runbook: rotating the signing key used for release builds\"",
+   "calls": [
+    "ToolSearch",
+    "ToolSearch",
+    "mcp__lossless-compaction__find",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25442,
+    26009,
+    26586,
+    28590,
+    30602
+   ],
+   "durationMs": 16465,
+   "wallMs": 17821,
+   "own": {
+    "inputTokens": 46,
+    "outputTokens": 1023,
+    "cacheReadInputTokens": 132021,
+    "cacheCreationInputTokens": 5162,
+    "costUSD": 0.028687099999999993,
+    "thinkingTokens": 611
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-2",
+   "kind": "exact-gone",
+   "answer": "Incident report: the payment webhook that stopped answering",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25444,
+    26330,
+    28329
+   ],
+   "durationMs": 9022,
+   "wallMs": 10268,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 653,
+    "cacheReadInputTokens": 77188,
+    "cacheCreationInputTokens": 2887,
+    "costUSD": 0.01678579999999999,
+    "thinkingTokens": 464
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-4",
+   "kind": "exact-gone",
+   "answer": "I don't see any earlier result in our conversation that covers \"letting an outside worker reach the internal network from home.\" Our discussion has focused on running station record scripts (show.sh outputs 01-20) and creating a TALLY.md file to track units reported by each station at each step. There's no mention of network access or remote workers in the outputs we've reviewed.\n\nCould you clarify what you're referring to, or provide more context?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25439
+   ],
+   "durationMs": 4231,
+   "wallMs": 5718,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 350,
+    "cacheReadInputTokens": 25429,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.004302899999999998,
+    "thinkingTokens": 248
+   }
+  },
+  {
+   "id": "find-doc-7",
+   "kind": "exact-gone",
+   "answer": "\"What to do during a fire drill\"",
+   "calls": [
+    "ToolSearch",
+    "ToolSearch",
+    "mcp__lossless-compaction__find",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25441,
+    26375,
+    27201,
+    29199,
+    31190
+   ],
+   "durationMs": 24917,
+   "wallMs": 26138,
+   "own": {
+    "inputTokens": 46,
+    "outputTokens": 1652,
+    "cacheReadInputTokens": 133609,
+    "cacheCreationInputTokens": 5751,
+    "costUSD": 0.0331689,
+    "thinkingTokens": 1285
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-9",
+   "kind": "exact-gone",
+   "answer": "\"The holiday rota for the support desk\"",
+   "calls": [
+    "ToolSearch",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25440,
+    25928,
+    26384,
+    28365
+   ],
+   "durationMs": 7750,
+   "wallMs": 9012,
+   "own": {
+    "inputTokens": 38,
+    "outputTokens": 628,
+    "cacheReadInputTokens": 103152,
+    "cacheCreationInputTokens": 2927,
+    "costUSD": 0.01934720000000001,
+    "thinkingTokens": 365
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-10",
+   "kind": "exact-gone",
+   "answer": "Post-mortem: a database table deleted by mistake",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25442,
+    26247,
+    28260
+   ],
+   "durationMs": 8249,
+   "wallMs": 9494,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 593,
+    "cacheReadInputTokens": 77101,
+    "cacheCreationInputTokens": 2820,
+    "costUSD": 0.0163431,
+    "thinkingTokens": 403
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-12",
+   "kind": "exact-gone",
+   "answer": "I don't see any earlier result in our conversation about credentials or secure web traffic. Our discussion so far has focused on running shell scripts that output station records (records 14-20), and then I was asked to note that I should tally units into TALLY.md and check if station 4107 reported twice.\n\nCould you clarify which result you're referring to, or provide more context about what message you'd like me to quote?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25441
+   ],
+   "durationMs": 3870,
+   "wallMs": 5347,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 306,
+    "cacheReadInputTokens": 25431,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.004083100000000006,
+    "thinkingTokens": 206
+   }
+  },
+  {
+   "id": "find-code-3",
+   "kind": "exact-gone",
+   "answer": "The reference code RX-5323-T does not appear to be in any of the visible or moved-out results from the show.sh outputs shown. Based on the station records displayed (outputs 17 and 20), which showed formats like \"record 203-0001: station 4593 reported 234 units at step 1\", there is no RX-5323-T reference code visible in those results.\n\nCould you clarify where you expected RX-5323-T to appear, or provide the output number where it should be?",
+   "calls": [
+    "ToolSearch",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    25438,
+    26099,
+    26482,
+    26666
+   ],
+   "durationMs": 11374,
+   "wallMs": 12569,
+   "own": {
+    "inputTokens": 38,
+    "outputTokens": 1006,
+    "cacheReadInputTokens": 103417,
+    "cacheCreationInputTokens": 1230,
+    "costUSD": 0.017869700000000016,
+    "thinkingTokens": 602
+   }
+  },
+  {
+   "id": "find-code-6",
+   "kind": "exact-gone",
+   "answer": "I cannot find reference code RX-9646-M in the earlier results retrieved. The reference codes I found were RX-5323-T (from show.sh 03) and RX-9764-W (from show.sh 04), but RX-9646-M does not appear in any of the outputs shown or the moved-out results.",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 2,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    25438,
+    26469,
+    28444,
+    30403,
+    30788,
+    30961
+   ],
+   "durationMs": 25788,
+   "wallMs": 26990,
+   "own": {
+    "inputTokens": 54,
+    "outputTokens": 1633,
+    "cacheReadInputTokens": 166924,
+    "cacheCreationInputTokens": 5525,
+    "costUSD": 0.03596139999999998,
+    "thinkingTokens": 1070
+   }
+  },
+  {
+   "id": "find-code-11",
+   "kind": "exact-gone",
+   "answer": "Reference code RX-4851-M was not found in any of the earlier outputs from the show.sh commands that were run.",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 9,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25438,
+    26144,
+    28550,
+    30511,
+    32459,
+    34412,
+    36367,
+    38304,
+    40250,
+    42193,
+    51129,
+    51548,
+    51723
+   ],
+   "durationMs": 43650,
+   "wallMs": 44890,
+   "own": {
+    "inputTokens": 110,
+    "outputTokens": 2589,
+    "cacheReadInputTokens": 462631,
+    "cacheCreationInputTokens": 26287,
+    "costUSD": 0.1118921,
+    "thinkingTokens": 1389
+   }
+  }
+ ]
+}

@@ -282,6 +282,9 @@ differs from the next, not by `find`. In the earlier measurement
 [below](#find-1), where the agent called `find` thirteen times of thirteen,
 the calls that made the results said nothing of their content; here each
 names its file.
+Where they say nothing, and with `recall`'s description naming `find`, it
+was called for about half the questions by meaning: [`find` where the calls say
+nothing](#find-where-the-calls-say-nothing).
 
 ### What this does not show
 
@@ -466,6 +469,68 @@ written before Jev is asked.
 With a hundred stored results of 60 KB and three of 4 MB, `find`'s own work
 took 96 ms. A `choice` with 95 options of 750 characters, 71,219 characters
 in all, went through the Cloudflare route in 1.5 seconds.
+
+## `find` where the calls say nothing
+
+The benchmark's questions for `find` could all be answered from a ticket's
+id, since each call named the file it read; there, with 0.6.0, the agent
+never called `find`. #38 asked whether it calls `find` where that is not so. The
+conversation `opaque` (`bench/traces.ts`) runs `sh show.sh 01` to `20`:
+thirteen documents of about 7,000 characters on unrelated subjects (a
+runbook for rotating a signing key, an incident report, the holiday rota of
+a support desk…), then seven station logs. The plugin moves all thirteen
+documents out (sixteen results of twenty in every unit; the logs share more
+words with what was said last, so they leave last), the script is removed,
+and nothing the agent said holds what any document is about: it replied
+"shown" and nothing else. Seven questions ask by what a document was about
+in other words than its first lines ("which earlier result set out who
+answers customers while most people are away in December?"), three by a
+reference code in the middle of one. Haiku 4.5 built it and was asked, three
+runs of each; a question counts as calling `find` when the agent called it
+at least once for it. The rule was set before measuring: the plugin is left
+as it is if the agent calls `find` for 11 or more of the 21 questions by
+meaning, and `recall`'s description names `find` otherwise.
+
+| Plugin                                   | Key | Calls `find`, by meaning | Right, by meaning | Right, by a code |
+| ---------------------------------------- | --- | -----------------------: | ----------------: | ---------------: |
+| Before this change                       | no  |                  0 of 21 |           2 of 21 |           4 of 9 |
+| Before this change                       | yes |                  8 of 21 |          10 of 21 |           2 of 9 |
+| `recall`'s description names `find`     | no  |                  0 of 21 |           3 of 21 |           3 of 9 |
+| `recall`'s description names `find`     | yes |                 13 of 21 |          13 of 21 |           0 of 9 |
+| and `find`'s "none" says what Jev saw    | no  |                  0 of 21 |           1 of 21 |           2 of 9 |
+| and `find`'s "none" says what Jev saw    | yes |                 11 of 21 |          11 of 21 |           1 of 9 |
+
+The plugin before this change (main at `e792fad`, 0.6.1 with #14) fell short of the rule, 8 of 21 (4, 1 and 3 in the three
+runs). Where Claude Code loads tools on demand an agent sees the
+description of a tool it has loaded and no other, and it loads `recall`,
+which the tickets name: `find`'s own description is not read. With a
+sentence in `recall`'s description that `find` finds a result from what it
+was about, the agent called it for 13 of 21; but asked for a code, it called
+`find` too, `find` answered that no result was about that, and the agent
+said the code was not there: 0 of 9. What Jev is shown of a result is its
+call and its first lines, and a code further down is not among them (asked
+with no agent in between, `find` said none for all three codes, and gave
+the right document for all seven questions by meaning; a word match gave
+two). `find`'s answer now says so, and that a phrase of twelve characters
+or more is looked for as written and `recall` reads the results; with that,
+11 of 21 (4, 4 and 3), and 1 of 9 codes, one fewer than before this change.
+The arm with no key does not change between the three: its codes went from
+2 to 4 of 9, which is how far one set of three runs lies from the next.
+
+The same plugin on the benchmark's conversations, where the calls name what
+they read (three runs; the one run of 0.6.0 [above](#find) beside it):
+`results` 6, 8 and 5 of 8 with a key and 5, 5 and 5 without (0.6.0: 6 and
+5), calling `find` 1, 2 and 1 times in eight questions; `short` 4, 4 and 4
+of 5 with a key and 4, 3 and 4 without (0.6.0: 4 and 3), calling it never. Sonnet 5.5 on
+`opaque`, one run: with a key it called `find` for 6 of the 7 questions by meaning and was right on 6, and on 1 of the 3 codes; with no key, right on 4 and on 1.
+
+Not measured: Opus; a working session; a conversation where the results
+that are asked about were never moved out. The units are in
+`bench/results/2026-10-03-find/`, one directory for each plugin above. They
+were measured on `e792fad`, with this change for the last two. #48, merged
+since, changes only a `/compact` that moves nothing out: `opaque` and
+`results` move results out and are not such a compaction; `short` is, and
+since #48 it is left as it was where there is room, which was not measured.
 
 ## The README's demo, after the rename
 

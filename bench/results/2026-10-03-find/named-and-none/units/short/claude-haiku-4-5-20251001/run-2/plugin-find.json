@@ -1,0 +1,200 @@
+{
+ "trace": "short",
+ "version": 1,
+ "base": "7bd813b7-e4b7-4b54-b8d7-7f0cd2e2f0cc",
+ "plugin": "3b4bdf93e529",
+ "pluginCommit": "40f7d34c4f52",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 2,
+ "arm": "plugin",
+ "first": true,
+ "variant": "default",
+ "mode": "find",
+ "at": "2026-10-03T03:08:51.554Z",
+ "claudeCode": "2.1.287",
+ "compaction": {
+  "sessionId": "c6792f4b-521e-4cf0-b548-24aa9ad051ca",
+  "durationMs": 24861,
+  "wallMs": 26074,
+  "preTokens": 27728,
+  "postTokens": 4824,
+  "thinkingBefore": 1524,
+  "line": {
+   "outcome": "nothing",
+   "moved": 0,
+   "results": 38,
+   "images": 0,
+   "charsBefore": 33561,
+   "charsAfter": 33561,
+   "ms": 1,
+   "estimate": 24448,
+   "window": 167000
+  },
+  "summarized": true,
+  "own": {
+   "inputTokens": 21094,
+   "outputTokens": 2311,
+   "cacheReadInputTokens": 8355,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0.033484500000000014,
+   "thinkingTokens": 873
+  }
+ },
+ "questions": [
+  {
+   "id": "find-report",
+   "kind": "exact-gone",
+   "answer": "I don't see a line containing \"d8940af6\" in the recalled conversation or in the current results shown. The earlier Bash results (from the cat commands on shelves 1-30) were moved out and replaced with recall IDs. To find which result contained that line, I'd need to recall one of those specific Bash results.\n\nDo you want me to search through the moved-out Bash results, or can you point me to which one might have contained it?",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 5,
+   "requests": [
+    13428,
+    13979,
+    20961
+   ],
+   "durationMs": 14869,
+   "wallMs": 16009,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 1153,
+    "cacheReadInputTokens": 33212,
+    "cacheCreationInputTokens": 15128,
+    "costUSD": 0.03937020000000002,
+    "thinkingTokens": 847
+   }
+  },
+  {
+   "id": "find-kept",
+   "kind": "exact-gone",
+   "answer": "record 94-0017: station 7315 reported 621 units at step 17",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    13430
+   ],
+   "durationMs": 2841,
+   "wallMs": 4279,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 207,
+    "cacheReadInputTokens": 5825,
+    "cacheCreationInputTokens": 7595,
+    "costUSD": 0.016817499999999985,
+    "thinkingTokens": 181
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-script",
+   "kind": "exact-gone",
+   "answer": "\"batch 01: 8 warnings, checksum 9e39f28d\"",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 2,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    13431,
+    14098,
+    21061,
+    23397
+   ],
+   "durationMs": 12859,
+   "wallMs": 14034,
+   "own": {
+    "inputTokens": 36,
+    "outputTokens": 928,
+    "cacheReadInputTokens": 54387,
+    "cacheCreationInputTokens": 17564,
+    "costUSD": 0.045242700000000025,
+    "thinkingTokens": 620
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-stays",
+   "kind": "exact-gone",
+   "answer": "Based on the file names, `kept-4.log` is the one to be left as it is.\n\nIts first line in full:\n\n```\nrecord 94-0001: station 287 reported 125 units at step 1\n```",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    13440
+   ],
+   "durationMs": 8164,
+   "wallMs": 9359,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 249,
+    "cacheReadInputTokens": 5825,
+    "cacheCreationInputTokens": 7605,
+    "costUSD": 0.017047499999999993,
+    "thinkingTokens": 188
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-changes",
+   "kind": "exact-gone",
+   "answer": "Looking at the two log files read at the start: kept-4.log and changing-4.log. The one that was going to be made anew is **changing-4.log**.\n\nIts first line in full is:\n\n`record 84-0001: station 8950 reported 468 units at step 1`",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    13440
+   ],
+   "durationMs": 4995,
+   "wallMs": 6575,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 413,
+    "cacheReadInputTokens": 5825,
+    "cacheCreationInputTokens": 7605,
+    "costUSD": 0.01786750000000001,
+    "thinkingTokens": 335
+   }
+  }
+ ]
+}

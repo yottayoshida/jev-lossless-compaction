@@ -29,7 +29,8 @@ import { MISSED, batchName, currentOf, itemsOf, keyOf, promptOf, published, scru
 import { MIN_CHARS, pick, pickTable, readAnswer, resultsOf, staged, wentOf, type Pick } from '../bench/pick.ts';
 import { estimates, finds, graderOf, outcomesOf, overruled, report, verdictOf, whole } from '../bench/report.ts';
 import { QUOTE, armsOf, staleness, variantsOf, type Unit } from '../bench/run.ts';
-import { BUILT, PROBED, TRACES, described } from '../bench/traces.ts';
+import { BUILT, FOUND, PROBED, TRACES, described } from '../bench/traces.ts';
+import { termsOf } from '../src/select.ts';
 import { reportLine, undoneLine, type Report } from '../src/compact.ts';
 import type { Http } from '../src/types.ts';
 import { ok, questionsOf, recordingHttp, type Sent } from './helpers.ts';
@@ -585,8 +586,8 @@ test('probes alone are tabled without the tables of questions, and a checkout ca
 
 test('two conversations are built and probed and asked nothing: they are no part of the questions, the grading or the comparison', () => {
   assert.deepEqual(PROBED.map((trace) => trace.name), ['mixed', 'japanese']);
-  assert.deepEqual(BUILT, [...TRACES, ...PROBED]);
-  assert.equal(new Set(BUILT.map((trace) => trace.name)).size, 8);
+  assert.deepEqual(BUILT, [...TRACES, ...PROBED, ...FOUND]);
+  assert.equal(new Set(BUILT.map((trace) => trace.name)).size, 9);
   const written = described().map((one) => one.trace);
   assert.ok(PROBED.every((trace) => !written.includes(trace.name)));
   // A probe of one is a current unit; a unit that asked its questions would have nothing to be graded by.
@@ -760,6 +761,52 @@ test('the questions find is for: by a value or by what the result was, each abou
   assert.equal(resultsOf(builtConversation('short')).length, 3);
   // An agent asked the same question is told how to show which result it means, so that a program can check it.
   assert.deepEqual(QUOTE, { value: 'Quote that line in full.', meaning: 'Quote its first line in full.' });
+});
+
+test('the conversation asked only what find is for: no call says what came back, and what came back is in the results alone', () => {
+  assert.deepEqual(FOUND.map((trace) => trace.name), ['opaque']);
+  const [opaque] = FOUND;
+  assert.ok(opaque !== undefined);
+  assert.deepEqual(opaque.questions, []);
+  assert.deepEqual(opaque.marks, []);
+  // One file, the script, and it is gone before any question: nothing on disk answers one.
+  assert.deepEqual(opaque.files.map((file) => file.path), ['show.sh']);
+  assert.deepEqual(opaque.beforeCompaction, [{ remove: 'show.sh' }]);
+  const script = opaque.files[0]?.text ?? '';
+  const outputs = script.split(/\n\d\d\) cat <<'SHOWN'\n/).slice(1).map((part) => part.split('SHOWN\n;;')[0] ?? '');
+  assert.equal(outputs.length, 20);
+  // Thirteen documents, then station logs that may leave once the documents have, then logs the newest results keep (60,000 characters).
+  assert.ok(outputs.slice(0, 13).every((text) => text.length > 6_000 && text.length < 8_000));
+  assert.ok(outputs.slice(13, 17).every((text) => text.length > 20_000 && text.length < 30_000));
+  assert.ok(outputs.slice(17).reduce((sum, text) => sum + text.length, 0) <= 20_000 * 3);
+  const said = opaque.steps.map((step) => ('say' in step ? step.say : '')).join('\n');
+  assert.equal(opaque.finds.filter((find) => find.by === 'meaning').length, 7);
+  assert.equal(opaque.finds.filter((find) => find.by === 'value').length, 3);
+  for (const find of opaque.finds) {
+    // One output holds what the question is about, and nothing that is said does.
+    assert.equal(outputs.filter((text) => text.includes(find.target)).length, 1, find.id);
+    assert.ok(outputs.slice(0, 13).some((text) => text.includes(find.target)), find.id);
+    assert.ok(!said.includes(find.target), find.id);
+    assert.ok(!/recall|find tool|Read tool|cannot|do not read|don't read/i.test(find.ask), find.id);
+    if (find.by === 'meaning') assert.ok(!/[0-9"]/.test(find.ask), `${find.id}: ${find.ask}`);
+  }
+  // A question by what a result was shares no word of five letters or more with that result's first two lines.
+  const words = (text: string) => new Set(text.toLowerCase().match(/[a-z]{5,}/g) ?? []);
+  for (const find of opaque.finds.filter((one) => one.by === 'meaning')) {
+    const head = outputs.find((text) => text.startsWith(find.target))?.split('\n').slice(0, 2).join(' ') ?? '';
+    const shared = [...words(find.ask)].filter((word) => words(head).has(word) && !['which', 'earlier', 'result'].includes(word));
+    assert.deepEqual(shared, [], find.id);
+  }
+  // Results leave sharing the least with the last three things said first (ruleOrder): every document shares fewer of their words than any station log, so the documents leave before the logs do.
+  const goal = termsOf(opaque.steps.flatMap((step) => ('say' in step ? [step.say] : [])).slice(-3).join('\n\n'));
+  const sharing = outputs.map((text, at) => {
+    const mentioned = termsOf(`${JSON.stringify({ command: `sh show.sh ${String(at + 1).padStart(2, '0')}` })}\n${text.slice(0, 4000)}`);
+    return [...goal].filter((term) => mentioned.has(term)).length;
+  });
+  assert.ok(Math.max(...sharing.slice(0, 13)) < Math.min(...sharing.slice(13)), sharing.join(' '));
+  // The calls name a number and nothing else: no subject of a document is in what is said.
+  for (const text of outputs.slice(0, 13)) assert.ok(!said.includes(text.split('\n')[0] ?? '\0'));
+  assert.ok(opaque.steps.slice(1, 6).every((step) => 'say' in step && /^Run (`sh show\.sh \d\d`(, )?)+ with Bash/.test(step.say)));
 });
 
 const JEV = { kind: 'typesafe', key: 'test-key-for-typesafe', model: 'jev-latest' } as const;
@@ -995,7 +1042,7 @@ test('the probes in the repository: the size the plugin counts against what was 
   // What was probed: every conversation with Haiku, two of them compacted by Sonnet, the Japanese one built and compacted by Opus.
   const short = (model: string) => /haiku|sonnet|opus/.exec(model)?.[0] ?? model;
   const probed = (variant: string) => of(variant).map((unit) => `${unit.trace} ${short(unit.model)}`).sort();
-  const eleven = [...BUILT.map((trace) => `${trace.name} haiku`), 'results sonnet', 'mixed sonnet', 'japanese opus'].sort();
+  const eleven = [...[...TRACES, ...PROBED].map((trace) => `${trace.name} haiku`), 'results sonnet', 'mixed sonnet', 'japanese opus'].sort();
   assert.deepEqual(probed('adr-0013'), eleven);
   assert.deepEqual(probed('v0.6.0'), eleven);
   assert.deepEqual(probed('v0.6.0-max-after-100'), ['mixed haiku', 'mixed sonnet']);
@@ -1320,4 +1367,91 @@ test('the benchmark with a /compact left undone (ADR 0015): the plugin measured 
   // Nothing of the machine: no home directory in either form a path of it takes, no key.
   const text = JSON.stringify(all) + JSON.stringify(grades) + tables;
   assert.ok(!/[\/-]Users[\/-]|[\/-]home[\/-][a-z]|cctmp|CLOUDFLARE_API_TOKEN|TYPESAFE_API_KEY/.test(text));
+});
+
+const FOUND_AT = fileURLToPath(new URL('../bench/results/2026-10-03-find', import.meta.url));
+/** The plugin's code the published units of the plugin as it now is were measured with (`checkoutOf`): this change on `e792fad`, before #48. */
+const MEASURED_CODE = '3b4bdf93e529';
+
+test('the units in the repository measured where the calls say nothing: every figure docs/measurements.md, docs/limits.md, README.md and CHANGELOG.md give (#38)', () => {
+  const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
+  const measurements = read('../docs/measurements.md');
+  const limits = read('../docs/limits.md');
+  const readme = read('../README.md');
+  const changelog = read('../CHANGELOG.md');
+  const has = (text: string, phrase: string, what: string) => assert.ok(text.replace(/\s+/g, ' ').includes(phrase), `${what}: ${phrase}`);
+  const of = (dir: string) => {
+    const { units, older } = currentOf(unitsUnder(`${FOUND_AT}/${dir}`));
+    assert.equal(older, 0, dir);
+    assert.ok(units.every((unit) => unit.arm === 'plugin' && unit.mode === 'find'), dir);
+    assert.equal(new Set(units.map((unit) => unit.plugin)).size, 1, dir);
+    return units;
+  };
+  const counts = (units: readonly Unit[], trace: string, model: RegExp, variant: string) => {
+    const these = units.filter((unit) => unit.trace === trace && model.test(unit.model) && unit.variant === variant).sort((a, b) => a.run - b.run);
+    const meaningOf = (unit: Unit) => unit.questions.filter((one) => one.id.startsWith('find-doc-'));
+    const questions = these.flatMap((unit) => unit.questions);
+    return {
+      runs: these.map((unit) => unit.run),
+      calls: these.reduce((sum, unit) => sum + meaningOf(unit).filter((one) => one.retrieval.finds > 0).length, 0),
+      perRun: these.map((unit) => meaningOf(unit).filter((one) => one.retrieval.finds > 0).length),
+      meaning: questions.filter((one) => one.id.startsWith('find-doc-') && one.verdict === 'correct').length,
+      code: questions.filter((one) => one.id.startsWith('find-code-') && one.verdict === 'correct').length,
+      right: these.map((unit) => unit.questions.filter((one) => one.verdict === 'correct').length),
+      finds: these.map((unit) => unit.questions.reduce((sum, one) => sum + one.retrieval.finds, 0)),
+    };
+  };
+  const and = (list: readonly number[]) => `${list.slice(0, -1).join(', ')} and ${list.at(-1)}`;
+
+  const rows: [dir: string, label: string][] = [
+    ['before', 'Before this change'],
+    ['named-in-recall', "`recall`'s description names `find`"],
+    ['named-and-none', 'and `find`\'s "none" says what Jev saw'],
+  ];
+  const by: Record<string, Record<'default' | 'find', ReturnType<typeof counts>>> = {};
+  for (const [dir, label] of rows) {
+    const units = of(dir);
+    // Every unit moved all thirteen documents out: sixteen results of twenty.
+    assert.ok(units.filter((unit) => unit.trace === 'opaque').every((unit) => unit.compaction.line?.moved === 16), dir);
+    const entry = { default: counts(units, 'opaque', /haiku/, 'default'), find: counts(units, 'opaque', /haiku/, 'find') };
+    by[dir] = entry;
+    for (const [variant, key] of [['default', 'no'], ['find', 'yes']] as const) {
+      const n = entry[variant];
+      assert.deepEqual(n.runs, [1, 2, 3], `${dir} ${variant}`);
+      const row = new RegExp(`\\| ${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} +\\| ${key} +\\| +${n.calls} of 21 \\| +${n.meaning} of 21 \\| +${n.code} of 9 \\|`);
+      assert.match(measurements, row, `${dir} ${variant}`);
+    }
+  }
+  const [before, named, now] = [by['before'], by['named-in-recall'], by['named-and-none']] as const;
+  assert.ok(before && named && now);
+  // The rule set before measuring: 11 of 21. The plugin before this change falls short of it; the plugin as it now is reaches it.
+  assert.ok(before.find.calls < 11 && now.find.calls >= 11);
+  assert.equal(new Set(of('named-and-none').map((unit) => unit.plugin)).values().next().value, MEASURED_CODE);
+  has(measurements, `fell short of the rule, ${before.find.calls} of 21 (${and(before.find.perRun)} in the three runs)`, 'measurements');
+  has(measurements, `the agent called it for ${named.find.calls} of 21`, 'measurements');
+  has(measurements, `said the code was not there: ${named.find.code} of 9`, 'measurements');
+  has(measurements, `with that, ${now.find.calls} of 21 (${and(now.find.perRun)}), and ${now.find.code} of 9 codes`, 'measurements');
+  const noKey = [before.default.code, named.default.code, now.default.code];
+  has(measurements, `its codes went from ${Math.min(...noKey)} to ${Math.max(...noKey)} of 9`, 'measurements');
+  has(limits, `about what a result was about: ${now.find.calls} of 21, in a made-up conversation of thirteen such results`, 'limits');
+  has(readme, `Haiku 4.5 called it for ${now.find.calls} of 21 questions`, 'README');
+  has(changelog, `for ${before.find.calls} of 21 questions about what a result was about before this change, and for ${now.find.calls} of 21 now`, 'CHANGELOG');
+  has(changelog, `0 of 9 right, against ${before.find.code} of 9 before this change; with this answer, ${now.find.code} of 9 (with no key, ${Math.min(...noKey)} to ${Math.max(...noKey)} of 9 in the same runs)`, 'CHANGELOG');
+  assert.equal(named.find.code, 0);
+
+  // Sonnet 5.5, one run of the plugin as it now is.
+  const units = of('named-and-none');
+  const sonnet = counts(units, 'opaque', /sonnet/, 'find');
+  const sonnetNoKey = counts(units, 'opaque', /sonnet/, 'default');
+  has(limits, `(Sonnet 5.5, one run: ${sonnet.calls} of 7)`, 'limits');
+  has(changelog, `(Sonnet 5.5, one run: ${sonnet.calls} of 7)`, 'CHANGELOG');
+  has(measurements, `with a key it called \`find\` for ${sonnet.calls} of the 7 questions by meaning and was right on ${sonnet.meaning}, and on ${sonnet.code} of the 3 codes; with no key, right on ${sonnetNoKey.meaning} and on ${sonnetNoKey.code}.`, 'measurements');
+
+  // Where the calls name what they read: three runs of each arm.
+  const results = { find: counts(units, 'results', /haiku/, 'find'), none: counts(units, 'results', /haiku/, 'default') };
+  const short = { find: counts(units, 'short', /haiku/, 'find'), none: counts(units, 'short', /haiku/, 'default') };
+  has(measurements, `\`results\` ${and(results.find.right)} of 8 with a key and ${and(results.none.right)} without`, 'measurements');
+  has(measurements, `calling \`find\` ${and(results.find.finds)} times in eight questions`, 'measurements');
+  has(measurements, `\`short\` ${and(short.find.right)} of 5 with a key and ${and(short.none.right)} without`, 'measurements');
+  assert.deepEqual(short.find.finds, [0, 0, 0]);
 });

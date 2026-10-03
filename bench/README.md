@@ -224,6 +224,14 @@ text it holds, with no number and nothing quoted. The two logs every trace
 reads are asked for by what was to become of each, so that a guess between
 them is right for one and wrong for the other.
 
+One conversation, `opaque`, is built for `find` alone and asked nothing
+else: a script prints thirteen documents on unrelated subjects and seven
+station logs by number (`sh show.sh 01` to `20`), so that no call says what
+came back and a ticket's id does not tell which result a question is
+about. The documents leave before the logs, all thirteen in every unit, and
+the script is removed before any question. `run` refuses it, and `probe`
+leaves it out unless it is named.
+
 - **What it picks** (`pick`): no agent, no session of Claude Code. The
   results of a built conversation that are long enough for the plugin to
   move out (2,000 characters, its default) are stored as the plugin stores
