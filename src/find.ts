@@ -231,7 +231,28 @@ export async function find(input: FindInput): Promise<string> {
   const [first, second] = chosen.ranked;
   const decisive = first !== undefined && first[1] >= FOUND_AT && first[1] - (second?.[1] ?? 0) >= MARGIN;
   if (decisive && first[0] === NONE) {
-    return `[not found] None of the moved-out results seems to be about that: it may still be in the conversation, or was never moved out.`;
+    // More than one result holds the quoted phrase as written: Jev's "none" does not make that untrue, so they are listed.
+    if (holding.length > 1) {
+      const holders = chosen.ranked.flatMap(([key, p]): [Entry, number][] => {
+        const entry = key === NONE ? undefined : byKey.get(key);
+        return entry ? [[entry, p]] : [];
+      });
+      return listed(holders.slice(0, LISTED), first[1]);
+    }
+    // The quoted phrase was looked for in the whole of every result, and none holds it.
+    if (phrases.length > 0) {
+      return (
+        `[not found] None of the moved-out results holds the quoted phrase as written, looked for in the whole of each, ` +
+        'and none seems to be about that from its call and first lines. It may still be in the conversation, or was never moved out.'
+      );
+    }
+    // Jev is shown each result's call and first lines: a value further down is not in front of it, and an
+    // agent told "none" without that stopped looking (#38: 0 of 9 such questions, against 3 of 9 with recall alone).
+    return (
+      `[not found] None of the moved-out results seems to be about that, from their calls and first lines, which are all Jev is shown of them: ` +
+      `a value or a line further down can be missed. To look for one, quote twelve characters or more of it as written (a shorter phrase is not looked for), ` +
+      `or read the results with ${RECALL_TOOL}. It may also still be in the conversation, or was never moved out.`
+    );
   }
   if (decisive) {
     const entry = byKey.get(first[0]);

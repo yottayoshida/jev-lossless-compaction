@@ -346,7 +346,8 @@ test('the hook file wires the module, the three classic hooks and the name of th
   assert.ok(module.includes(`await $.env.set('${MARK}', await ownProcessId(execOf($), PLACES));`), 'the module sets the mark');
   const start = module.slice(module.indexOf("on('session.start'"));
   assert.ok(start.indexOf('await markRunning($);') > 0, 'in session.start');
-  assert.ok(start.indexOf('await markRunning($);') < start.indexOf('$.tool.register('), 'before anything else');
+  assert.ok(start.indexOf('await markRunning($);') < start.indexOf('providerOf($, options)'), 'before anything else');
+  assert.ok(start.indexOf('await markRunning($);') < start.indexOf('await registerTools($, provider);'), 'before the tools are registered');
   const notice = read('../hooks/notice.sh');
   assert.ok(notice.includes(`\${${MARK}:-}`), 'the classic hook reads the same name');
   assert.ok(notice.includes(`[ "$mark" = ${ANY} ]`), 'and the same word for a mark that is no number');
