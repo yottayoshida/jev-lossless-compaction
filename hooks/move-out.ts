@@ -29,7 +29,7 @@ import { IMAGE_TOKENS, blocksOf, mediaIn } from '../src/media.ts';
 import { ownProcessId } from '../src/mark.ts';
 import { closeStore, type Run } from '../src/private.ts';
 import { goalOf, whyNotRebuilt } from '../src/select.ts';
-import { FIND, PLUGIN, RECALL, STORE_COMMAND, placesOf, recall, type StoreDirs } from '../src/store.ts';
+import { FIND, PLUGIN, RECALL, STORE_COMMAND, placesOf, recall, recallMeant, type Recalled, type StoreDirs } from '../src/store.ts';
 import { recallDescription } from '../src/tools.ts';
 import { describeTaints, placeTaints, sendTaints, taintsFrom, type RepoSettings, type Seen, type Taint } from '../src/trust.ts';
 import type { DirEntry, Exec, FileStat, Files, HttpResponse, Message } from '../src/types.ts';
@@ -306,6 +306,13 @@ async function restoreFor($: WithFiles & WithProcess, store: StoreDirs, ids: Rea
     }
   }
   return restored;
+}
+
+/** What is stored under `id`, put back from the trash first when a collection moved it there. */
+async function recalled($: WithFiles & WithProcess, store: StoreDirs, id: unknown): Promise<Recalled> {
+  const found = await recall(filesOf($), store.read, id);
+  if (!('error' in found) || typeof id !== 'string' || (await restoreFor($, store, new Set([id]))) === 0) return found;
+  return recall(filesOf($), store.read, id);
 }
 
 /**
@@ -603,11 +610,14 @@ export const register: Register = (on, options) => {
     const store = await storeOf($, options);
     if (typeof store === 'string') return { result: `[${PLUGIN}] Nothing is read: ${store}.` };
     const id = (e as { id?: unknown }).id;
-    let found = await recall(filesOf($), store.read, id);
-    // Moved to the trash by a collection: put back, then read.
-    if ('error' in found && typeof id === 'string' && (await restoreFor($, store, new Set([id]))) > 0) {
-      found = await recall(filesOf($), store.read, id);
-    }
+    const agentId = (e as { agentId?: string | undefined }).agentId;
+    // An id copied wrong is taken for the one id written in the conversation that begins as it does
+    // (src/store.ts decides). The tickets are in the main conversation: a subagent's has none to match.
+    const found = await recallMeant(
+      (one) => recalled($, store, one),
+      id,
+      async () => (agentId === undefined ? ((await $.session.messages()) as readonly Message[]) : []),
+    );
     if ('error' in found) return { result: `[${PLUGIN}] ${found.error}` };
     // An image goes back as an image: as text its bytes would fill the conversation.
     return { result: found.parts === undefined ? found.text : blocksOf(found.parts) };

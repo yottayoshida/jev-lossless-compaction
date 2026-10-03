@@ -153,8 +153,17 @@ test('a compaction makes the place private before anything is written, and gives
 test('the clean-up runs after the session starts, unwaited, and recall, find and the compaction put back from the trash first', () => {
   const start = hooks.slice(hooks.indexOf("on('session.start'"), hooks.indexOf("on('tool.call'"));
   assert.ok(start.includes('void collectOnce($, options);'), 'not waited for');
+  // Every id the recall hook reads, the one given and the one meant by it, is read through `recalled`, which puts back and reads again.
   const recallHook = hooks.slice(hooks.indexOf(hookOn('tool.call', RECALL_TOOL)), hooks.indexOf(hookOn('tool.call', FIND_TOOL)));
-  assert.ok(recallHook.includes('restoreFor($, store, new Set([id]))'), 'recall');
+  assert.ok(recallHook.includes('(one) => recalled($, store, one),') && !recallHook.includes('recall(filesOf('), 'recall, through recalled alone');
+  const recalledAt = hooks.indexOf('async function recalled(');
+  const recalled = hooks.slice(recalledAt, hooks.indexOf('\n}\n', recalledAt));
+  // The id that was meant is told by the main conversation: a subagent's call is handed an empty one, and refused as before (#54).
+  assert.ok(recallHook.includes('const found = await recallMeant('), 'recall, by the id that was meant');
+  assert.ok(recallHook.includes('async () => (agentId === undefined ? ((await $.session.messages()) as readonly Message[]) : []),'), 'recall, the main conversation alone');
+  assert.ok(recallHook.includes('const agentId = (e as { agentId?: string | undefined }).agentId;'), "recall, the subagent told by the event's own agentId");
+  const putBack = recalled.indexOf('restoreFor($, store, new Set([id]))');
+  assert.ok(recalledAt > 0 && putBack > 0 && putBack < recalled.lastIndexOf('recall(filesOf($), store.read, id)'), 'recall, put back first');
   const findHook = hooks.slice(hooks.indexOf(hookOn('tool.call', FIND_TOOL)), hooks.indexOf("on('session.compact'"));
   assert.ok(findHook.indexOf('restoreFor($, store, ticketIds(messages))') < findHook.indexOf('await find('), 'find, first');
   const attempt = hooks.slice(hooks.indexOf('async function attempt('), hooks.indexOf('export const register'));
