@@ -15,9 +15,11 @@ import {
   noteStopped,
   planGc,
   restore,
+  restoreThroughParts,
   RETRY_MS,
   SENTINEL_ID,
   noteTried,
+  partIds,
   rootFor,
   sentinelOf,
   STOP_KINDS,
@@ -27,7 +29,7 @@ import {
   whyNotNow,
   writeSentinel,
 } from '../src/lifetime.ts';
-import { idOf, ticketText } from '../src/store.ts';
+import { PART, idOf, partTicketText, ticketText } from '../src/store.ts';
 import type { DirEntry, Exec } from '../src/types.ts';
 import { MemoryFiles, output } from './helpers.ts';
 
@@ -373,6 +375,102 @@ test('the ids of tickets in a conversation, in either place a ticket stands', as
     { role: 'user', text: `not a ticket ${hex('f')}`, toolUses: [] },
   ]);
   assert.deepEqual([...ids], [id]);
+});
+
+test('the ids of kept parts, named in the text of the message put after a summary', async () => {
+  const id = await idOf('a part');
+  const line = partTicketText({ part: 1, parts: 1, first: 1, last: 4, bytes: 6, id });
+  const ids = ticketIds([{ role: 'user', text: `The conversation before this point is kept.\n${line}`, toolUses: [] }]);
+  assert.deepEqual([...ids], [id]);
+});
+
+/** A kept part holding `text`, stored as a compaction stores one. */
+async function storePart(files: MemoryFiles, text: string, age: number): Promise<string> {
+  const [id] = await storeWith(files, [text], age);
+  await files.write(`${DIR}/index/${id}.json`, JSON.stringify({ bytes: text.length, tool: PART }));
+  return id as string;
+}
+
+test('a kept part the conversation names comes back from the trash, and with it what only that part names, through earlier parts (#73)', async () => {
+  const files = new MemoryFiles();
+  const [result] = await storeWith(files, [output('read once', 40)], 3 * DAY);
+  const older = await storePart(files, `[call Read t1] {"file_path":"/p/a"}\n[result t1]\n${ticketText({ tool: 'Read', bytes: 40, id: result as string })}`, 3 * DAY);
+  const newer = await storePart(files, `kept before\n${partTicketText({ part: 1, parts: 1, first: 1, last: 4, bytes: 9, id: older })}`, 3 * DAY);
+  const { exec } = commands(files);
+  // A collection that did not see the transcript naming them: all three go.
+  assert.deepEqual(await collect(list(files), exec, DIR, new Set(), NOW), { trashed: 3, restored: 0, removed: 0 });
+
+  const conversation = [{ role: 'user' as const, text: partTicketText({ part: 1, parts: 1, first: 1, last: 8, bytes: 9, id: newer }), toolUses: [] }];
+  assert.equal(await restoreThroughParts(files, list(files), exec, [DIR], ticketIds(conversation), partIds(conversation)), 3);
+  for (const id of [newer, older, result]) assert.ok(files.files.has(`${DIR}/blobs/${id}.txt`) && files.files.has(`${DIR}/index/${id}.json`), `${id} is back`);
+  assert.deepEqual(await trashIn(list(files), DIR), []);
+});
+
+test('a part in place still has what it names put back: a part put back by an earlier version came back alone', async () => {
+  const files = new MemoryFiles();
+  const [result] = await storeWith(files, [output('read once', 40)], 3 * DAY);
+  const { exec } = commands(files);
+  await collect(list(files), exec, DIR, new Set(), NOW);
+  const part = await storePart(files, ticketText({ tool: 'Read', bytes: 40, id: result as string }), 0);
+  assert.equal(await restoreThroughParts(files, list(files), exec, [DIR], new Set([part])), 1);
+  assert.ok(files.files.has(`${DIR}/blobs/${result}.txt`));
+});
+
+test('a result that is not a part is not read: only the parts the conversation names are followed', async () => {
+  const files = new MemoryFiles();
+  // A third, named by nothing, stays in the trash: the walk is not cut short by an empty trash.
+  const [gone, kept] = await storeWith(files, [output('gone', 40), output('kept', 40), output('elsewhere', 40)], 3 * DAY);
+  const { exec } = commands(files);
+  await collect(list(files), exec, DIR, new Set([kept as string]), NOW);
+  const reads: string[] = [];
+  const read = files.read.bind(files);
+  files.read = async (path: string) => {
+    reads.push(path);
+    return read(path);
+  };
+  assert.equal(await restoreThroughParts(files, list(files), exec, [DIR], new Set([gone as string, kept as string]), new Set()), 1);
+  assert.deepEqual(reads, []);
+  assert.ok(files.files.has(`${DIR}/blobs/${gone}.txt`));
+});
+
+test('a part kept in place names an earlier part that alone went to the trash: both it and what it names come back', async () => {
+  const files = new MemoryFiles();
+  const [result] = await storeWith(files, [output('read once', 40)], 3 * DAY);
+  const older = await storePart(files, ticketText({ tool: 'Read', bytes: 40, id: result as string }), 3 * DAY);
+  const { exec } = commands(files);
+  await collect(list(files), exec, DIR, new Set(), NOW);
+  const newer = await storePart(files, partTicketText({ part: 1, parts: 1, first: 1, last: 4, bytes: 9, id: older }), 0);
+  assert.equal(await restoreThroughParts(files, list(files), exec, [DIR], new Set([newer]), new Set([newer])), 2);
+  for (const id of [older, result]) assert.ok(files.files.has(`${DIR}/blobs/${id}.txt`), `${id} is back`);
+});
+
+test('a part read from a second place puts back what it names in the first', async () => {
+  const OTHER = '/home/u/.config/claude/lossless-compaction';
+  const files = new MemoryFiles();
+  const [result] = await storeWith(files, [output('read once', 40)], 3 * DAY);
+  const { exec } = commands(files);
+  await collect(list(files), exec, DIR, new Set(), NOW);
+  const text = ticketText({ tool: 'Read', bytes: 40, id: result as string });
+  const part = await idOf(text);
+  await files.write(`${OTHER}/blobs/${part}.txt`, text);
+  await files.write(`${OTHER}/index/${part}.json`, JSON.stringify({ bytes: text.length, tool: PART }));
+  files.dirs.add(`${OTHER}/blobs`);
+  files.dirs.add(`${OTHER}/index`);
+  assert.equal(await restoreThroughParts(files, list(files), exec, [OTHER, DIR], new Set([part]), new Set([part])), 1);
+  assert.ok(files.files.has(`${DIR}/blobs/${result}.txt`));
+});
+
+test('nothing is read to put back while the trash is empty', async () => {
+  const files = new MemoryFiles();
+  const part = await storePart(files, 'a part', 0);
+  let reads = 0;
+  const read = files.read.bind(files);
+  files.read = async (path: string) => {
+    reads += 1;
+    return read(path);
+  };
+  assert.equal(await restoreThroughParts(files, list(files), commands(files).exec, [DIR], new Set([part])), 0);
+  assert.equal(reads, 0);
 });
 
 test('what grep prints is read a line at a time, and only 64-hex lines count', () => {

@@ -42,7 +42,8 @@ import {
   noteRun,
   noteStopped,
   noteTried,
-  restore,
+  partIds,
+  restoreThroughParts,
   rootFor,
   sentinelOf,
   stateIn,
@@ -298,16 +299,13 @@ async function noteRootOf($: WithEnv & WithFiles & WithSettings & WithSession, s
 }
 
 /** Puts back from the trash what the conversation's tickets name, in every place results are read from. */
-async function restoreFor($: WithFiles & WithProcess, store: StoreDirs, ids: ReadonlySet<string>): Promise<number> {
-  let restored = 0;
-  for (const dir of store.read) {
-    try {
-      restored += await restore(listOf($), execOf($), dir, ids);
-    } catch {
-      // What cannot be put back is answered as not stored.
-    }
+async function restoreFor($: WithFiles & WithProcess, store: StoreDirs, ids: ReadonlySet<string>, parts: ReadonlySet<string> = ids): Promise<number> {
+  try {
+    return await restoreThroughParts(filesOf($), listOf($), execOf($), store.read, ids, parts);
+  } catch {
+    // What cannot be put back is answered as not stored.
+    return 0;
   }
-  return restored;
 }
 
 /** What is stored under `id`, put back from the trash first when a collection moved it there. */
@@ -462,7 +460,7 @@ async function attempt(
     // Before a summary can run: a kept conversation is named by this session's transcript, which a collection must read.
     await noteRootOf($, store, options);
     // A ticket whose result a collection moved to the trash meanwhile is put back, so that it stays a ticket of this store.
-    await restoreFor($, store, ticketIds(messages));
+    await restoreFor($, store, ticketIds(messages), partIds(messages));
     const api = await $.session.messages({ as: 'api' });
     asSent = messagesFromApi(api) ?? messages;
     const media = mediaIn(api);
@@ -701,7 +699,7 @@ export const register: Register = (on, options) => {
       }
       const agentId = (e as { agentId?: string | undefined }).agentId;
       const messages = agentId === undefined ? ((await $.session.messages()) as readonly Message[]) : [];
-      await restoreFor($, store, ticketIds(messages));
+      await restoreFor($, store, ticketIds(messages), partIds(messages));
       const result = await find({
         files: filesOf($),
         dirs: store.read,

@@ -11,7 +11,7 @@
 // back what they need from the trash first, so a result moved there while a
 // session still used it is not lost.
 
-import { idOf, readTicket } from './store.ts';
+import { idOf, isPart, readPartTicket, readTicket, recall } from './store.ts';
 import type { DirEntry, Exec, Files, Message } from './types.ts';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -168,6 +168,11 @@ export function ticketIds(messages: readonly Message[]): Set<string> {
     for (const use of message.toolUses) {
       const ticket = use.text === undefined ? null : readTicket(use.text);
       if (ticket) ids.add(ticket.id);
+    }
+    // The tickets of kept parts stand in the text of the message put after a summary, a line each.
+    for (const line of message.text.split('\n')) {
+      const part = readPartTicket(line);
+      if (part) ids.add(part.id);
     }
   }
   return ids;
@@ -363,6 +368,80 @@ export async function restore(list: List, exec: Exec, dir: string, ids: Readonly
   if (wanted.length === 0) return 0;
   await putBack(exec, dir, wanted);
   return wanted.length;
+}
+
+const IN_TEXT = /[0-9a-f]{64}/g;
+
+/** The ids of the kept parts a conversation names: where `restoreThroughParts` starts reading. */
+export function partIds(messages: readonly Message[]): Set<string> {
+  const ids = new Set<string>();
+  for (const message of messages) {
+    for (const line of message.text.split('\n')) {
+      const part = readPartTicket(line);
+      if (part) ids.add(part.id);
+    }
+  }
+  return ids;
+}
+
+/**
+ * Puts back from the trash each of `ids` that is there in any of `dirs`, and
+ * every id written in the kept parts among `parts`, through the parts of
+ * earlier summaries: a part's results are named in the part alone (ADR 0007),
+ * so they go to the trash with it and come back with it. `parts` are the ids
+ * that may be parts; the others are not read. The trash is listed again only
+ * to put back what it holds, and nothing is read while it is empty. What cannot be put back, or a part that
+ * cannot be read, is passed over: it is answered as not stored. Never throws.
+ * Resolves with how many were put back.
+ */
+export async function restoreThroughParts(
+  files: Files,
+  list: List,
+  exec: Exec,
+  dirs: readonly string[],
+  ids: ReadonlySet<string>,
+  parts: ReadonlySet<string> = ids,
+): Promise<number> {
+  const trashed = new Set<string>();
+  for (const dir of dirs) for (const item of (await trashIn(list, dir).catch(() => null)) ?? []) trashed.add(item.id);
+  if (trashed.size === 0) return 0;
+  let restored = 0;
+  const putBackNow = async (wanted: Iterable<string>) => {
+    const these = new Set([...wanted].filter((id) => trashed.has(id)));
+    if (these.size === 0) return;
+    for (const dir of dirs) {
+      try {
+        restored += await restore(list, exec, dir, these);
+      } catch {
+        // Passed over: answered as not stored.
+      }
+    }
+    for (const id of these) trashed.delete(id);
+  };
+  await putBackNow(ids);
+  const named = new Set([...ids, ...parts]);
+  let reading = [...parts];
+  while (reading.length > 0 && trashed.size > 0) {
+    const next: string[] = [];
+    for (const id of reading) {
+      try {
+        if ((await isPart(files, dirs, id)) !== true) continue;
+        const got = await recall(files, dirs, id);
+        if ('error' in got) continue;
+        for (const inner of got.text.match(IN_TEXT) ?? []) {
+          if (named.has(inner)) continue;
+          named.add(inner);
+          next.push(inner);
+        }
+      } catch {
+        // A part that cannot be read is passed over.
+      }
+    }
+    // A part is put back before it is read.
+    await putBackNow(next);
+    reading = next;
+  }
+  return restored;
 }
 
 async function putBack(exec: Exec, dir: string, items: readonly Trashed[]): Promise<boolean> {
