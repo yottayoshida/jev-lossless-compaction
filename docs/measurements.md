@@ -905,48 +905,102 @@ place of no other file. Sonnet 5.5 on `short`, one run: right on all three
 with the note, without it and as merged, with one `recall` for the reading
 each time.
 
-It is not built. A file Claude Code shows again after a summary and a file
-the person hands over later reach the hook alike, as an attachment of the
-kind `file` whose origin is the engine. And the conversation does not say
-whether the summary was just now: Claude Code keeps the last messages from
-before a summary behind the plugin's line, so an answer after that line may
-be older than it. A first form of the hook took such an answer for a later
-turn, and put the note in place of nothing in 12 units. As measured, the
-note stands in place of a changed file whenever it is attached, until the
-next summary. Whether that is wanted, or how the two are told apart, is
-open on #54.
+As measured there it was not built. A file Claude Code shows again after a
+summary and a file the person hands over later reach the hook alike, as an
+attachment of the kind `file` whose origin is the engine. And the
+conversation does not say whether the summary was just now: Claude Code
+keeps the last messages from before a summary behind the plugin's line, so
+an answer after that line may be older than it. A first form of the hook
+took such an answer for a later turn, and put the note in place of nothing
+in 12 units. As measured, the note stands in place of a changed file
+whenever it is attached, until the next summary.
+
+### The note, narrowed
+
+It is built narrowed (ADR 0018): the note does not stand in the file's place
+once a file of its name has been handed over with an `@`, in anything typed
+that stands behind the plugin's message, a command's arguments included.
+The rule was set again before it was measured, since 4
+more than the 9 of 12 of the code as merged cannot be reached: 11 of 12 or
+more for what the file said when it was read, the two other questions about
+files at 12 of 12, Sonnet 5.5 no worse on one run of `short`, and a file
+handed over shown as it is. Main at `1d8dec8` with the hook, on the same
+buildings, three runs with Haiku 4.5, against "As merged" above, which is
+that code without the hook:
+
+| Asked                                             | As merged | The note, narrowed |
+| ------------------------------------------------- | --------: | -----------------: |
+| What the file said when it was read, of 12        |         9 |                 12 |
+| What it says now, of 12                           |        12 |                 12 |
+| A file that is unchanged, of 12                   |        12 |                 12 |
+| The script's output no file holds any more, of 24 |        23 |                 22 |
+
+It reached the rule. Each of the 12 readings came after one `recall` and no
+reading of the file, and each of the 12 answers on what the file says now
+after one reading of it, which the note says how to get. The script's
+output was missed twice, both times in `writes`, where no file is shown
+again and no note stood; the code as merged missed it once there the same
+way, looking through the files for it. Sonnet 5.5 on
+`short`, one run: right on all three, with one `recall` for the reading and
+one reading of the file for what it says now.
+
+A file handed over was tried in sessions, on a copy of `short` after its
+summary, with a checkout that also says what the hook answered, which is not
+published. Asked with no `@` what the changed file said when it was read,
+the hook put the note in place of that file and left the two other files
+shown again as they were; the agent recalled the reading and answered right.
+With `@changing-4.log` and a space at the head of a question on what the
+file says now, the hook was asked of four files, the three shown again and
+the one handed over, and left all four as they were; the agent answered
+right, and recalled the reading as well. With the `@` run into Japanese text
+(`@changing-4.logを見て。`, `@changing-4.log、`), Claude Code attached no
+file for it: the hook was asked of the three shown again and left them as
+they were, and the agent read the file and answered right. With
+`@Changing-4.log`, the name in another letter case, Claude Code attached the
+file under the name as typed: the hook left that one as it was and put the
+note in place of the file shown again, and the agent answered right. One
+session each: it shows what the hook does, and tells no rate. An `@` in a
+command's arguments, and one typed while the agent was at work, were not
+tried in a session.
+
+The hook's own part, on a conversation of 4096 messages and 5.8 million
+characters with the plugin's message at its head, takes 1.8 ms for a file,
+timed with a script that is not published; what Claude Code takes to hand
+the conversation over was not measured.
 
 ### An id copied wrong
 
-Over every unit above `recall` was called 925 times. By the sessions'
-records, which are not published, it refused the id 13 times, in 9
-questions, all with Haiku 4.5: 10 times for an id that is not 64 hexadecimal
+Over every unit above `recall` was called 990 times. By the sessions'
+records, which are not published, it refused the id 15 times, in 10
+questions, all with Haiku 4.5: 12 times for an id that is not 64 hexadecimal
 characters (twice the result's size in bytes was given in its place) and 3
 times for 64 characters nothing is stored under. The rule: `recall` takes an
 id it can match to one ticket of the conversation by its first 16 characters
 or more, if 3 calls or more are refused and more than half of them match so.
-8 of the 13 do; 3 go wrong at the thirteenth character, and 2 are no id.
-That reaches the rule, by three calls of one question, where the agent gave
-the first half of an id three times before the whole of it. It is not in
-this change, and is left for one of its own (#54).
+10 of the 15 do; 3 go wrong at the thirteenth character, and 2 are no id.
+That reaches the rule. Five of the ten are of two questions, where the agent
+gave the first half of an id two and three times over. It is not in this
+change, and is left for one of its own (#54).
 
-What it would bring in these units is small. In 8 of the 9 questions a later
-`recall` went through, and the ninth was answered right from results still
-in the conversation. 7 of the 9 were answered right, and in the 2 that were
-not a `recall` had gone through: no answer was lost to a refused id here.
+What it would bring in these units is small. In 8 of the 10 questions a
+later `recall` went through, and the two others were answered right without
+it. 8 of the 10 were answered right, and in the 2 that were not a `recall`
+had gone through: no answer was lost to a refused id here.
 
 ### Where the units are, and what this does not show
 
 The units are in `bench/results/2026-10-03-listed/` (`baseline`, `listed`,
 `line`, `merged`) and `bench/results/2026-10-03-shown-again/` (`baseline`,
-`note`, `merged`), and a test holds the tables and the figures above to
+`note`, `merged`, `narrowed`), and a test holds the tables and the figures above to
 them. How often `recall` refused an id and what became of those questions,
 and how often the note stood in a file's place, are of the sessions'
 records.
 `listed`, `line` and `note` were measured on checkouts of `44f410f` made for
 measuring, whose commits are in no branch; the code of `merged` is the code
-this change merged. On it `npm run check:host` passed on Claude Code
-2.1.288, and `claude plugin validate` took the hooks on 2.1.285 to 2.1.288.
+the change that listed the tools merged, and the code of `narrowed` the code
+the change that built the note merged. On each `npm run check:host` passed
+on Claude Code 2.1.288, and `claude plugin validate` took the hooks on
+2.1.285 to 2.1.288.
 
 Not measured: Opus; a working session; a compaction Claude Code starts on
 its own; a question asked many turns after the compaction, where each of
@@ -1067,7 +1121,8 @@ Sonnet fetched the reading unprompted every time, with two calls to
 the changed file left out, both models also answered what the file says now
 five times of five, reading it again, and what an unchanged file says five
 times of five. Leaving it out needs a hook on what Claude Code injects, and
-was not built (ADR 0014).
+was not built then (ADR 0014). A line in the file's place is built since
+([the note, narrowed](#the-note-narrowed), ADR 0018).
 
 In one of the five wordings the agent called `recall` all five times and
 was refused three: it had copied the 64 characters of the id wrong, was

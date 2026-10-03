@@ -2,6 +2,9 @@
 
 - Status: Accepted
 - Date: 2026-10-02
+- An alternative not taken here, a note in place of the changed file as it
+  is shown again, is taken up in
+  [0018](0018-a-changed-file-shown-again-gives-way-to-a-line.md).
 
 ## Context
 
