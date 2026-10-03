@@ -64,8 +64,14 @@ when one was tried and when one ended, and is written over at every try.
 
 ## Consequences
 
-- Someone who asks sees the store; someone who does not is told nothing new
-  until the line at the start of a session is added.
+- Someone who asks sees the store. Someone who does not is told at the start
+  of a session when no clean-up has ended for 14 days (added with #42's
+  second change): since the last that ended, the first place recorded, or
+  the oldest result, whichever there is first. It is said whether that
+  session then tries or not — "not since" is true when it is said — and
+  once a process. Fourteen days is two of the clean-up's weeks, so that one
+  missed is not said; it is not a threshold on how much is kept, which the
+  alternatives above set aside.
 - The command's answer stays in the conversation as any command's output
   does, and the model reads it with the next request (measured). It holds
   the places results are read from, counts, times and a kind of stop.
