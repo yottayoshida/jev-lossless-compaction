@@ -42,7 +42,7 @@ import {
   noteRun,
   noteStopped,
   noteTried,
-  restore,
+  restoreThroughParts,
   rootFor,
   sentinelOf,
   stateIn,
@@ -299,15 +299,12 @@ async function noteRootOf($: WithEnv & WithFiles & WithSettings & WithSession, s
 
 /** Puts back from the trash what the conversation's tickets name, in every place results are read from. */
 async function restoreFor($: WithFiles & WithProcess, store: StoreDirs, ids: ReadonlySet<string>): Promise<number> {
-  let restored = 0;
-  for (const dir of store.read) {
-    try {
-      restored += await restore(listOf($), execOf($), dir, ids);
-    } catch {
-      // What cannot be put back is answered as not stored.
-    }
+  try {
+    return await restoreThroughParts(filesOf($), listOf($), execOf($), store.read, ids);
+  } catch {
+    // What cannot be put back is answered as not stored.
+    return 0;
   }
-  return restored;
 }
 
 /** What is stored under `id`, put back from the trash first when a collection moved it there. */

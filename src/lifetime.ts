@@ -11,7 +11,7 @@
 // back what they need from the trash first, so a result moved there while a
 // session still used it is not lost.
 
-import { idOf, readTicket } from './store.ts';
+import { idOf, isPart, readPartTicket, readTicket, recall } from './store.ts';
 import type { DirEntry, Exec, Files, Message } from './types.ts';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -168,6 +168,11 @@ export function ticketIds(messages: readonly Message[]): Set<string> {
     for (const use of message.toolUses) {
       const ticket = use.text === undefined ? null : readTicket(use.text);
       if (ticket) ids.add(ticket.id);
+    }
+    // The tickets of kept parts stand in the text of the message put after a summary, a line each.
+    for (const line of message.text.split('\n')) {
+      const part = readPartTicket(line);
+      if (part) ids.add(part.id);
     }
   }
   return ids;
@@ -363,6 +368,47 @@ export async function restore(list: List, exec: Exec, dir: string, ids: Readonly
   if (wanted.length === 0) return 0;
   await putBack(exec, dir, wanted);
   return wanted.length;
+}
+
+const IN_TEXT = /[0-9a-f]{64}/g;
+
+/**
+ * Puts back from the trash each of `ids` that is there in any of `dirs`, and
+ * every id written in a kept part among them, through the parts of earlier
+ * summaries: a part's results are named in the part alone (ADR 0007), so they
+ * go to the trash with it and come back with it. Nothing is read while the
+ * trash is empty. What cannot be put back, or a part that cannot be read, is
+ * passed over: it is answered as not stored. Resolves with how many were.
+ */
+export async function restoreThroughParts(files: Files, list: List, exec: Exec, dirs: readonly string[], ids: ReadonlySet<string>): Promise<number> {
+  let trashed = false;
+  for (const dir of dirs) trashed ||= ((await trashIn(list, dir).catch(() => null)) ?? []).length > 0;
+  if (!trashed) return 0;
+  let restored = 0;
+  const named = new Set(ids);
+  let wanted = [...ids];
+  while (wanted.length > 0) {
+    for (const dir of dirs) {
+      try {
+        restored += await restore(list, exec, dir, new Set(wanted));
+      } catch {
+        // Passed over: answered as not stored.
+      }
+    }
+    const next: string[] = [];
+    for (const id of wanted) {
+      if ((await isPart(files, dirs, id)) !== true) continue;
+      const got = await recall(files, dirs, id);
+      if ('error' in got) continue;
+      for (const inner of got.text.match(IN_TEXT) ?? []) {
+        if (named.has(inner)) continue;
+        named.add(inner);
+        next.push(inner);
+      }
+    }
+    wanted = next;
+  }
+  return restored;
 }
 
 async function putBack(exec: Exec, dir: string, items: readonly Trashed[]): Promise<boolean> {
