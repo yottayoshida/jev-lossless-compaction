@@ -980,28 +980,103 @@ id it can match to one ticket of the conversation by its first 16 characters
 or more, if 3 calls or more are refused and more than half of them match so.
 10 of the 15 do; 3 go wrong at the thirteenth character, and 2 are no id.
 That reaches the rule. Five of the ten are of two questions, where the agent
-gave the first half of an id two and three times over. It is not in this
-change, and is left for one of its own (#54).
+gave the first half of an id two and three times over. It is built
+([below](#the-id-that-was-meant)).
 
 What it would bring in these units is small. In 8 of the 10 questions a
 later `recall` went through, and the two others were answered right without
 it. 8 of the 10 were answered right, and in the 2 that were not a `recall`
 had gone through: no answer was lost to a refused id here.
 
+### The id that was meant
+
+`recall` now takes an id it would refuse for the one id written in the
+conversation that begins with its first 16 characters. The id is looked for
+in the user messages and in what tools returned, not in what the agent said
+or put in its calls: an id the agent gave wrong before stands there, and
+would be a second one to match. What the agent wrote can still reach the
+user messages and the results, as Claude Code's summary or as a kept part
+`recall` returned; an id copied wrong there in full, 64 characters, makes
+two, and the id is refused. Where no id begins so, or more than one, the id is refused as
+before; so is every such id in a subagent's conversation, which holds no
+tickets. What comes back is the result as it was stored, checked against its
+id as any other.
+
+The 10 above were counted against every id stored for the units. Counted
+again as the plugin does it, each of the 15 refusals against the
+conversation as it stood at that call (the transcript of the session the
+question went on from, and what tools had returned in the question's own
+session before the call; neither is published): 10 are told by one id, each
+the stored id nearest to what was given, and none by two. Nine of the ten
+ids were written in the conversation the question went on from, and one in
+what `recall` had returned earlier in the question.
+
+In a session, on a copy of `prose` after its summary: the 32 characters an
+agent had given there, the first half of the id of the kept part, were
+handed to `recall` again. With this change the 34,059 characters stored came
+back, the same character for character; the code before it answered that
+the id is not 64 hexadecimal characters.
+
+The code as merged (main at `5f65834` with this change; since, an id that
+could tell no id is refused without the conversation being read, with the
+same refusal as before; by the records none of the calls measured here was
+such an id) was measured on the
+same buildings, three runs with Haiku 4.5. The four conversations sent to
+the summary, as for the note above:
+
+| Asked                                             | The note, narrowed | And the id that was meant |
+| ------------------------------------------------- | -----------------: | ------------------------: |
+| What the file said when it was read, of 12        |                 12 |                        12 |
+| What it says now, of 12                           |                 12 |                        12 |
+| A file that is unchanged, of 12                   |                 12 |                        12 |
+| The script's output no file holds any more, of 24 |                 22 |                        22 |
+
+And the questions `find` is for, with no key, where `recall` is called most.
+Right answers, against "Listed" above, which is the tools listed and
+`recall` as it was:
+
+| Asked                       | Listed | And the id that was meant |
+| --------------------------- | -----: | ------------------------: |
+| `opaque`, by meaning, of 21 |      3 |                         3 |
+| `opaque`, by a code, of 9   |      3 |                         0 |
+| `results`, of 24            |     20 |                        19 |
+| `full`, of 15               |     10 |                        15 |
+
+37 of 69 where it was 36. By the records, in `opaque` no id was copied
+wrong in either, so nothing of this change stood between the 3 codes and the
+0: five of the nine were answered with no call to `recall`, where three were
+with the tools listed, and three after twelve calls each.
+
+In these units `recall` was called 171 times. By their records, which are
+not published, two of the calls gave an id copied wrong: 64 characters that
+differ from the stored id from the thirty-first on, and 63 with one dropped
+after the fiftieth. Both were taken, each for the one stored id that begins
+as it does, and the result came back as it was stored, 34,059 and 17,937
+characters; both questions were answered right. None was refused.
+
+Sonnet 5.5, one run each on the same code, came out as it had before this
+change: on `short` sent to the summary, right on all three questions about
+files, with one `recall` for the reading and one reading of the file for
+what it says now; on `opaque` with no key, right on 5 of the 7 questions by
+meaning and on 1 of the 3 codes. It called `recall` 104 times in the two,
+and by the records gave no id copied wrong.
+
 ### Where the units are, and what this does not show
 
 The units are in `bench/results/2026-10-03-listed/` (`baseline`, `listed`,
-`line`, `merged`) and `bench/results/2026-10-03-shown-again/` (`baseline`,
-`note`, `merged`, `narrowed`), and a test holds the tables and the figures above to
-them. How often `recall` refused an id and what became of those questions,
-and how often the note stood in a file's place, are of the sessions'
-records.
+`line`, `merged`, `meant`) and `bench/results/2026-10-03-shown-again/`
+(`baseline`, `note`, `merged`, `narrowed`, `meant`), and a test holds the
+tables and the figures above to them. How often `recall` refused an id or
+took one copied wrong and what became of those questions, and how often the
+note stood in a file's place, are of the sessions' records.
 `listed`, `line` and `note` were measured on checkouts of `44f410f` made for
 measuring, whose commits are in no branch; the code of `merged` is the code
-the change that listed the tools merged, and the code of `narrowed` the code
-the change that built the note merged. On each `npm run check:host` passed
-on Claude Code 2.1.288, and `claude plugin validate` took the hooks on
-2.1.285 to 2.1.288.
+the change that listed the tools merged, the code of `narrowed` the code the
+change that built the note merged, and the code of `meant` the change to
+`recall` before what could tell no id was refused without the conversation
+being read (above). On each `npm run check:host` passed on Claude
+Code 2.1.288, and `claude plugin validate` took the hooks on 2.1.285 to
+2.1.288.
 
 Not measured: Opus; a working session; a compaction Claude Code starts on
 its own; a question asked many turns after the compaction, where each of
@@ -1130,7 +1205,9 @@ was refused three: it had copied the 64 characters of the id wrong, was
 told the id was not 64 hexadecimal characters, and gave up saying the id
 had been cut short. In the records of the sessions of 2026-10-02 kept
 beside the benchmark's box, which are not published, that happened in 4 of
-the 103 calls to `recall` found there.
+the 103 calls to `recall` found there. `recall` takes such an id since,
+where its first 16 characters tell which one was meant
+([the id that was meant](#the-id-that-was-meant)).
 
 ### With the line
 

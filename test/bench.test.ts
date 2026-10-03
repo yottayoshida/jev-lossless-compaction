@@ -34,6 +34,7 @@ import { unnumbered } from '../src/changed.ts';
 import { find, lineHolds, valuesOf } from '../src/find.ts';
 import { termsOf } from '../src/select.ts';
 import { reportLine, undoneLine, type Report } from '../src/compact.ts';
+import { ID_HEAD } from '../src/store.ts';
 import type { Http } from '../src/types.ts';
 import { TOLD, ok, optionsAsked, questionsOf, recordingHttp, trusting, type Sent } from './helpers.ts';
 
@@ -2412,9 +2413,128 @@ test('the units in the repository measured a note in place of a file shown again
   const recalls = (units: readonly Unit[]) => units.flatMap((unit) => unit.questions).reduce((total, one) => total + one.retrieval.recalls, 0);
   const total = recalls(Object.values(all).flat()) + recalls(['baseline', 'listed', 'line', 'merged'].flatMap((dir) => currentOf(unitsUnder(`${LISTED_AT}/${dir}`)).units));
   has(`Over every unit above \`recall\` was called ${total} times.`, 'recall, counted');
-  assert.ok(limits.includes(`of ${total} calls, over every plugin measured for this, built or not`), 'limits, recall');
-  assert.ok(changelog.includes(`of ${total} calls, and a later call went through`), 'CHANGELOG, recall');
+  // Those are the calls from before `recall` took an id by its first characters: what it refused then is what the documents count.
+  assert.ok(limits.includes(`refused 15 times in ${total} calls before this, over every plugin measured for it`), 'limits, recall');
+  assert.ok(changelog.includes(`refused 15 times in ${total} calls where this was measured`), 'CHANGELOG, recall');
 
   // Nothing of the machine in what was published.
   assert.ok(!/[\/-]Users[\/-]|[\/-]home[\/-][a-z]|cctmp|CLOUDFLARE_API_TOKEN|TYPESAFE_API_KEY/.test(JSON.stringify(all)));
+});
+
+/** The plugin's code the units of `meant` were measured with: `5f65834` with `recall` taking the id that was meant. */
+const MEANT_CODE = '31d05644cbdf';
+
+test('the units in the repository measured with recall taking the id that was meant: every figure the documents give of them (#54)', () => {
+  // Each document with its white space folded, so that a phrase is found where a line breaks in the middle of it.
+  const text = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\s+/g, ' ');
+  const [measurements, limits, changelog, usage] = [text('../docs/measurements.md'), text('../docs/limits.md'), text('../CHANGELOG.md'), text('../docs/usage.md')];
+  // What is said of this measurement stands in a section of its own: the tables before it hold some of the same rows.
+  const section = measurements.slice(measurements.indexOf('### The id that was meant'), measurements.indexOf('### Where the units are, and what this does not show'));
+  assert.ok(section.length > 0 && section.length < measurements.length, 'the section is there');
+  const has = (phrase: string, what: string) => assert.ok(section.includes(phrase), `${what}: ${phrase}`);
+  type Asked = Unit['questions'][number];
+  const under = (path: string) => {
+    const { units, older } = currentOf(unitsUnder(path));
+    assert.equal(older, 0, path);
+    assert.ok(units.every((unit) => unit.arm === 'plugin'), path);
+    return units;
+  };
+  const by = (model: RegExp) => (units: readonly Unit[]) => units.filter((unit) => model.test(unit.model));
+  const [haiku, sonnet] = [by(/haiku/), by(/sonnet/)];
+  const right = (list: readonly Asked[]) => list.filter((one) => one.verdict === 'correct').length;
+  const recalls = (units: readonly Unit[]) => units.flatMap((unit) => unit.questions).reduce((total, one) => total + one.retrieval.recalls, 0);
+
+  // The four conversations sent to the summary, with the note alone and with `recall` taking the id that was meant as well;
+  // and the questions `find` is for with no key, with the tools listed and `recall` as it was, and with this change.
+  const sent = { before: under(`${SHOWN_AT}/narrowed`), meant: under(`${SHOWN_AT}/meant`) };
+  const asked = { before: under(`${LISTED_AT}/listed`).filter((unit) => unit.variant === 'default'), meant: under(`${LISTED_AT}/meant`) };
+  for (const units of [sent.meant, asked.meant]) assert.deepEqual([...new Set(units.map((unit) => unit.plugin))], [MEANT_CODE]);
+  assert.ok(sent.meant.every((unit) => unit.mode === 'ask' && unit.variant === 'max-after-1' && unit.compaction.summarized));
+  assert.ok(asked.meant.every((unit) => unit.mode === 'find' && unit.variant === 'default'));
+  // Each pair was asked of the same building of each conversation: what differs between the two is the plugin.
+  for (const pair of [sent, asked]) {
+    for (const trace of new Set(pair.meant.map((unit) => unit.trace))) {
+      assert.equal(new Set([...pair.before, ...pair.meant].filter((unit) => unit.trace === trace).map((unit) => unit.base)).size, 1, trace);
+    }
+  }
+  assert.deepEqual([haiku(sent.meant).length, haiku(asked.meant).length, sonnet(sent.meant).length, sonnet(asked.meant).length], [12, 9, 1, 1]);
+
+  // The first table, and what was set before measuring: 11 of 12 or more for the reading, 12 of 12 for the two other questions about files.
+  const about = (units: readonly Unit[], ids: readonly string[]) =>
+    haiku(units)
+      .flatMap((unit) => unit.questions)
+      .filter((one) => ids.includes(one.id));
+  const files = [
+    ['What the file said when it was read, of 12', ['then']],
+    ['What it says now, of 12', ['now']],
+    ['A file that is unchanged, of 12', ['unchanged']],
+    ["The script's output no file holds any more, of 24", ['gone-1', 'gone-2']],
+  ] as const;
+  for (const [label, ids] of files) {
+    assert.equal(about(sent.meant, ids).length, ids.length * 12, label);
+    has(`| ${label} | ${right(about(sent.before, ids))} | ${right(about(sent.meant, ids))} |`, label);
+  }
+  assert.ok(right(about(sent.meant, ['then'])) >= 11 && right(about(sent.meant, ['now'])) === 12 && right(about(sent.meant, ['unchanged'])) === 12);
+
+  // The second table, its sum, and the line drawn before measuring: no more than 2 right answers lost.
+  const found = (units: readonly Unit[], trace: string, prefix: string) =>
+    haiku(units)
+      .filter((unit) => unit.trace === trace)
+      .flatMap((unit) => unit.questions)
+      .filter((one) => one.id.startsWith(prefix));
+  const rows = [
+    ['`opaque`, by meaning, of 21', 'opaque', 'find-doc-'],
+    ['`opaque`, by a code, of 9', 'opaque', 'find-code-'],
+    ['`results`, of 24', 'results', 'find-'],
+    ['`full`, of 15', 'full', 'find-'],
+  ] as const;
+  const sums = { before: 0, meant: 0, of: 0 };
+  for (const [label, trace, prefix] of rows) {
+    const [was, now] = [found(asked.before, trace, prefix), found(asked.meant, trace, prefix)];
+    assert.ok(was.length === now.length && label.endsWith(`of ${now.length}`), label);
+    has(`| ${label} | ${right(was)} | ${right(now)} |`, label);
+    sums.before += right(was);
+    sums.meant += right(now);
+    sums.of += now.length;
+  }
+  has(`${sums.meant} of ${sums.of} where it was ${sums.before}.`, 'the sum');
+  assert.ok(sums.meant >= sums.before - 2);
+
+  // The codes, with no key: mostly not looked for, before this change and with it.
+  const codes = { before: found(asked.before, 'opaque', 'find-code-'), meant: found(asked.meant, 'opaque', 'find-code-') };
+  const calling = (list: readonly Asked[], times: number) => list.filter((one) => one.retrieval.recalls === times).length;
+  assert.deepEqual([calling(codes.meant, 0), calling(codes.before, 0), calling(codes.meant, 12)], [5, 3, 3]);
+  has('five of the nine were answered with no call to `recall`, where three were with the tools listed, and three after twelve calls each', 'the codes');
+  assert.ok(
+    limits.includes(
+      `it was right on ${right(codes.before)} of 9 in one set of three runs and on ${right(codes.meant)} of 9 in another; for ${calling(codes.before, 0)} and for ${calling(codes.meant, 0)} of the nine it did not call \`recall\` at all`,
+    ),
+    'limits, a code with no key',
+  );
+
+  // How often `recall` was called is of the units; which of the calls gave an id copied wrong is of the records.
+  has(`In these units \`recall\` was called ${recalls(haiku(sent.meant)) + recalls(haiku(asked.meant))} times.`, 'recall, counted');
+
+  // Sonnet 5.5, one run each: as before this change.
+  const asSonnet = (units: readonly Unit[]) => sonnet(units).flatMap((unit) => unit.questions);
+  for (const units of [sent.before, sent.meant]) {
+    const short = asSonnet(units);
+    assert.equal(right(short.filter((one) => ['then', 'now', 'unchanged'].includes(one.id))), 3);
+    assert.deepEqual(short.filter((one) => one.id === 'then').map((one) => one.retrieval.recalls), [1]);
+    assert.deepEqual(short.filter((one) => one.id === 'now').map((one) => one.retrieval.reads), [1]);
+  }
+  const ofOpaque = (units: readonly Unit[]) => {
+    const [meaning, code] = ['find-doc-', 'find-code-'].map((prefix) => asSonnet(units).filter((one) => one.id.startsWith(prefix))) as [Asked[], Asked[]];
+    return [right(meaning), meaning.length, right(code), code.length];
+  };
+  assert.deepEqual(ofOpaque(asked.meant), ofOpaque(asked.before));
+  const [meaning, , code] = ofOpaque(asked.meant);
+  has(`right on ${meaning} of the 7 questions by meaning and on ${code} of the 3 codes. It called \`recall\` ${recalls(sonnet(sent.meant)) + recalls(sonnet(asked.meant))} times in the two`, 'Sonnet');
+
+  // What the documents say `recall` does now, with the number of characters the code tells an id by.
+  const taken = `the one id written in the conversation that begins with its first ${ID_HEAD} characters`;
+  for (const [name, document] of [['limits', limits], ['usage', usage], ['CHANGELOG', changelog], ['measurements', section]] as const) assert.ok(document.includes(taken), name);
+
+  // Nothing of the machine in what was published.
+  assert.ok(!/[\/-]Users[\/-]|[\/-]home[\/-][a-z]|cctmp|CLOUDFLARE_API_TOKEN|TYPESAFE_API_KEY/.test(JSON.stringify([sent.meant, asked.meant])));
 });
