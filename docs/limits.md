@@ -25,7 +25,7 @@ What the plugin does not do, and what a repository or a version can change.
 - **What a summary replaces is kept first**, on the main conversation, and
   `recall` returns it unchanged by the ids left right after the summary. Not
   kept: images, documents, thinking, and messages older than the 4096 Claude
-  Code shows.
+  Code shows; half of a character left alone is kept as U+FFFD.
 - **`find` does not see everything.** It offers the tickets it sees in the
   conversation and in the parts kept before a summary, shows Jev the first
   lines of each result, and gives a request to Jev up after twenty seconds.
@@ -260,7 +260,11 @@ What is not kept: images and documents still in the conversation, which
 leave `[image not kept]` or `[document not kept]` (an image the plugin moved
 out with its result is a ticket by then, and is kept as one); thinking;
 messages older than the 4096 Claude Code
-shows a plugin; the conversation of a subagent. Nothing is kept when the
+shows a plugin; the conversation of a subagent. Half of a character left
+alone (a UTF-16 surrogate with no other half, which UTF-8 cannot hold) is
+kept as U+FFFD, what a UTF-8 file makes of it; a result, or a long input
+value, holding one is not moved out on its own, and stays as it was in the
+conversation, or in the part's text, where the U+FFFD is. Nothing is kept when the
 place results are kept in is not an absolute path or cannot be read, or when
 a part cannot be written for a reason other than a write the
 system refused, and the compaction says so; the summary is then Claude

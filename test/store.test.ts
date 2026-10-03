@@ -167,7 +167,7 @@ test('an index entry of another tool for the same text is not written over', asy
   assert.equal(files.files.get(`${DIR}/index/${id}.json`), other);
 });
 
-test('a lone surrogate, which UTF-8 cannot hold, is caught by reading back', async () => {
+test('a lone surrogate, which UTF-8 cannot hold, is caught by reading back: a result is not moved out with it, and only a kept part is mended (#70)', async () => {
   const files = new MemoryFiles();
   // What a UTF-8 disk does to a string that is not well formed.
   files.corrupt = (text) => new TextDecoder().decode(new TextEncoder().encode(text));

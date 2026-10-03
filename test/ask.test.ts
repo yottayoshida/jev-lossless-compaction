@@ -456,3 +456,27 @@ test('a key Jev was not asked about changes nothing, and an option it left out o
   assert.deepEqual(await choose(offScale.http, TYPESAFE, 'Which one?', options(3)), { error: 'the answer could not be read' });
   assert.deepEqual(await choose(leftOut.http, TYPESAFE, 'Which one?', options(3)), { error: 'the answer could not be read' });
 });
+
+// #70: text cut by UTF-16 units must not end in the first half of a pair.
+const halfAlone = /\p{Surrogate}/u;
+
+test('a call input, a digest and a question are never cut inside a character, nor made longer (#70)', () => {
+  for (let n = 270; n <= 300; n += 1) {
+    const line = inputLine({ command: `${'x'.repeat(n)}${'🎉'.repeat(200)}` });
+    assert.ok(!halfAlone.test(line) && line.length <= 300, `inputLine at ${n}`);
+  }
+  for (let n = 190; n <= 205; n += 1) {
+    const clipped = digest(`${'y'.repeat(n)}${'🎉'.repeat(100)}`, 10_000);
+    assert.ok(!halfAlone.test(clipped), `a line of a digest at ${n}`);
+  }
+  for (let n = 90; n <= 105; n += 1) {
+    const short = digest(`${'z'.repeat(n)}${'🎉'.repeat(40)}`, 100);
+    assert.ok(!halfAlone.test(short) && short.length <= 100, `a digest's limit at ${n}`);
+    const long = digest([...Array.from({ length: 20 }, () => 'line'), `${'z'.repeat(n)}${'🎉'.repeat(40)}`].join('\n'), 140 + n - 90);
+    assert.ok(!halfAlone.test(long), `a long digest's limit at ${n}`);
+  }
+  for (let n = 1990; n <= 2005; n += 1) {
+    const { task } = stateFor(`${'q'.repeat(n)}${'🎉'.repeat(100)}`);
+    assert.ok(!halfAlone.test(task) && task.length <= 2000, `stateFor at ${n}`);
+  }
+});

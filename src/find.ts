@@ -1,7 +1,7 @@
 // Finding, among the results moved out of a conversation, the one a question
 // is about: what the `find` tool answers with.
 
-import { choose, digest, inputLine, stateFor, type Provider } from './ask.ts';
+import { choose, digest, head, inputLine, stateFor, type Provider } from './ask.ts';
 import { unnumbered } from './changed.ts';
 import { PART, PLUGIN, RECALL_TOOL, isOwnTool, isStored, readPartTicket, readTicket, recall, type Ticket } from './store.ts';
 import type { Files, Http, Message } from './types.ts';
@@ -119,7 +119,7 @@ const quoted = (values: readonly string[]) => values.map((value) => `"${value}"`
 export function shown(text: string): string {
   if (text.length <= WHOLE_UP_TO) return text;
   const cut = text.lastIndexOf('\n', HEAD_CHARS);
-  return text.slice(0, cut > 0 ? cut : HEAD_CHARS);
+  return cut > 0 ? text.slice(0, cut) : head(text, HEAD_CHARS);
 }
 
 /**

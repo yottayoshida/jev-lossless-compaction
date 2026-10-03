@@ -148,6 +148,16 @@ export function cut(text: string, limit: number): string[] {
   return pieces;
 }
 
+const REPLACEMENT = String.fromCodePoint(0xfffd);
+
+/**
+ * `text` with each half of a character that has no other half as U+FFFD, what
+ * a UTF-8 file makes of it: a part holding one would read back other than it
+ * was written, and nothing would be kept (#70). Only a part is mended so; a
+ * result moved out on its own is refused and stays in the conversation as it was.
+ */
+const wholeCharacters = (text: string): string => text.replace(/\p{Surrogate}/gu, REPLACEMENT);
+
 type Kept = { text: string; parts: number } | { failed: NotMoved['reason']; code?: string } | { nothing: true };
 
 /**
@@ -218,7 +228,7 @@ export async function keepConversation(
     let text = `${messageText(ticketed)}\n`;
     // Its results are tickets by now; only its inputs are left to move out.
     if (bytesOf(text) > PART_BYTES) text = `${messageText(await withTickets(files, dir, ticketed, tools, true))}\n`;
-    for (const piece of cut(text, PART_BYTES)) pieces.push({ text: piece, at: after + index + 1, bytes: bytesOf(piece) });
+    for (const piece of cut(wholeCharacters(text), PART_BYTES)) pieces.push({ text: piece, at: after + index + 1, bytes: bytesOf(piece) });
   }
 
   const parts: { text: string; first: number; last: number; bytes: number }[] = [];

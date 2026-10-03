@@ -512,3 +512,22 @@ test('a part kept in place of a summary has a ticket that speaks of none, and bo
   assert.deepEqual(readTicket(result), { tool: 'conversation', bytes: 1234, id });
   assert.equal(readTicket(partTicketText(one, false)), null);
 });
+
+test('the oldest messages are cut though a result among them holds half of a character, kept with U+FFFD in its place (#70)', async () => {
+  const files = new MemoryFiles();
+  files.corrupt = (text) => new TextDecoder().decode(new TextEncoder().encode(text));
+  const lone = String.fromCharCode(0xdc00);
+  const result = `${'a'.repeat(500)}${lone}b`;
+  const messages: Message[] = [
+    { role: 'user', text: 'read it', toolUses: [] },
+    { role: 'assistant', text: '', toolUses: [{ tool_use_id: 't1', tool: 'Read', input: { file_path: '/p/a.txt' } }] },
+    { role: 'user', text: '', toolUses: [], toolResults: [{ tool_use_id: 't1', text: result, isError: false }] },
+    { role: 'assistant', text: 'done', toolUses: [] },
+  ];
+
+  const cut = await keepOldest(files, STORE, { messages, tokens: 1_000, count: undefined }, 1, 3);
+  assert.ok('messages' in cut, JSON.stringify(cut));
+  const joined = (await partsOf(files, (cut.messages[1] as Message).text)).join('');
+  const expected = messages.slice(1, 3).map((message) => `${messageText(message)}\n`).join('').replace(lone, String.fromCharCode(0xfffd));
+  assert.equal(joined, expected);
+});
