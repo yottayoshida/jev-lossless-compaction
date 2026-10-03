@@ -388,7 +388,8 @@ it; a `/compact` there was not held.
 The README's quick start puts the variable in `~/.claude/settings.json`
 (under `CLAUDE_CONFIG_DIR` when that is set). It can also be exported in your
 shell profile, `export CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1`, or set under
-`env` in one repository's `.claude/settings.local.json`.
+`env` in one repository's `.claude/settings.local.json`. The plugin is not on
+npm; it installs from this repository.
 
 To use the plugin in one repository only, add `--scope local` to the install
 and run it there; set the key without `--scope`.

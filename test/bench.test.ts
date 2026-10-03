@@ -1338,6 +1338,16 @@ test('the benchmark run again on 0.6.1: of conversations built again, every answ
   assert.ok(units.every((unit) => unit.mode === 'ask' && unit.variant === 'default' && unit.questions.length === 9));
   const count = (model: RegExp, arm: string) => units.filter((unit) => model.test(unit.model) && unit.arm === arm).length;
   assert.deepEqual([count(/haiku/, 'plugin'), count(/haiku/, 'builtin'), count(/sonnet/, 'plugin'), count(/sonnet/, 'builtin')], [18, 18, 3, 3]);
+  // Sonnet, the one run: every question right in both arms. The plugin compacted `results` by itself and handed the other two to the summary,
+  // so `results` is where its compaction is set against the built-in one, and its nine questions are the count the README gives.
+  const sonnet = (arm: string, traces: readonly string[]) => units.filter((unit) => /sonnet/.test(unit.model) && unit.arm === arm && traces.includes(unit.trace));
+  const answered = (set: readonly Unit[]) => set.flatMap((unit) => unit.questions.map((asked) => verdictOf(unit, asked, grades))).filter((verdict) => verdict === 'correct').length;
+  const three = ['results', 'writes', 'prose'];
+  assert.deepEqual([answered(sonnet('plugin', three)), answered(sonnet('builtin', three))], [27, 27]);
+  assert.deepEqual(sonnet('plugin', three).map((unit) => `${unit.trace} ${unit.compaction.line?.outcome}`).sort(), ['prose nothing', 'results moved', 'writes nothing']);
+  const nine = [answered(sonnet('plugin', ['results'])), answered(sonnet('builtin', ['results']))];
+  assert.deepEqual(nine, [9, 9]);
+  assert.ok(readFileSync(new URL('../README.md', import.meta.url), 'utf8').replace(/\s+/g, ' ').includes(`Sonnet answered ${nine[0]} of 9 either way`), 'README');
   // Every answer has a verdict, and the grader was right on every answer whose grade was known.
   assert.equal(outcomesOf(units, grades).ungraded, 0);
   assert.equal(grades.controls.asExpected, grades.controls.count);
@@ -1989,8 +1999,33 @@ test('the units in the repository measured with Opus 5.5, three conversations an
       `and left more to send, ${thousands(next(large))} tokens a request against ${thousands(next(summary))}`,
     'comparison',
   );
-  // The README gives the count alone.
-  has(readme, `one run does not tell the answers apart: ${byProgram(ours)} of ${count(ours, exact)} counted right with the plugin, ${byProgram(theirs)} without`, 'README');
+  // The README's table: the two conversations the plugin compacted by itself, a figure a row, the plugin's cell first.
+  const paid = (value: number) => (value === 0 ? 'nothing' : `${value.toFixed(2)} USD`);
+  for (const [trace, what, questions] of [['results', 'mostly large tool results', 'nine'], ['large', 'in a window of 1,000,000', 'eleven']] as const) {
+    const [mine, built] = [of(trace, 'plugin'), of(trace, 'builtin')];
+    assert.ok(mine.compaction.line?.outcome === 'moved' && !mine.compaction.summarized && built.compaction.summarized, trace);
+    assert.equal(mine.questions.length, questions === 'nine' ? 9 : 11, trace);
+    const line = (label: string, cell: (unit: Unit) => string) => has(readme, `| ${label} | ${cell(mine)} | ${cell(built)} |`, `README, ${trace}`);
+    has(readme, `| **${thousands(mine.compaction.preTokens)} tokens, ${what}** | | |`, `README, ${trace}`);
+    line('`/compact` took', (unit) => `${seconds(unit.compaction.durationMs)} s`);
+    line('`/compact` cost', (unit) => paid(unit.compaction.own.costUSD));
+    line('The next request carried', (unit) => `${thousands(next(unit))} tokens`);
+    line(`With ${questions} questions: time`, (unit) => `${((unit.compaction.durationMs + sum(unit.questions.map((one) => one.durationMs))) / 1000).toFixed(1)} s`);
+    line(`With ${questions} questions: cost`, (unit) => paid(unit.compaction.own.costUSD + asked(unit)));
+  }
+  // Under the table, of the larger conversation: the plugin's questions took longer, and cost more than the summary with its questions.
+  const asking = (unit: Unit) => sum(unit.questions.map((one) => one.durationMs));
+  assert.ok(asking(large) > asking(summary) && asked(large) > summary.compaction.own.costUSD + asked(summary));
+  has(readme, 'In the larger conversation its questions took longer, and cost more than the summary and the questions after it.', 'README');
+  // The answers where the plugin compacted, which leaves `prose` out: what the program counts, and that every answer it does not count holds the line with the prefix.
+  const compacted = (set: readonly Unit[]) => set.filter((unit) => unit.trace !== 'prose');
+  for (const set of [compacted(ours), compacted(theirs)]) assert.equal(count(set, exact), byProgram(set) + count(set, prefixed));
+  has(
+    readme,
+    `Opus had ${byProgram(compacted(ours))} of ${count(compacted(ours), exact)} exact answers counted right with the plugin and ${byProgram(compacted(theirs))} without; ` +
+      'the others held the right line with an id written the way a rule of the conversation asks',
+    'README',
+  );
   has(
     changelog,
     `of ${count(ours, exact)} questions about an exact text, ${byProgram(ours)} were counted right in the plugin's arm and ${byProgram(theirs)} in the built-in arm, ` +
@@ -2009,12 +2044,11 @@ const LISTED_CODE = 'd2a561d53d84';
 /** And the units of `merged`: `d43ffeb`, which has #55, with the two hooks. */
 const MERGED_CODE = '64c6e33e3f11';
 
-test('the units in the repository measured the tools listed in front of the agent: every figure docs/measurements.md, docs/limits.md, docs/comparison.md, README.md and CHANGELOG.md give of it (#54)', () => {
+test('the units in the repository measured the tools listed in front of the agent: every figure docs/measurements.md, docs/limits.md, docs/comparison.md and CHANGELOG.md give of it (#54)', () => {
   const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\s+/g, ' ');
   const measurements = read('../docs/measurements.md');
   const limits = read('../docs/limits.md');
   const comparison = read('../docs/comparison.md');
-  const readme = read('../README.md');
   const has = (text: string, phrase: string, what: string) => assert.ok(text.includes(phrase), `${what}: ${phrase}`);
   type Asked = Unit['questions'][number];
   type Key = 'default' | 'find';
@@ -2161,11 +2195,11 @@ test('the units in the repository measured the tools listed in front of the agen
     'comparison',
   );
 
-  // The README's opening: of the two conversations where results were moved out, which is what the sentence is about (`full` goes to the summary).
+  // The sentence that sums them up: of the two conversations where results were moved out, which is what it is about (`full` goes to the summary).
   const moved = [...asked('merged', 'opaque', 'find'), ...named];
   assert.ok(all.merged.filter((unit) => unit.trace !== 'full').every((unit) => unit.compaction.line?.outcome === 'moved'));
   assert.ok(all.merged.filter((unit) => unit.trace === 'full').every((unit) => unit.compaction.line?.outcome !== 'moved'));
-  has(readme, `Asked about a result that was moved out, Haiku 4.5 with a key set called \`find\` for ${count(moved, found)} of ${moved.length} questions`, 'README, opening');
+  has(comparison, `Asked about a result that was moved out, Haiku 4.5 with a key set called \`find\` for ${count(moved, found)} of ${moved.length} questions`, 'comparison');
 
   // Calling find more often is sending more often: said where the change is said, with the figures.
   const withKey = (dir: Dir) => all[dir].filter((unit) => /haiku/.test(unit.model) && unit.variant === 'find').flatMap((unit) => unit.questions);
