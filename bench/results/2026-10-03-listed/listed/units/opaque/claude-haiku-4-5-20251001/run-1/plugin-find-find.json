@@ -1,0 +1,372 @@
+{
+ "trace": "opaque",
+ "version": 1,
+ "base": "7485efcc-f478-483d-9db1-62e01222a341",
+ "plugin": "d2a561d53d84",
+ "pluginCommit": "7977b38b25ae",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 1,
+ "arm": "plugin",
+ "first": true,
+ "variant": "find",
+ "mode": "find",
+ "at": "2026-10-03T05:22:36.087Z",
+ "claudeCode": "2.1.288",
+ "compaction": {
+  "sessionId": "29264358-b9db-4363-a20f-43a21995d943",
+  "durationMs": 93,
+  "wallMs": 1571,
+  "preTokens": 92388,
+  "postTokens": 22054,
+  "thinkingBefore": 1470,
+  "line": {
+   "outcome": "moved",
+   "moved": 16,
+   "results": 20,
+   "images": 0,
+   "charsBefore": 250457,
+   "charsAfter": 88103,
+   "ms": 60,
+   "estimate": 40056,
+   "window": 167000
+  },
+  "summarized": false,
+  "own": {
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0,
+   "thinkingTokens": 0
+  }
+ },
+ "questions": [
+  {
+   "id": "find-doc-1",
+   "kind": "exact-gone",
+   "answer": "Runbook: rotating the signing key used for release builds",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32769,
+    34891
+   ],
+   "durationMs": 5088,
+   "wallMs": 6517,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 298,
+    "cacheReadInputTokens": 32759,
+    "cacheCreationInputTokens": 34883,
+    "costUSD": 0.07454990000000003,
+    "thinkingTokens": 204
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-2",
+   "kind": "exact-gone",
+   "answer": "Incident report: the payment webhook that stopped answering",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32771,
+    34865
+   ],
+   "durationMs": 4692,
+   "wallMs": 6129,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 281,
+    "cacheReadInputTokens": 38553,
+    "cacheCreationInputTokens": 29065,
+    "costUSD": 0.0634083,
+    "thinkingTokens": 191
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-4",
+   "kind": "exact-gone",
+   "answer": "Onboarding a contractor onto the company VPN",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32766,
+    34903
+   ],
+   "durationMs": 6768,
+   "wallMs": 8171,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 381,
+    "cacheReadInputTokens": 38548,
+    "cacheCreationInputTokens": 29103,
+    "costUSD": 0.06398380000000001,
+    "thinkingTokens": 292
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-7",
+   "kind": "exact-gone",
+   "answer": "What to do during a fire drill",
+   "calls": [
+    "mcp__lossless-compaction__find",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32768,
+    34969,
+    37296
+   ],
+   "durationMs": 12962,
+   "wallMs": 14243,
+   "own": {
+    "inputTokens": 26,
+    "outputTokens": 895,
+    "cacheReadInputTokens": 73511,
+    "cacheCreationInputTokens": 31496,
+    "costUSD": 0.0748441,
+    "thinkingTokens": 705
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-9",
+   "kind": "exact-gone",
+   "answer": "The holiday rota for the support desk",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32767,
+    34822
+   ],
+   "durationMs": 3924,
+   "wallMs": 5387,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 239,
+    "cacheReadInputTokens": 38549,
+    "cacheCreationInputTokens": 29022,
+    "costUSD": 0.06311189999999997,
+    "thinkingTokens": 152
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-10",
+   "kind": "exact-gone",
+   "answer": "Post-mortem: a database table deleted by mistake",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32769,
+    34813
+   ],
+   "durationMs": 4984,
+   "wallMs": 6430,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 434,
+    "cacheReadInputTokens": 38551,
+    "cacheCreationInputTokens": 29013,
+    "costUSD": 0.06406910000000002,
+    "thinkingTokens": 343
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-12",
+   "kind": "exact-gone",
+   "answer": "Renewing the TLS certificates before they expire",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32768,
+    34941
+   ],
+   "durationMs": 6970,
+   "wallMs": 8250,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 504,
+    "cacheReadInputTokens": 38550,
+    "cacheCreationInputTokens": 29141,
+    "costUSD": 0.06467500000000001,
+    "thinkingTokens": 415
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-code-3",
+   "kind": "exact-gone",
+   "answer": "I cannot locate a reference code \"RX-5323-T\" in either the visible conversation or the moved-out results. The outputs from `show.sh 17`, `19`, and `20` that are visible use the format \"record XXX-XXXX:\" (like \"record 203-0001\"), not \"RX-XXXX-T\". \n\nEither this reference code wasn't in the outputs from those commands, or it may require checking one of the moved-out results from `show.sh 01-16` or `18`. Would you like me to recall a specific result ID to search for it?",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 3,
+   "requests": [
+    32765,
+    33103
+   ],
+   "durationMs": 7863,
+   "wallMs": 9227,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 608,
+    "cacheReadInputTokens": 38547,
+    "cacheCreationInputTokens": 27303,
+    "costUSD": 0.06151870000000001,
+    "thinkingTokens": 391
+   }
+  },
+  {
+   "id": "find-code-6",
+   "kind": "exact-gone",
+   "answer": "I've searched through the visible outputs and recalled several moved-out results, but I cannot find the reference code \"RX-9646-M\" anywhere. The outputs contain station records and some document reference codes like RX-5323-T, RX-9764-W, and RX-5087-P, but not RX-9646-M. It may not be present in the script outputs.",
+   "calls": [
+    "mcp__lossless-compaction__find",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 6,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 2,
+   "requests": [
+    32765,
+    33280,
+    39322,
+    66074
+   ],
+   "durationMs": 19649,
+   "wallMs": 20929,
+   "own": {
+    "inputTokens": 34,
+    "outputTokens": 1573,
+    "cacheReadInputTokens": 111133,
+    "cacheCreationInputTokens": 60274,
+    "costUSD": 0.1395603,
+    "thinkingTokens": 841
+   }
+  },
+  {
+   "id": "find-code-11",
+   "kind": "exact-gone",
+   "answer": "I cannot find the reference code \"RX-4851-M\" in either the visible conversation or the compacted results. This code doesn't appear to have been generated by any of the commands we've run so far. Could you clarify where this reference code should appear or provide more context about what it refers to?",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    32765,
+    33210
+   ],
+   "durationMs": 5180,
+   "wallMs": 6808,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 481,
+    "cacheReadInputTokens": 38547,
+    "cacheCreationInputTokens": 27410,
+    "costUSD": 0.061097700000000005,
+    "thinkingTokens": 313
+   }
+  }
+ ]
+}

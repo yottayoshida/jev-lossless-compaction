@@ -1,0 +1,390 @@
+{
+ "trace": "opaque",
+ "version": 1,
+ "base": "7485efcc-f478-483d-9db1-62e01222a341",
+ "plugin": "d2a561d53d84",
+ "pluginCommit": "7977b38b25ae",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 2,
+ "arm": "plugin",
+ "first": true,
+ "variant": "default",
+ "mode": "find",
+ "at": "2026-10-03T05:32:51.177Z",
+ "claudeCode": "2.1.288",
+ "compaction": {
+  "sessionId": "ab19718c-5ead-4795-91c1-fc07906e331a",
+  "durationMs": 237,
+  "wallMs": 1783,
+  "preTokens": 92388,
+  "postTokens": 22054,
+  "thinkingBefore": 1470,
+  "line": {
+   "outcome": "moved",
+   "moved": 16,
+   "results": 20,
+   "images": 0,
+   "charsBefore": 250457,
+   "charsAfter": 88103,
+   "ms": 205,
+   "estimate": 39766,
+   "window": 167000
+  },
+  "summarized": false,
+  "own": {
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0,
+   "thinkingTokens": 0
+  }
+ },
+ "questions": [
+  {
+   "id": "find-doc-1",
+   "kind": "exact-gone",
+   "answer": "I don't have access to an earlier result containing information about replacing software signing keys. The compacted conversation history moves out results by ID, and the outputs from show.sh 01, 02, 06, 11, and 18 returned errors that I cannot view. Without the specific recall ID for that content, I cannot quote its first line.",
+   "calls": [
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 2,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 2,
+   "requests": [
+    32527,
+    35600,
+    44577
+   ],
+   "durationMs": 28527,
+   "wallMs": 29808,
+   "own": {
+    "inputTokens": 26,
+    "outputTokens": 1872,
+    "cacheReadInputTokens": 100626,
+    "cacheCreationInputTokens": 12052,
+    "costUSD": 0.043552600000000025,
+    "thinkingTokens": 1554
+   }
+  },
+  {
+   "id": "find-doc-2",
+   "kind": "exact-gone",
+   "answer": "I don't see any content about an outage or payment callback issues in my current conversation context. The visible messages show only station record outputs from `show.sh 01-20` and your request to create TALLY.md.\n\nIt appears that context may have been compacted and moved out of the conversation. If you'd like me to retrieve that information, could you provide the recall ID from the compaction, or clarify which earlier interaction you're referring to?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 4,
+   "requests": [
+    32529
+   ],
+   "durationMs": 6739,
+   "wallMs": 8000,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 624,
+    "cacheReadInputTokens": 32519,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.006381899999999996,
+    "thinkingTokens": 520
+   }
+  },
+  {
+   "id": "find-doc-4",
+   "kind": "exact-gone",
+   "answer": "I don't see any content in the visible conversation history about \"letting an outside worker reach the internal network from home.\" The conversation has been entirely about running shell scripts (show.sh 01-20) that output station records, and tallying that data.\n\nThe conversation was compacted, but based on what's visible to me, there's no earlier result matching that description. If such content existed before the visible history, I would need to use the recall tool to access it, but I don't have enough information to identify which compacted result to recall.\n\nCould you clarify what you're referring to, or provide the ID of the compacted result you'd like me to recall?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 6,
+   "requests": [
+    32524
+   ],
+   "durationMs": 7708,
+   "wallMs": 9001,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 708,
+    "cacheReadInputTokens": 32514,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.006801400000000013,
+    "thinkingTokens": 560
+   }
+  },
+  {
+   "id": "find-doc-7",
+   "kind": "exact-gone",
+   "answer": "Output 07 is what you're looking for. It's titled \"What to do during a fire drill\" and its description mentions \"Where to gather, who sweeps each floor, and what happens to visitors and deliveries meanwhile.\"\n\nIts first line is:\n\n**What to do during a fire drill**",
+   "calls": [
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 10,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32526,
+    43095,
+    59654
+   ],
+   "durationMs": 30763,
+   "wallMs": 31776,
+   "own": {
+    "inputTokens": 26,
+    "outputTokens": 2385,
+    "cacheReadInputTokens": 108119,
+    "cacheCreationInputTokens": 27130,
+    "costUSD": 0.07702289999999998,
+    "thinkingTokens": 1440
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-9",
+   "kind": "exact-gone",
+   "answer": "I don't see any result set in our conversation mentioning \"who answers customers while most people are away in December.\" The outputs shown were station records (203, 211, 212) with unit counts at steps. \n\nThe compacted results (03-16) are no longer visible to me without a recall ID. If that information was in one of those compacted outputs, I would need the recall ID to retrieve it. Could you provide the ID or clarify which output you're referring to?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 4,
+   "requests": [
+    32525
+   ],
+   "durationMs": 7171,
+   "wallMs": 8412,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 662,
+    "cacheReadInputTokens": 32515,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.006571500000000008,
+    "thinkingTokens": 552
+   }
+  },
+  {
+   "id": "find-doc-10",
+   "kind": "exact-gone",
+   "answer": "I don't have visibility into what was compacted from the earlier conversation. The compacted section doesn't include a summary that would let me identify which result you're referring to, and I don't have an ID to use with the recall tool to retrieve the specific compacted content about \"stored data wiped out by a tidying job was restored.\"\n\nCould you clarify or provide the recall ID for that result, or let me know if this reference is to something from before our current session?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 6,
+   "requests": [
+    32527
+   ],
+   "durationMs": 10568,
+   "wallMs": 11797,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 787,
+    "cacheReadInputTokens": 32517,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.0071967,
+    "thinkingTokens": 680
+   }
+  },
+  {
+   "id": "find-doc-12",
+   "kind": "exact-gone",
+   "answer": "I don't see any earlier content in our conversation about credentials or secure web traffic. Our conversation so far has focused on running shell scripts (show.sh 01-20) that output station records, and then you asked me to tally the units into TALLY.md.\n\nIf there was content from a previous session that was compacted, could you provide more context or clarify what you're referring to?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    32526
+   ],
+   "durationMs": 4610,
+   "wallMs": 6186,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 374,
+    "cacheReadInputTokens": 32516,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.005131599999999986,
+    "thinkingTokens": 282
+   }
+  },
+  {
+   "id": "find-code-3",
+   "kind": "exact-gone",
+   "answer": "Reference code RX-5323-T was given to this document when it was filed.",
+   "calls": [
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32523,
+    35553
+   ],
+   "durationMs": 17700,
+   "wallMs": 18978,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 1283,
+    "cacheReadInputTokens": 65026,
+    "cacheCreationInputTokens": 3032,
+    "costUSD": 0.018999600000000033,
+    "thinkingTokens": 1124
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-code-6",
+   "kind": "exact-gone",
+   "answer": "I could not find the reference code RX-9646-M in any of the earlier results. The reference codes I found in the recalled outputs were:\n- Result 03: RX-5323-T\n- Result 04: RX-9764-W\n- Result 05: RX-5205-K\n- Result 07: RX-5087-P\n- Result 08: RX-9528-T\n- Result 09: RX-4969-W\n- Result 10: RX-9410-K\n- Result 12: RX-9292-P\n- Result 13: RX-4733-T\n- Results 14-20 contain station records only\n\nRX-9646-M does not appear to exist in any earlier result.",
+   "calls": [
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "Grep"
+   ],
+   "retrieval": {
+    "recalls": 12,
+    "finds": 0,
+    "searches": 0,
+    "reads": 1
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    32523,
+    35470,
+    37443,
+    39402,
+    41364,
+    43325,
+    45289,
+    47245,
+    49210,
+    51172,
+    60140,
+    69104,
+    78048,
+    78512
+   ],
+   "durationMs": 61463,
+   "wallMs": 62907,
+   "own": {
+    "inputTokens": 114,
+    "outputTokens": 3599,
+    "cacheReadInputTokens": 662142,
+    "cacheCreationInputTokens": 45991,
+    "costUSD": 0.1763051999999999,
+    "thinkingTokens": 2087
+   }
+  },
+  {
+   "id": "find-code-11",
+   "kind": "exact-gone",
+   "answer": "Reference code RX-4851-M was given to this document when it was filed.",
+   "calls": [
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 10,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32523,
+    41031,
+    46822,
+    59612
+   ],
+   "durationMs": 30912,
+   "wallMs": 31947,
+   "own": {
+    "inputTokens": 34,
+    "outputTokens": 2037,
+    "cacheReadInputTokens": 152863,
+    "cacheCreationInputTokens": 27091,
+    "costUSD": 0.07968729999999999,
+    "thinkingTokens": 1119
+   },
+   "verdict": "correct"
+  }
+ ]
+}

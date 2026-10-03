@@ -1,0 +1,395 @@
+{
+ "trace": "opaque",
+ "version": 1,
+ "base": "7485efcc-f478-483d-9db1-62e01222a341",
+ "plugin": "64c6e33e3f11",
+ "pluginCommit": "2d6d948082f1",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 1,
+ "arm": "plugin",
+ "first": true,
+ "variant": "find",
+ "mode": "find",
+ "at": "2026-10-03T07:13:27.391Z",
+ "claudeCode": "2.1.288",
+ "compaction": {
+  "sessionId": "95ecbb3d-9216-4924-8bd0-0699ec40138c",
+  "durationMs": 111,
+  "wallMs": 1555,
+  "preTokens": 92388,
+  "postTokens": 22054,
+  "thinkingBefore": 1470,
+  "line": {
+   "outcome": "moved",
+   "moved": 16,
+   "results": 20,
+   "images": 0,
+   "charsBefore": 250457,
+   "charsAfter": 88103,
+   "ms": 77,
+   "estimate": 40127,
+   "window": 167000
+  },
+  "summarized": false,
+  "own": {
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0,
+   "thinkingTokens": 0
+  }
+ },
+ "questions": [
+  {
+   "id": "find-doc-1",
+   "kind": "exact-gone",
+   "answer": "Runbook: rotating the signing key used for release builds",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "how to replace the key that software is signed with before it ships"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32827,
+    34923
+   ],
+   "durationMs": 5612,
+   "wallMs": 6911,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 295,
+    "cacheReadInputTokens": 32817,
+    "cacheCreationInputTokens": 34915,
+    "costUSD": 0.0746047,
+    "thinkingTokens": 201
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-2",
+   "kind": "exact-gone",
+   "answer": "\"Incident report: the payment webhook that stopped answering\"",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "outage buyers could not finish paying callback went silent"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32829,
+    35027
+   ],
+   "durationMs": 5757,
+   "wallMs": 7040,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 391,
+    "cacheReadInputTokens": 38669,
+    "cacheCreationInputTokens": 29169,
+    "costUSD": 0.06417789999999998,
+    "thinkingTokens": 299
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-4",
+   "kind": "exact-gone",
+   "answer": "Onboarding a contractor onto the company VPN",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "letting an outside worker reach the internal network from home"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32824,
+    34952
+   ],
+   "durationMs": 5466,
+   "wallMs": 7047,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 351,
+    "cacheReadInputTokens": 38664,
+    "cacheCreationInputTokens": 29094,
+    "costUSD": 0.0638274,
+    "thinkingTokens": 262
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-7",
+   "kind": "exact-gone",
+   "answer": "What to do during a fire drill",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "the spot staff assemble at when the alarm is practised"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32826,
+    34963
+   ],
+   "durationMs": 5436,
+   "wallMs": 6665,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 385,
+    "cacheReadInputTokens": 38666,
+    "cacheCreationInputTokens": 29105,
+    "costUSD": 0.06401960000000004,
+    "thinkingTokens": 298
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-9",
+   "kind": "exact-gone",
+   "answer": "The holiday rota for the support desk",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "who answers customers while most people are away in December"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32825,
+    34873
+   ],
+   "durationMs": 4141,
+   "wallMs": 5838,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 225,
+    "cacheReadInputTokens": 38665,
+    "cacheCreationInputTokens": 29015,
+    "costUSD": 0.0630395,
+    "thinkingTokens": 138
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-10",
+   "kind": "exact-gone",
+   "answer": "Post-mortem: a database table deleted by mistake",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "stored data wiped out by a tidying job was restored"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32827,
+    34872
+   ],
+   "durationMs": 4668,
+   "wallMs": 6221,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 297,
+    "cacheReadInputTokens": 38667,
+    "cacheCreationInputTokens": 29014,
+    "costUSD": 0.06339769999999997,
+    "thinkingTokens": 206
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-12",
+   "kind": "exact-gone",
+   "answer": "Renewing the TLS certificates before they expire",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "keeping the credentials that secure web traffic from lapsing"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32826,
+    34873
+   ],
+   "durationMs": 4064,
+   "wallMs": 5484,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 277,
+    "cacheReadInputTokens": 38666,
+    "cacheCreationInputTokens": 29015,
+    "costUSD": 0.06329960000000004,
+    "thinkingTokens": 187
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-code-3",
+   "kind": "exact-gone",
+   "answer": "Reference code RX-5323-T was given to this document when it was filed.",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "RX-5323-T"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32823,
+    34884
+   ],
+   "durationMs": 4853,
+   "wallMs": 6487,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 288,
+    "cacheReadInputTokens": 38663,
+    "cacheCreationInputTokens": 29026,
+    "costUSD": 0.06337629999999997,
+    "thinkingTokens": 194
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-code-6",
+   "kind": "exact-gone",
+   "answer": "Reference code RX-9646-M was given to this document when it was filed.",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "RX-9646-M"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32823,
+    35130
+   ],
+   "durationMs": 9244,
+   "wallMs": 10539,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 519,
+    "cacheReadInputTokens": 38663,
+    "cacheCreationInputTokens": 29272,
+    "costUSD": 0.06502329999999998,
+    "thinkingTokens": 424
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-code-11",
+   "kind": "exact-gone",
+   "answer": "Reference code RX-4851-M was given to this document when it was filed.",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "RX-4851-M"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32823,
+    34845
+   ],
+   "durationMs": 4085,
+   "wallMs": 5652,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 255,
+    "cacheReadInputTokens": 38663,
+    "cacheCreationInputTokens": 28987,
+    "costUSD": 0.06313329999999998,
+    "thinkingTokens": 160
+   },
+   "verdict": "correct"
+  }
+ ]
+}

@@ -1,0 +1,195 @@
+{
+ "trace": "full",
+ "version": 1,
+ "base": "2a9d69b0-ba12-4811-993e-dcb63f5cd6a7",
+ "plugin": "8e2ff528e11d",
+ "pluginCommit": "7727833185e2",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 2,
+ "arm": "plugin",
+ "first": true,
+ "variant": "default",
+ "mode": "find",
+ "at": "2026-10-03T06:09:38.516Z",
+ "claudeCode": "2.1.288",
+ "compaction": {
+  "sessionId": "f178fbd9-f8d4-4c83-b5a0-0fda0b729eba",
+  "durationMs": 29942,
+  "wallMs": 31071,
+  "preTokens": 143016,
+  "postTokens": 5779,
+  "thinkingBefore": 881,
+  "line": {
+   "outcome": "nothing",
+   "moved": 0,
+   "results": 3,
+   "images": 0,
+   "charsBefore": 609213,
+   "charsAfter": 609213,
+   "ms": 5,
+   "estimate": 141121,
+   "window": 167000
+  },
+  "summarized": true,
+  "own": {
+   "inputTokens": 136392,
+   "outputTokens": 2540,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 8355,
+   "costUSD": 0.15953574999999998,
+   "thinkingTokens": 1008
+  }
+ },
+ "questions": [
+  {
+   "id": "find-report",
+   "kind": "exact-gone",
+   "answer": "I don't see \"d894a92d\" in any of the results displayed in the system reminders above. The visible results show only the contents of the two log files (changing-5.log and kept-5.log) and the lossless-compaction recall IDs, none of which contain that string.\n\nIf you'd like me to search through the full prior transcript, I can use the recall tool to fetch an earlier part of the conversation. Which compaction part would you like me to check?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 4,
+   "requests": [
+    14796
+   ],
+   "durationMs": 7312,
+   "wallMs": 8613,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 569,
+    "cacheReadInputTokens": 5825,
+    "cacheCreationInputTokens": 8961,
+    "costUSD": 0.021359499999999976,
+    "thinkingTokens": 455
+   }
+  },
+  {
+   "id": "find-kept",
+   "kind": "exact-gone",
+   "answer": "`record 95-0017: station 7446 reported 622 units at step 17`",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14798
+   ],
+   "durationMs": 3372,
+   "wallMs": 4869,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 275,
+    "cacheReadInputTokens": 5825,
+    "cacheCreationInputTokens": 8963,
+    "costUSD": 0.01989350000000001,
+    "thinkingTokens": 247
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-script",
+   "kind": "exact-gone",
+   "answer": "\"batch 01: 0 warnings, checksum 9e3a90c4\"",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 2,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14799,
+    15319,
+    16265,
+    18587
+   ],
+   "durationMs": 10473,
+   "wallMs": 11748,
+   "own": {
+    "inputTokens": 36,
+    "outputTokens": 730,
+    "cacheReadInputTokens": 52180,
+    "cacheCreationInputTokens": 12754,
+    "costUSD": 0.03441200000000011,
+    "thinkingTokens": 420
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-stays",
+   "kind": "exact-gone",
+   "answer": "`record 95-0001: station 418 reported 126 units at step 1`",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14808
+   ],
+   "durationMs": 4493,
+   "wallMs": 6035,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 317,
+    "cacheReadInputTokens": 5825,
+    "cacheCreationInputTokens": 8973,
+    "costUSD": 0.02012349999999996,
+    "thinkingTokens": 290
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-changes",
+   "kind": "exact-gone",
+   "answer": "Based on the system reminder, `changing-5.log` was changed on disk since it was read in the conversation. Its first line in full is:\n\n```\nrecord 85-0001: station 9081 reported 473 units at step 1\n```",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14808
+   ],
+   "durationMs": 3471,
+   "wallMs": 4975,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 339,
+    "cacheReadInputTokens": 5825,
+    "cacheCreationInputTokens": 8973,
+    "costUSD": 0.020233500000000015,
+    "thinkingTokens": 276
+   }
+  }
+ ]
+}

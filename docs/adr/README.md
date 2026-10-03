@@ -35,3 +35,5 @@ Why the plugin is built the way it is, one record a decision.
   why a `/compact` with nothing to move out and room left is not summarized.
 - [0016](0016-the-store-is-told-not-bounded.md): why the store is said, by
   `/lossless-store`, and still not bounded.
+- [0017](0017-recall-and-find-are-listed-in-front-of-the-agent.md): why
+  `recall` and `find` stand in the list of tools the agent is given.

@@ -1,0 +1,474 @@
+{
+ "trace": "opaque",
+ "version": 1,
+ "base": "7485efcc-f478-483d-9db1-62e01222a341",
+ "plugin": "f06e04efe7bb",
+ "pluginCommit": "44f410f7d95c",
+ "model": "claude-sonnet-5-5",
+ "run": 1,
+ "arm": "plugin",
+ "first": true,
+ "variant": "default",
+ "mode": "find",
+ "at": "2026-10-03T06:31:48.289Z",
+ "claudeCode": "2.1.288",
+ "compaction": {
+  "sessionId": "336d8f5f-697c-4eff-b0e8-5a4df9ea76bd",
+  "durationMs": 131,
+  "wallMs": 1645,
+  "preTokens": 92388,
+  "postTokens": 22054,
+  "thinkingBefore": 1470,
+  "line": {
+   "outcome": "moved",
+   "moved": 16,
+   "results": 20,
+   "images": 0,
+   "charsBefore": 250457,
+   "charsAfter": 88103,
+   "ms": 79,
+   "estimate": 40137,
+   "window": 167000
+  },
+  "summarized": false,
+  "own": {
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0,
+   "thinkingTokens": 0
+  }
+ },
+ "questions": [
+  {
+   "id": "find-doc-1",
+   "kind": "exact-gone",
+   "answer": "I won't continue trying to retrieve or reconstruct that content.",
+   "calls": [
+    "ToolSearch"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32265,
+    32739
+   ],
+   "durationMs": 8470,
+   "wallMs": 9744,
+   "own": {
+    "inputTokens": 8,
+    "outputTokens": 284,
+    "cacheReadInputTokens": 32263,
+    "cacheCreationInputTokens": 65556,
+    "costUSD": 0.2715326,
+    "thinkingTokens": 139
+   }
+  },
+  {
+   "id": "find-doc-2",
+   "kind": "exact-gone",
+   "answer": "I can't answer that, because no result I can read describes that outage. I recalled every output that was moved out of context, and none of them is about buyers failing to pay because a callback went silent.\n\nThe recalled outputs are:\n\n- **03 to 13:** runbook-style documents. Their titles are the printer pool, contractor VPN onboarding, object storage bill, fire drill, garbage collection tuning, support desk holiday rota, a deleted database table post-mortem, TLS certificate renewal and the coffee machine.\n- **14 to 17, 19 and 20:** station records (`record 200-…` through `record 212-…`), with no incident text.\n\nOutputs 01, 02, 06, 11 and 18 came back as \"Tool result missing due to internal error\". They left no recall ID, so I can't retrieve them. The outage write-up could be in one of those, but I can't confirm it, and I won't guess at a first line.\n\nIf you want, I can re-run `sh show.sh 01`, `02`, `06`, `11` and `18` to check them directly.",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 12,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 4,
+   "requests": [
+    32269,
+    32659,
+    44918,
+    54683,
+    82654
+   ],
+   "durationMs": 27201,
+   "wallMs": 28721,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 1979,
+    "cacheReadInputTokens": 168993,
+    "cacheCreationInputTokens": 78180,
+    "costUSD": 0.3663286,
+    "thinkingTokens": 308
+   }
+  },
+  {
+   "id": "find-doc-4",
+   "kind": "exact-gone",
+   "answer": "The result is output 04 (`sh show.sh 04`), whose first line is:\n\n\"Onboarding a contractor onto the company VPN\"",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 9,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32264,
+    32723,
+    54652
+   ],
+   "durationMs": 26301,
+   "wallMs": 27554,
+   "own": {
+    "inputTokens": 6,
+    "outputTokens": 1227,
+    "cacheReadInputTokens": 69455,
+    "cacheCreationInputTokens": 50178,
+    "costUSD": 0.226885,
+    "thinkingTokens": 201
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-7",
+   "kind": "exact-gone",
+   "answer": "The best match is the output of `sh show.sh 07`. Its first line is:\n\n> What to do during a fire drill\n\nIts subtitle says \"Where to gather, who sweeps each floor, and what happens to visitors and deliveries meanwhile.\" The numbered lines under it are generic filler, though, and none of them names an actual assembly point. So that result is about the topic but doesn't name the spot.\n\nOutputs 01, 02, 06, 11 and 18 returned errors when I ran them, and I have no recall ids for them. I haven't read them, so I can't rule out that one of them names the spot. I can re-run those five if you want to check.",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 9,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    32265,
+    32700,
+    54602
+   ],
+   "durationMs": 21138,
+   "wallMs": 22414,
+   "own": {
+    "inputTokens": 6,
+    "outputTokens": 1516,
+    "cacheReadInputTokens": 69433,
+    "cacheCreationInputTokens": 50128,
+    "costUSD": 0.2295706,
+    "thinkingTokens": 344
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-9",
+   "kind": "exact-gone",
+   "answer": "It was the result of `sh show.sh 09`. Its first line in full is:\n\n> The holiday rota for the support desk\n\nThe line under it reads \"Who covers which days over the winter break, how swaps are agreed, and the escalation chain.\" I recalled it from the moved-out result with id `22e0b17b…`.\n\nI didn't recall outputs 01, 02, 06, 11 and 18. Their results came back as errors, so there was no id to recall. Only 09 matches this description among the ones I could check.",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 12,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 4,
+   "requests": [
+    32261,
+    32764,
+    82529
+   ],
+   "durationMs": 21547,
+   "wallMs": 22778,
+   "own": {
+    "inputTokens": 6,
+    "outputTokens": 1635,
+    "cacheReadInputTokens": 69493,
+    "cacheCreationInputTokens": 78055,
+    "costUSD": 0.34248059999999997,
+    "thinkingTokens": 194
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-10",
+   "kind": "exact-gone",
+   "answer": "It was the output of `sh show.sh 10`. Its first line is:\n\n> Post-mortem: a database table deleted by mistake\n\nThe line under it describes the contents: \"How a cleanup script removed the wrong table, how it was brought back, and the guard added since.\"\n\nThe results of `show.sh 01`, `02`, `06`, `11` and `18` came back as internal errors, so I never saw their content. I can't rule them out, but output 10 is the only one I could read that matches.",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 12,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32265,
+    32726,
+    82484
+   ],
+   "durationMs": 25593,
+   "wallMs": 26887,
+   "own": {
+    "inputTokens": 6,
+    "outputTokens": 1688,
+    "cacheReadInputTokens": 69459,
+    "cacheCreationInputTokens": 78010,
+    "costUSD": 0.3428238,
+    "thinkingTokens": 311
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-12",
+   "kind": "exact-gone",
+   "answer": "It was the result of `sh show.sh 12`. Its first line in full is:\n\n> Renewing the TLS certificates before they expire\n\nThe line under it describes the document: \"Which certificates there are, who is warned and when, and how a renewal is checked.\"",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 12,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32268,
+    32726,
+    82474
+   ],
+   "durationMs": 25004,
+   "wallMs": 26285,
+   "own": {
+    "inputTokens": 6,
+    "outputTokens": 1491,
+    "cacheReadInputTokens": 69462,
+    "cacheCreationInputTokens": 78000,
+    "costUSD": 0.3408144,
+    "thinkingTokens": 187
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-code-3",
+   "kind": "exact-gone",
+   "answer": "The code RX-5323-T came from the output of `sh show.sh 03`, the printer pool document. The full line is:\n\n> Reference code RX-5323-T was given to this document when it was filed.\n\nI found it by recalling the moved-out results. It sits between lines 3.024 and 3.025 of that output. The other documents each carry a different code, so no other result contains this one.",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 12,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    32259,
+    32689,
+    82515
+   ],
+   "durationMs": 21481,
+   "wallMs": 22660,
+   "own": {
+    "inputTokens": 6,
+    "outputTokens": 1581,
+    "cacheReadInputTokens": 69416,
+    "cacheCreationInputTokens": 78041,
+    "costUSD": 0.3418692,
+    "thinkingTokens": 180
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-code-6",
+   "kind": "exact-gone",
+   "answer": "No earlier result contains RX-9646-M, so I have no line to quote.\n\nI searched every output I could recover: 03, 04, 05, 07, 08, 09, 10, 12, 13, 14, 15, 16, 17, 19 and 20. The reference codes in those are:\n\n| Output | Code |\n|---|---|\n| 03 | RX-5323-T |\n| 04 | RX-9764-W |\n| 05 | RX-5205-K |\n| 07 | RX-5087-P |\n| 08 | RX-9528-T |\n| 09 | RX-4969-W |\n| 10 | RX-9410-K |\n| 12 | RX-9292-P |\n| 13 | RX-4733-T |\n\nOutputs 14 to 17 and 19 to 20 are station records with no reference code lines.\n\nFive runs returned \"Tool result missing due to internal error\" and never produced output: `show.sh` 01, 02, 06, 11 and 18. The code is probably in one of those, but I can't confirm that. I can re-run them if you want me to check.",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 12,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32259,
+    32689,
+    82460
+   ],
+   "durationMs": 23340,
+   "wallMs": 25148,
+   "own": {
+    "inputTokens": 6,
+    "outputTokens": 1974,
+    "cacheReadInputTokens": 69416,
+    "cacheCreationInputTokens": 77986,
+    "costUSD": 0.34557920000000003,
+    "thinkingTokens": 362
+   }
+  },
+  {
+   "id": "find-code-11",
+   "kind": "exact-gone",
+   "answer": "I can't find RX-4851-M in any result I can see, so I can't quote a line for it.\n\nI checked all 12 recalled results (03, 04, 05, 07, 08, 09, 10, 12, 13, 14, 15, 16) and the three still in context (17, 19, 20). Records 14–20 and 17, 19, 20 are station logs and carry no reference codes. The documents each have one code, and none matches:\n\n- 03: RX-5323-T\n- 04: RX-9764-W\n- 05: RX-5205-K\n- 07: RX-5087-P\n- 08: RX-9528-T\n- 09: RX-4969-W\n- 10: RX-9410-K\n- 12: RX-9292-P\n- 13: RX-4733-T\n\nThe calls for 01, 02, 06, 11 and 18 returned \"Tool result missing due to internal error\". I never saw their output, so RX-4851-M may be in one of them. I can re-run those five with `sh show.sh` to check, if you want.",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 12,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    32259,
+    32711,
+    82480
+   ],
+   "durationMs": 27350,
+   "wallMs": 28622,
+   "own": {
+    "inputTokens": 6,
+    "outputTokens": 1917,
+    "cacheReadInputTokens": 69438,
+    "cacheCreationInputTokens": 78006,
+    "costUSD": 0.3450936,
+    "thinkingTokens": 333
+   }
+  }
+ ]
+}

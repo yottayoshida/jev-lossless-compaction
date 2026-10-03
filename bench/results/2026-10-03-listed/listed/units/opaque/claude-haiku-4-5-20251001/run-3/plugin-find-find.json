@@ -1,0 +1,358 @@
+{
+ "trace": "opaque",
+ "version": 1,
+ "base": "7485efcc-f478-483d-9db1-62e01222a341",
+ "plugin": "d2a561d53d84",
+ "pluginCommit": "7977b38b25ae",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 3,
+ "arm": "plugin",
+ "first": true,
+ "variant": "find",
+ "mode": "find",
+ "at": "2026-10-03T05:43:40.155Z",
+ "claudeCode": "2.1.288",
+ "compaction": {
+  "sessionId": "2f40c453-1fe0-4e0d-add8-a2370233f0c0",
+  "durationMs": 106,
+  "wallMs": 1559,
+  "preTokens": 92388,
+  "postTokens": 22054,
+  "thinkingBefore": 1470,
+  "line": {
+   "outcome": "moved",
+   "moved": 16,
+   "results": 20,
+   "images": 0,
+   "charsBefore": 250457,
+   "charsAfter": 88103,
+   "ms": 58,
+   "estimate": 40056,
+   "window": 167000
+  },
+  "summarized": false,
+  "own": {
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0,
+   "thinkingTokens": 0
+  }
+ },
+ "questions": [
+  {
+   "id": "find-doc-1",
+   "kind": "exact-gone",
+   "answer": "Runbook: rotating the signing key used for release builds",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32769,
+    34829
+   ],
+   "durationMs": 4560,
+   "wallMs": 6023,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 239,
+    "cacheReadInputTokens": 65518,
+    "cacheCreationInputTokens": 2062,
+    "costUSD": 0.011888800000000005,
+    "thinkingTokens": 146
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-2",
+   "kind": "exact-gone",
+   "answer": "I don't see any earlier result in this conversation that describes an outage involving payment callbacks. The results shown so far have all been station records reporting units at steps (outputs 14-20 from the `show.sh` script).\n\nCould you clarify which result you're referring to, or would you like me to recall one of the earlier results that was moved out by lossless-compaction?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 3,
+   "requests": [
+    32771
+   ],
+   "durationMs": 4312,
+   "wallMs": 5820,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 358,
+    "cacheReadInputTokens": 32761,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.0050761,
+    "thinkingTokens": 267
+   }
+  },
+  {
+   "id": "find-doc-4",
+   "kind": "exact-gone",
+   "answer": "Onboarding a contractor onto the company VPN",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32766,
+    34892
+   ],
+   "durationMs": 4833,
+   "wallMs": 6253,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 352,
+    "cacheReadInputTokens": 65512,
+    "cacheCreationInputTokens": 2128,
+    "costUSD": 0.01258519999999999,
+    "thinkingTokens": 262
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-7",
+   "kind": "exact-gone",
+   "answer": "\"What to do during a fire drill\"",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32768,
+    35012
+   ],
+   "durationMs": 7349,
+   "wallMs": 8537,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 465,
+    "cacheReadInputTokens": 65516,
+    "cacheCreationInputTokens": 2246,
+    "costUSD": 0.013386599999999999,
+    "thinkingTokens": 376
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-9",
+   "kind": "exact-gone",
+   "answer": "The holiday rota for the support desk",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32767,
+    34799
+   ],
+   "durationMs": 4243,
+   "wallMs": 5798,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 239,
+    "cacheReadInputTokens": 65514,
+    "cacheCreationInputTokens": 2034,
+    "costUSD": 0.011832399999999993,
+    "thinkingTokens": 153
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-10",
+   "kind": "exact-gone",
+   "answer": "Post-mortem: a database table deleted by mistake",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32769,
+    34809
+   ],
+   "durationMs": 4311,
+   "wallMs": 5836,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 271,
+    "cacheReadInputTokens": 65518,
+    "cacheCreationInputTokens": 2042,
+    "costUSD": 0.012008799999999986,
+    "thinkingTokens": 182
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-12",
+   "kind": "exact-gone",
+   "answer": "\"Renewing the TLS certificates before they expire\"",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32768,
+    34818
+   ],
+   "durationMs": 4381,
+   "wallMs": 5904,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 253,
+    "cacheReadInputTokens": 65516,
+    "cacheCreationInputTokens": 2052,
+    "costUSD": 0.011938599999999994,
+    "thinkingTokens": 161
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-code-3",
+   "kind": "exact-gone",
+   "answer": "I don't see RX-5323-T in the visible outputs shown in our conversation. The script outputs displayed record formats like \"record 203-0001\", \"record 211-0001\", and \"record 212-0001\". That reference code doesn't appear in the outputs I can see. Could you clarify where this code should appear, or is this a test of whether the code actually exists in the data?",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32765,
+    33251
+   ],
+   "durationMs": 7125,
+   "wallMs": 8376,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 643,
+    "cacheReadInputTokens": 65510,
+    "cacheCreationInputTokens": 488,
+    "costUSD": 0.010759999999999992,
+    "thinkingTokens": 458
+   }
+  },
+  {
+   "id": "find-code-6",
+   "kind": "exact-gone",
+   "answer": "I don't see a reference code \"RX-9646-M\" in the earlier bash results that were moved out during compaction. The outputs shown were from `sh show.sh 03` through `sh show.sh 20`, which contained station records like \"record 203-0001\", \"record 211-0001\", and \"record 212-0001\" — not reference codes in that format.\n\nCould you clarify where this reference code should appear, or provide more context about what you're looking for?",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 2,
+   "requests": [
+    32765,
+    33167
+   ],
+   "durationMs": 5405,
+   "wallMs": 6802,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 424,
+    "cacheReadInputTokens": 65510,
+    "cacheCreationInputTokens": 404,
+    "costUSD": 0.009497000000000005,
+    "thinkingTokens": 234
+   }
+  },
+  {
+   "id": "find-code-11",
+   "kind": "exact-gone",
+   "answer": "I haven't found a reference code \"RX-4851-M\" in any of the results shown. The outputs from `sh show.sh 03` through `sh show.sh 20` that were displayed contained station records with formats like \"record 203-0001: station 4593 reported 234 units at step 1\" but no references matching \"RX-4851-M\".",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32765,
+    33239
+   ],
+   "durationMs": 7700,
+   "wallMs": 8922,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 591,
+    "cacheReadInputTokens": 65510,
+    "cacheCreationInputTokens": 476,
+    "costUSD": 0.010475999999999985,
+    "thinkingTokens": 427
+   }
+  }
+ ]
+}

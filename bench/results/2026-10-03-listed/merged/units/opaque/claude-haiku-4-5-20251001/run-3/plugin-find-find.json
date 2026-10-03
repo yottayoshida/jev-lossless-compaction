@@ -1,0 +1,387 @@
+{
+ "trace": "opaque",
+ "version": 1,
+ "base": "7485efcc-f478-483d-9db1-62e01222a341",
+ "plugin": "64c6e33e3f11",
+ "pluginCommit": "2d6d948082f1",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 3,
+ "arm": "plugin",
+ "first": true,
+ "variant": "find",
+ "mode": "find",
+ "at": "2026-10-03T07:19:48.501Z",
+ "claudeCode": "2.1.288",
+ "compaction": {
+  "sessionId": "0dff252b-fd7d-4774-beb0-c2506452da2f",
+  "durationMs": 93,
+  "wallMs": 1645,
+  "preTokens": 92388,
+  "postTokens": 22054,
+  "thinkingBefore": 1470,
+  "line": {
+   "outcome": "moved",
+   "moved": 16,
+   "results": 20,
+   "images": 0,
+   "charsBefore": 250457,
+   "charsAfter": 88103,
+   "ms": 60,
+   "estimate": 40127,
+   "window": 167000
+  },
+  "summarized": false,
+  "own": {
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0,
+   "thinkingTokens": 0
+  }
+ },
+ "questions": [
+  {
+   "id": "find-doc-1",
+   "kind": "exact-gone",
+   "answer": "Runbook: rotating the signing key used for release builds",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "how to replace the key that software is signed with before it ships"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32827,
+    34885
+   ],
+   "durationMs": 5594,
+   "wallMs": 6791,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 236,
+    "cacheReadInputTokens": 65634,
+    "cacheCreationInputTokens": 2060,
+    "costUSD": 0.011881400000000014,
+    "thinkingTokens": 144
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-2",
+   "kind": "exact-gone",
+   "answer": "Incident report: the payment webhook that stopped answering",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "outage buyers could not finish paying callback went silent"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32829,
+    34901
+   ],
+   "durationMs": 3814,
+   "wallMs": 5291,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 249,
+    "cacheReadInputTokens": 65638,
+    "cacheCreationInputTokens": 2074,
+    "costUSD": 0.011974800000000008,
+    "thinkingTokens": 160
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-4",
+   "kind": "exact-gone",
+   "answer": "Onboarding a contractor onto the company VPN",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "letting an outside worker reach the internal network from home"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32824,
+    34951
+   ],
+   "durationMs": 5612,
+   "wallMs": 6818,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 333,
+    "cacheReadInputTokens": 65628,
+    "cacheCreationInputTokens": 2129,
+    "costUSD": 0.012503799999999982,
+    "thinkingTokens": 243
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-7",
+   "kind": "exact-gone",
+   "answer": "What to do during a fire drill",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "the spot staff assemble at when the alarm is practised"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32826,
+    34878
+   ],
+   "durationMs": 5220,
+   "wallMs": 6600,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 301,
+    "cacheReadInputTokens": 65632,
+    "cacheCreationInputTokens": 2054,
+    "costUSD": 0.012194200000000016,
+    "thinkingTokens": 214
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-9",
+   "kind": "exact-gone",
+   "answer": "I don't see any earlier result in our conversation about customer service or December scheduling. The conversation so far has focused on running the `show.sh` script to display station records (outputs 01-20) and the user's request to create a TALLY.md file and check if station 4107 reported twice.\n\nCould you clarify what you're referring to? If this information was in a previous part of the conversation that was compressed, I can try to search for it using the available tools.",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32825
+   ],
+   "durationMs": 3748,
+   "wallMs": 5213,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 291,
+    "cacheReadInputTokens": 32815,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.004746499999999987,
+    "thinkingTokens": 179
+   }
+  },
+  {
+   "id": "find-doc-10",
+   "kind": "exact-gone",
+   "answer": "Post-mortem: a database table deleted by mistake",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "stored data wiped out by a tidying job was restored"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32827,
+    35077
+   ],
+   "durationMs": 7189,
+   "wallMs": 8457,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 477,
+    "cacheReadInputTokens": 65634,
+    "cacheCreationInputTokens": 2252,
+    "costUSD": 0.013470399999999966,
+    "thinkingTokens": 385
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-12",
+   "kind": "exact-gone",
+   "answer": "Which certificates there are, who is warned and when, and how a renewal is checked.",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "keeping the credentials that secure web traffic from lapsing"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32826,
+    34880
+   ],
+   "durationMs": 4421,
+   "wallMs": 5927,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 274,
+    "cacheReadInputTokens": 65632,
+    "cacheCreationInputTokens": 2056,
+    "costUSD": 0.012063199999999968,
+    "thinkingTokens": 176
+   }
+  },
+  {
+   "id": "find-code-3",
+   "kind": "exact-gone",
+   "answer": "The line from result 03 (sh show.sh 03) containing RX-5323-T is:\n\n\"Reference code RX-5323-T was given to this document when it was filed.\"",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "RX-5323-T"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32823,
+    34886
+   ],
+   "durationMs": 5478,
+   "wallMs": 7302,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 338,
+    "cacheReadInputTokens": 65626,
+    "cacheCreationInputTokens": 2065,
+    "costUSD": 0.012400600000000012,
+    "thinkingTokens": 216
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-code-6",
+   "kind": "exact-gone",
+   "answer": "Reference code RX-9646-M was given to this document when it was filed.",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "reference code RX-9646-M"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32823,
+    34844
+   ],
+   "durationMs": 3215,
+   "wallMs": 4736,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 206,
+    "cacheReadInputTokens": 65626,
+    "cacheCreationInputTokens": 2023,
+    "costUSD": 0.01165659999999999,
+    "thinkingTokens": 110
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-code-11",
+   "kind": "exact-gone",
+   "answer": "Reference code RX-4851-M was given to this document when it was filed.",
+   "calls": [
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "RX-4851-M"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32823,
+    34833
+   ],
+   "durationMs": 3920,
+   "wallMs": 5389,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 240,
+    "cacheReadInputTokens": 65626,
+    "cacheCreationInputTokens": 2012,
+    "costUSD": 0.011804599999999998,
+    "thinkingTokens": 145
+   },
+   "verdict": "correct"
+  }
+ ]
+}

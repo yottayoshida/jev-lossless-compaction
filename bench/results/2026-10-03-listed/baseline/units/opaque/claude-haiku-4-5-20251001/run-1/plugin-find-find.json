@@ -1,0 +1,395 @@
+{
+ "trace": "opaque",
+ "version": 1,
+ "base": "7485efcc-f478-483d-9db1-62e01222a341",
+ "plugin": "f06e04efe7bb",
+ "pluginCommit": "44f410f7d95c",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 1,
+ "arm": "plugin",
+ "first": true,
+ "variant": "find",
+ "mode": "find",
+ "at": "2026-10-03T04:45:13.779Z",
+ "claudeCode": "2.1.288",
+ "compaction": {
+  "sessionId": "6a19fb21-ec70-45b9-8c80-9dbd991e8d78",
+  "durationMs": 126,
+  "wallMs": 1624,
+  "preTokens": 92388,
+  "postTokens": 22054,
+  "thinkingBefore": 1470,
+  "line": {
+   "outcome": "moved",
+   "moved": 16,
+   "results": 20,
+   "images": 0,
+   "charsBefore": 250457,
+   "charsAfter": 88103,
+   "ms": 91,
+   "estimate": 39592,
+   "window": 167000
+  },
+  "summarized": false,
+  "own": {
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0,
+   "thinkingTokens": 0
+  }
+ },
+ "questions": [
+  {
+   "id": "find-doc-1",
+   "kind": "exact-gone",
+   "answer": "I don't see any earlier discussion in our visible conversation history about replacing software signing keys. Our conversation has focused on running shell scripts that output station records and tallying units.\n\nIf that discussion occurred before the recent context compression, I don't have access to it. Could you clarify which result you're referring to, or would you like to provide that context again?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32802
+   ],
+   "durationMs": 4936,
+   "wallMs": 6398,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 388,
+    "cacheReadInputTokens": 5825,
+    "cacheCreationInputTokens": 26967,
+    "costUSD": 0.0564665,
+    "thinkingTokens": 307
+   }
+  },
+  {
+   "id": "find-doc-2",
+   "kind": "exact-gone",
+   "answer": "Incident report: the payment webhook that stopped answering",
+   "calls": [
+    "ToolSearch",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32804,
+    33299,
+    33716,
+    35708
+   ],
+   "durationMs": 11415,
+   "wallMs": 12683,
+   "own": {
+    "inputTokens": 38,
+    "outputTokens": 614,
+    "cacheReadInputTokens": 105614,
+    "cacheCreationInputTokens": 29875,
+    "costUSD": 0.07341940000000005,
+    "thinkingTokens": 350
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-4",
+   "kind": "exact-gone",
+   "answer": "I don't see any content in our current conversation about outside workers reaching internal networks from home. Our conversation has focused on running the `show.sh` scripts and tallying station records.\n\nIf that topic was covered in an earlier part of the conversation that was compressed due to context limits, I don't have direct access to it. Could you clarify or provide more context about what you're referring to?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32799
+   ],
+   "durationMs": 4196,
+   "wallMs": 5682,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 352,
+    "cacheReadInputTokens": 5825,
+    "cacheCreationInputTokens": 26964,
+    "costUSD": 0.05628049999999998,
+    "thinkingTokens": 263
+   }
+  },
+  {
+   "id": "find-doc-7",
+   "kind": "exact-gone",
+   "answer": "\"What to do during a fire drill\"",
+   "calls": [
+    "ToolSearch",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32801,
+    33950,
+    34364,
+    36350
+   ],
+   "durationMs": 23150,
+   "wallMs": 24274,
+   "own": {
+    "inputTokens": 38,
+    "outputTokens": 1271,
+    "cacheReadInputTokens": 106910,
+    "cacheCreationInputTokens": 30517,
+    "costUSD": 0.07811799999999999,
+    "thinkingTokens": 994
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-9",
+   "kind": "exact-gone",
+   "answer": "The holiday rota for the support desk",
+   "calls": [
+    "ToolSearch",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32800,
+    33332,
+    33711,
+    35690
+   ],
+   "durationMs": 7910,
+   "wallMs": 9786,
+   "own": {
+    "inputTokens": 38,
+    "outputTokens": 609,
+    "cacheReadInputTokens": 105638,
+    "cacheCreationInputTokens": 29857,
+    "costUSD": 0.07336079999999998,
+    "thinkingTokens": 334
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-10",
+   "kind": "exact-gone",
+   "answer": "Post-mortem: a database table deleted by mistake",
+   "calls": [
+    "ToolSearch",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32802,
+    34332,
+    34726,
+    36709
+   ],
+   "durationMs": 24096,
+   "wallMs": 25858,
+   "own": {
+    "inputTokens": 38,
+    "outputTokens": 1734,
+    "cacheReadInputTokens": 107655,
+    "cacheCreationInputTokens": 30876,
+    "costUSD": 0.08122549999999998,
+    "thinkingTokens": 1445
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-12",
+   "kind": "exact-gone",
+   "answer": "I don't have that earlier result in the visible conversation history. The system indicates that prior messages may have been compressed/summarized as context grew, and I don't see any discussion about credentials or web traffic in our current thread. \n\nCould you point me to which result you're referring to, or provide more context about when that was mentioned?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    32801
+   ],
+   "durationMs": 6150,
+   "wallMs": 7426,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 446,
+    "cacheReadInputTokens": 5825,
+    "cacheCreationInputTokens": 26966,
+    "costUSD": 0.05675450000000001,
+    "thinkingTokens": 369
+   }
+  },
+  {
+   "id": "find-code-3",
+   "kind": "exact-gone",
+   "answer": "I don't see \"RX-5323-T\" in the outputs displayed to me. The results from runs 14-16 were moved out (compacted) and I cannot see their full content. To find that reference code, I would need to recall one of those compacted results using the available recall mechanism. \n\nShould I attempt to retrieve and search through the moved-out results from runs 14-16?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 6,
+   "requests": [
+    32798
+   ],
+   "durationMs": 6714,
+   "wallMs": 8031,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 550,
+    "cacheReadInputTokens": 5825,
+    "cacheCreationInputTokens": 26963,
+    "costUSD": 0.05726850000000003,
+    "thinkingTokens": 455
+   }
+  },
+  {
+   "id": "find-code-6",
+   "kind": "exact-gone",
+   "answer": "The reference code RX-9646-M does not appear in any of the earlier results I've searched. I checked outputs 03-16 (the ones with stored content) and found these reference codes instead:\n\n- Output 03: RX-5323-T\n- Output 04: RX-9764-W\n- Output 05: RX-5205-K\n- Output 07: RX-5087-P\n- Output 08: RX-9528-T\n- Output 09: RX-4969-W\n- Output 10: RX-9410-K\n- Output 12: RX-9292-P\n- Output 13: RX-4733-T\n- Outputs 14-16: Station records (no reference codes)\n- Outputs 17, 19-20: Station records (no reference codes)\n\nThe reference code RX-9646-M was not found.",
+   "calls": [
+    "ToolSearch",
+    "ToolSearch",
+    "mcp__lossless-compaction__find",
+    "mcp__lossless-compaction__recall",
+    "Grep",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 12,
+    "finds": 1,
+    "searches": 2,
+    "reads": 1
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32798,
+    34390,
+    34777,
+    35025,
+    44213,
+    44460,
+    46441,
+    48420,
+    50372,
+    52337,
+    54294,
+    56246,
+    58186,
+    60139,
+    62085,
+    71035,
+    80044
+   ],
+   "durationMs": 87837,
+   "wallMs": 88970,
+   "own": {
+    "inputTokens": 142,
+    "outputTokens": 4654,
+    "cacheReadInputTokens": 790909,
+    "cacheCreationInputTokens": 74211,
+    "costUSD": 0.2509248999999999,
+    "thinkingTokens": 2857
+   }
+  },
+  {
+   "id": "find-code-11",
+   "kind": "exact-gone",
+   "answer": "I cannot find \"RX-4851-M\" in either the displayed output or the compacted results from the earlier show.sh commands. This reference code doesn't appear in the records shown (which follow the format \"record XXX-YYYY: station NNNN...\"), nor was it located in the moved-out compacted data.",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 3,
+   "requests": [
+    32798,
+    34283,
+    34550
+   ],
+   "durationMs": 21833,
+   "wallMs": 23109,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 1602,
+    "cacheReadInputTokens": 72886,
+    "cacheCreationInputTokens": 28717,
+    "costUSD": 0.07276059999999998,
+    "thinkingTokens": 1352
+   }
+  }
+ ]
+}

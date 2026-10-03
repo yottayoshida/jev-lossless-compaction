@@ -8,8 +8,8 @@ does best. Of six kinds of conversation measured with `/compact` typed by
 hand, the plugin compacted one by itself and left four as they were, having
 nothing to move and room to go on; the sixth ended in Claude Code's summary
 with the plugin as without it, as an automatic compaction of any of those
-five still does. Where each call named the file it read, the agent took
-results back by the ticket's id rather than with `find`:
+five still does. Asked about a result that was moved out, Haiku 4.5 with a
+key set called `find` for 48 of 54 questions:
 [against the built-in compaction](#against-the-built-in-compaction).
 
 When a Claude Code conversation fills up, the built-in compaction replaces it
@@ -169,10 +169,11 @@ figure is first and the built-in compaction's second:
   each result and tells Jev of the one result that holds it, and gave the
   right one 17 times of 17; asked through an agent, Haiku 4.5 found a code in
   the middle of a document 8 times of 9, where it had found 1.
-  With the tool registered and no question naming it, the agent seldom
-  called it where each call named its file. Where the calls said nothing of
-  what came back, Haiku 4.5 called it for 11 of 21 questions about what a
-  result was about, with `recall`'s description naming it.
+  With `recall` and `find` listed among the tools in front of it and no
+  question naming them, Haiku 4.5 called `find` for 19 of 24 questions
+  where each call named its file, and for 20 of 21 about what a result was
+  about where the calls said nothing of what came back, finding the code 9
+  times of 9. Each call sends the provider what [Usage](#usage) lists.
 
 The protocol, every table and what they do not show:
 [docs/measurements.md](docs/measurements.md#the-benchmark).

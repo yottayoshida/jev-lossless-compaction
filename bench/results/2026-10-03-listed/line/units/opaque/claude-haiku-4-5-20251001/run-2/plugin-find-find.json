@@ -1,0 +1,378 @@
+{
+ "trace": "opaque",
+ "version": 1,
+ "base": "7485efcc-f478-483d-9db1-62e01222a341",
+ "plugin": "8e2ff528e11d",
+ "pluginCommit": "7727833185e2",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 2,
+ "arm": "plugin",
+ "first": true,
+ "variant": "find",
+ "mode": "find",
+ "at": "2026-10-03T06:04:16.000Z",
+ "claudeCode": "2.1.288",
+ "compaction": {
+  "sessionId": "f09d24c4-e9f4-466a-b8bc-1e3234c83a15",
+  "durationMs": 101,
+  "wallMs": 1599,
+  "preTokens": 92388,
+  "postTokens": 22130,
+  "thinkingBefore": 1470,
+  "line": {
+   "outcome": "moved",
+   "moved": 16,
+   "results": 20,
+   "images": 0,
+   "charsBefore": 250457,
+   "charsAfter": 88103,
+   "ms": 67,
+   "estimate": 39592,
+   "window": 167000
+  },
+  "summarized": false,
+  "own": {
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0,
+   "thinkingTokens": 0
+  }
+ },
+ "questions": [
+  {
+   "id": "find-doc-1",
+   "kind": "exact-gone",
+   "answer": "Runbook: rotating the signing key used for release builds",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32887,
+    33510,
+    35525
+   ],
+   "durationMs": 5410,
+   "wallMs": 6747,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 390,
+    "cacheReadInputTokens": 99254,
+    "cacheCreationInputTokens": 2640,
+    "costUSD": 0.017183400000000043,
+    "thinkingTokens": 199
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-2",
+   "kind": "exact-gone",
+   "answer": "\"Incident report: the payment webhook that stopped answering\"",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32889,
+    33548,
+    35553
+   ],
+   "durationMs": 6438,
+   "wallMs": 7734,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 460,
+    "cacheReadInputTokens": 99296,
+    "cacheCreationInputTokens": 2666,
+    "costUSD": 0.01758960000000001,
+    "thinkingTokens": 270
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-4",
+   "kind": "exact-gone",
+   "answer": "Onboarding a contractor onto the company VPN",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32884,
+    33488,
+    35502
+   ],
+   "durationMs": 5038,
+   "wallMs": 6468,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 391,
+    "cacheReadInputTokens": 99226,
+    "cacheCreationInputTokens": 2620,
+    "costUSD": 0.01714560000000001,
+    "thinkingTokens": 205
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-7",
+   "kind": "exact-gone",
+   "answer": "**What to do during a fire drill**",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32886,
+    33511,
+    35523,
+    37486
+   ],
+   "durationMs": 9183,
+   "wallMs": 10485,
+   "own": {
+    "inputTokens": 36,
+    "outputTokens": 570,
+    "cacheReadInputTokens": 134768,
+    "cacheCreationInputTokens": 4602,
+    "costUSD": 0.02556680000000003,
+    "thinkingTokens": 279
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-9",
+   "kind": "exact-gone",
+   "answer": "\"The holiday rota for the support desk\"",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32885,
+    33532,
+    35543
+   ],
+   "durationMs": 5677,
+   "wallMs": 6925,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 438,
+    "cacheReadInputTokens": 99272,
+    "cacheCreationInputTokens": 2660,
+    "costUSD": 0.017465199999999986,
+    "thinkingTokens": 250
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-10",
+   "kind": "exact-gone",
+   "answer": "Post-mortem: a database table deleted by mistake",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32887,
+    33536,
+    35537
+   ],
+   "durationMs": 8331,
+   "wallMs": 9593,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 517,
+    "cacheReadInputTokens": 99280,
+    "cacheCreationInputTokens": 2652,
+    "costUSD": 0.017844999999999972,
+    "thinkingTokens": 328
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-12",
+   "kind": "exact-gone",
+   "answer": "I don't have any earlier results in the visible conversation about credentials or web traffic. The conversation we've been having is about running station record scripts (show.sh 01-20) that output station unit reports.\n\nIf that content was in the compacted results, I would need to use the recall tool to find it. Would you like me to search the compacted results for that topic?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 3,
+   "requests": [
+    32886
+   ],
+   "durationMs": 4776,
+   "wallMs": 6205,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 417,
+    "cacheReadInputTokens": 32876,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.005382599999999987,
+    "thinkingTokens": 330
+   }
+  },
+  {
+   "id": "find-code-3",
+   "kind": "exact-gone",
+   "answer": "I cannot find the reference code \"RX-5323-T\" in the available results. It does not appear in the moved-out outputs, and scanning the visible outputs from the `sh show.sh` commands (01-20), the records shown use reference codes like \"203-0001\", \"211-0001\", \"212-0001\", etc., not \"RX-5323-T\". This reference code may not be present in the data that was generated.",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    32883,
+    33553,
+    33818
+   ],
+   "durationMs": 9371,
+   "wallMs": 10625,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 702,
+    "cacheReadInputTokens": 99289,
+    "cacheCreationInputTokens": 937,
+    "costUSD": 0.015340900000000018,
+    "thinkingTokens": 422
+   }
+  },
+  {
+   "id": "find-code-6",
+   "kind": "exact-gone",
+   "answer": "I don't see RX-9646-M in the compacted results from the search. It may still be in visible conversation history or in one of the earlier bash outputs (01-13) that were compacted. Could you clarify whether this reference code appeared in one of the show.sh outputs, or is it something you're looking for in the data to be tallied?",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 2,
+   "requests": [
+    32883,
+    33615,
+    33884
+   ],
+   "durationMs": 11004,
+   "wallMs": 12309,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 785,
+    "cacheReadInputTokens": 99351,
+    "cacheCreationInputTokens": 1003,
+    "costUSD": 0.015894099999999994,
+    "thinkingTokens": 530
+   }
+  },
+  {
+   "id": "find-code-11",
+   "kind": "exact-gone",
+   "answer": "I cannot find \"RX-4851-M\" in the compacted results or in the visible conversation history. The reference code does not appear in the station record outputs (from show.sh 17, 19, 20) that were displayed, which contain records like \"record 203-0001\", \"record 211-0001\", \"record 212-0001\", etc.\n\nCould you provide the context where this reference code appeared, or clarify which output it should be in?",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    32883,
+    33567,
+    33829
+   ],
+   "durationMs": 10420,
+   "wallMs": 11626,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 802,
+    "cacheReadInputTokens": 99303,
+    "cacheCreationInputTokens": 948,
+    "costUSD": 0.015864300000000026,
+    "thinkingTokens": 522
+   }
+  }
+ ]
+}

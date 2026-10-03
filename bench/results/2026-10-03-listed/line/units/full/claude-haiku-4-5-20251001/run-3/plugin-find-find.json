@@ -1,0 +1,200 @@
+{
+ "trace": "full",
+ "version": 1,
+ "base": "2a9d69b0-ba12-4811-993e-dcb63f5cd6a7",
+ "plugin": "8e2ff528e11d",
+ "pluginCommit": "7727833185e2",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 3,
+ "arm": "plugin",
+ "first": true,
+ "variant": "find",
+ "mode": "find",
+ "at": "2026-10-03T06:23:58.582Z",
+ "claudeCode": "2.1.288",
+ "compaction": {
+  "sessionId": "535c6cf1-8675-4c85-bc89-d92dc6606697",
+  "durationMs": 34458,
+  "wallMs": 35440,
+  "preTokens": 143016,
+  "postTokens": 5637,
+  "thinkingBefore": 881,
+  "line": {
+   "outcome": "nothing",
+   "moved": 0,
+   "results": 3,
+   "images": 0,
+   "charsBefore": 609213,
+   "charsAfter": 609213,
+   "ms": 5,
+   "estimate": 141121,
+   "window": 167000
+  },
+  "summarized": true,
+  "own": {
+   "inputTokens": 136392,
+   "outputTokens": 3690,
+   "cacheReadInputTokens": 8355,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0.15567750000000002,
+   "thinkingTokens": 2358
+  }
+ },
+ "questions": [
+  {
+   "id": "find-report",
+   "kind": "exact-gone",
+   "answer": "I cannot find a line containing \"d894a92d\" in the results shown to me. The two files I just read (keeping-5.log and changing-5.log) don't contain that hash, and the find tool didn't locate it in the moved-out conversation parts either.\n\nCould you clarify where this hash should appear—was it in one of the design record parts (11-18) that were pasted earlier, or in different output?",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    14618,
+    15538,
+    15795
+   ],
+   "durationMs": 12746,
+   "wallMs": 14036,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 1021,
+    "cacheReadInputTokens": 35961,
+    "cacheCreationInputTokens": 9962,
+    "costUSD": 0.028653099999999987,
+    "thinkingTokens": 729
+   }
+  },
+  {
+   "id": "find-kept",
+   "kind": "exact-gone",
+   "answer": "record 95-0017: station 7446 reported 622 units at step 17",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14620
+   ],
+   "durationMs": 2338,
+   "wallMs": 3844,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 186,
+    "cacheReadInputTokens": 5825,
+    "cacheCreationInputTokens": 8785,
+    "costUSD": 0.019092499999999957,
+    "thinkingTokens": 159
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-script",
+   "kind": "exact-gone",
+   "answer": "\"batch 01: 0 warnings, checksum 9e3a90c4\"",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 2,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14621,
+    15254,
+    16186,
+    18526
+   ],
+   "durationMs": 9921,
+   "wallMs": 11261,
+   "own": {
+    "inputTokens": 36,
+    "outputTokens": 805,
+    "cacheReadInputTokens": 51858,
+    "cacheCreationInputTokens": 12693,
+    "costUSD": 0.03463280000000002,
+    "thinkingTokens": 478
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-stays",
+   "kind": "exact-gone",
+   "answer": "kept-5.log. Its first line: \"record 95-0001: station 418 reported 126 units at step 1\"",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14630
+   ],
+   "durationMs": 4632,
+   "wallMs": 6142,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 349,
+    "cacheReadInputTokens": 5825,
+    "cacheCreationInputTokens": 8795,
+    "costUSD": 0.019927499999999987,
+    "thinkingTokens": 312
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-changes",
+   "kind": "exact-gone",
+   "answer": "Based on the system reminder noting that changing-5.log was \"Changed on disk since it was read in the conversation,\" that's the file that was going to be made anew.\n\nIts first line in full:\n\n```\nrecord 85-0001: station 9081 reported 473 units at step 1\n```",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14630
+   ],
+   "durationMs": 3897,
+   "wallMs": 5532,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 290,
+    "cacheReadInputTokens": 5825,
+    "cacheCreationInputTokens": 8795,
+    "costUSD": 0.019632500000000053,
+    "thinkingTokens": 213
+   }
+  }
+ ]
+}
