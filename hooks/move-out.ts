@@ -50,7 +50,7 @@ import {
   type List,
   type StopKind,
 } from '../src/lifetime.ts';
-import { countStore, skipped, storeReport } from '../src/health.ts';
+import { countStore, lateLine, lateSince, oldestResult, skipped, storeReport } from '../src/health.ts';
 
 const FALLBACK_WINDOW = 200_000;
 
@@ -267,6 +267,9 @@ async function providerOf($: WithEnv & WithSettings, options: PluginOptions): Pr
 /** Sessions whose transcript's place is recorded, so that each is looked for once a process. */
 const noted = new Set<string>();
 
+/** That this process said the clean-up is late, or is looking now: said once, a /clear or a resume included (ADR 0016). */
+let toldLate = false;
+
 /**
  * Records where this session's transcript is kept, so that a collection counts
  * the conversations there. Only from a place no repository decided: the
@@ -322,6 +325,11 @@ async function plainDirsOf($: WithFiles, store: StoreDirs): Promise<string[]> {
 async function collectOnce($: WithUi & WithEnv & WithFiles & WithSettings & WithProcess, options: PluginOptions): Promise<void> {
   // Known once the try is noted: where, and over what, an unexpected stop is recorded.
   let tried: { dir: string; record: GcRecord } | null = null;
+  // Claimed before anything is awaited, so that a second session.start right after (a /clear) does not say it
+  // again; given back unless it was said, so that a later one in the same process can.
+  const tell = !toldLate;
+  toldLate = true;
+  let said = false;
   try {
     const store = await storeOf($, options);
     if (typeof store === 'string') return;
@@ -331,6 +339,15 @@ async function collectOnce($: WithUi & WithEnv & WithFiles & WithSettings & With
     if (dirs.length === 0) return;
     const now = Date.now();
     const state = await stateIn(files, list, dirs);
+    // Whether this session tries or not: "not since" is true when it is said, whatever this try then does.
+    if (tell) {
+      const oldest = state.lastRun === 0 && state.roots.length === 0 ? await oldestResult(list, dirs) : null;
+      const since = lateSince(state, oldest, now);
+      if (since !== null) {
+        say($, lateLine(since, now, state.roots.length === 0));
+        said = true;
+      }
+    }
     if (whyNotNow(state, now) !== null) return;
     if ((await privateOf($, store)) !== null) return;
     const record = await noteTried(files, store.write, state, now);
@@ -365,6 +382,8 @@ async function collectOnce($: WithUi & WithEnv & WithFiles & WithSettings & With
   } catch (error) {
     say($, `moved-out results are kept, not cleaned up: ${error instanceof Error ? error.message : String(error)}`);
     if (tried !== null) await stoppedAs(filesOf($), tried.dir, tried.record, 'unexpected');
+  } finally {
+    if (tell && !said) toldLate = false;
   }
 }
 
