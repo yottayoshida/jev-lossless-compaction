@@ -451,7 +451,7 @@ export async function compact(input: Input, config: Config, host: Host): Promise
   const tokensAfter = Math.round(count === undefined ? input.tokens - saved * perUnit : count.fixedTokens + conversationAfter);
   // How far over what may stay in use. A summary can take away no more than the
   // conversation that is left: when that does not cover it, handing over gains nothing.
-  const over = tokensAfter - (input.window * config.maxAfterPercent) / 100;
+  const over = tokensAfter - mayStay(input.window, config.maxAfterPercent);
   return {
     messages,
     enough: moved.size > 0 && (over <= 0 || conversationAfter < over),
@@ -488,8 +488,17 @@ export function reportLine(report: Report): string {
   );
 }
 
+/**
+ * The tokens that may stay in use to go on with: `maxAfterPercent` of the size at
+ * which Claude Code compacts on its own. One line for what is left after moving
+ * out and for what is in use where nothing could be moved.
+ */
+function mayStay(window: number, maxAfterPercent: number): number {
+  return (window * maxAfterPercent) / 100;
+}
+
 /** What a compaction that moved nothing out is decided by, see `leftUndone`. */
-export type Asked = {
+export type CompactRequest = {
   /** Who asked for the compaction, as Claude Code says it. */
   trigger: string | undefined;
   /** What `/compact` was given to summarize by. */
@@ -513,12 +522,12 @@ export type Asked = {
  * with nothing that could leave, and with no more in use than may stay. An
  * automatic compaction never is: it runs because the conversation is full.
  */
-export function leftUndone(asked: Asked): boolean {
+export function leftUndone(asked: CompactRequest): boolean {
   return (
     asked.trigger === 'manual' &&
     asked.candidates === 0 &&
     (asked.instructions ?? '').trim() === '' &&
-    asked.inUse <= (asked.window * asked.maxAfterPercent) / 100
+    asked.inUse <= mayStay(asked.window, asked.maxAfterPercent)
   );
 }
 
