@@ -34,6 +34,13 @@ conversations built again from the same traces. `bases/` there names each
 building by its size and the SHA-256 of its record; the conversations
 themselves are published once, in `bases/` here.
 
+`results/2026-10-03/` is the plugin's arm measured again with a `/compact`
+left undone where there is nothing to move out and room left (ADR 0015), on
+those same conversations, beside the built-in arm of
+`results/2026-10-02-v0.6.1/` as it was measured there; and probes of the
+four conversations it leaves undone with `maxAfterPercent` at 1, where each
+is handed to the summary.
+
 ## What is fixed before anything is compared
 
 - **The traces** (`traces.ts`): six made-up conversations of different
@@ -109,6 +116,14 @@ not in front of the next.
 What a run repeats: the trace is built once and shared. The plugin's
 compaction is decided by rules and comes out the same every run; what varies
 between runs is the built-in summary and the answers.
+
+Where the plugin leaves a `/compact` undone (ADR 0015), nothing was
+compacted and Claude Code writes no boundary: the unit is read from what
+Claude Code said of the skip, its questions are asked of the conversation as
+it was, its time is the session's, and its tokens before and after are both
+what was in use. The tables show such units in a row of their own, which is
+there only where there is one. To measure what follows a hand-over all the
+same, `--max-after 1` puts the line under any conversation.
 
 A probe is a unit of the plugin's arm that asks one thing which needs
 nothing of the conversation ("Reply with the single word: ok"). What its

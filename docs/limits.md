@@ -12,6 +12,34 @@ change that. An image in a tool result is moved out with the result: a line
 stands in its place, and the conversation is compacted by the plugin (see
 [images](#images)).
 
+One case of nothing to move out is left alone (ADR 0015). A `/compact` run
+by hand without instructions, on a conversation that has nothing to move out
+and uses no more than `maxAfterPercent` of the size at which Claude Code
+compacts on its own, is not carried out: Claude Code's summary does not run,
+and a line says so.
+
+```text
+Not compacted · lossless-compaction: nothing to move out, 28425 of 167000 tokens in use: the conversation is left as it is. /compact with instructions runs Claude Code's summary
+```
+
+- The line is the one Claude Code shows for a compaction a plugin skipped,
+  and it records the compaction as failed. Nothing is kept, rebuilt or sent,
+  and the line is all that is added to the conversation.
+- What is in use is Claude Code's own figure, thinking included, since
+  nothing is rebuilt. Right after a summary Claude Code gives none: the
+  conversation's characters over three are measured instead, which holds no
+  system prompt and no tools, and the line names no figure.
+- `/compact` with instructions is summarized as before, the conversation
+  kept first. So is an automatic compaction, which runs because the
+  conversation is full, and a `/compact` with `maxAfterPercent` set under
+  what is in use.
+- The other cases above are not this one: a conversation handed over before
+  anything could be moved (no place to keep results in, an image pasted into
+  a message, 4096 messages or more) is summarized with room or without.
+
+Measured with `-p` on Claude Code 2.1.287 and 2.1.288, and in a terminal on
+2.1.288.
+
 How full it is afterwards is counted as what is in use less what goes (ADR
 0013). What Claude Code's breakdown says is not the conversation (the system
 prompt, the tools' definitions and the like) stays as it is. Of the
@@ -36,9 +64,9 @@ mostly tool results, pasted English prose with logs, and Japanese with logs.
 On Opus 5.5: Japanese with logs, made up, and five long working sessions
 with 172 to 235 thinking blocks.
 
-Where nothing could be moved, the conversation goes to the summary and
-nothing the plugin would have rebuilt is sent, so there is no afterwards to
-measure. Set against what was in use before less its thinking, the size came
+Where nothing could be moved, the conversation goes to the summary or is
+left as it is, and nothing the plugin would have rebuilt is sent, so there is
+no afterwards to measure. Set against what was in use before less its thinking, the size came
 up to 7 % under in the five such conversations of the benchmark (files
 written, pasted prose, many short results, a full window, a third
 thinking), where 0.6.0 ran from 49 % over to 22 % under.
