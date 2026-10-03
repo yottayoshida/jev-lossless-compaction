@@ -18,9 +18,9 @@ instead. One line, a ticket, stays behind for each result, and the agent gets
 the exact result back when it needs it: by the id on the ticket with `recall`,
 or by saying what it is about with `find`, which asks
 [Jev](https://typesafe.ai) to choose. Where tool results are not what fills
-the conversation, a `/compact` with room left does nothing, and a full
-conversation still goes to Claude Code's summary, the plugin keeping it
-first ([Limits](#limits)).
+the conversation, a `/compact` without instructions and with room left does
+nothing, and a full conversation still goes to Claude Code's summary, the
+plugin keeping it first ([Limits](#limits)).
 
 A compaction sends nothing anywhere. `find` is optional and needs a Jev key;
 with one set, it sends [excerpts of the conversation](#usage) to the Jev
@@ -113,7 +113,7 @@ Six made-up conversations, each given `/compact` by hand once with the plugin
 and once without, three times with Haiku 4.5. In every cell the plugin's
 figure is first and the built-in compaction's second:
 
-| The conversation is mostly      | The summary ran | A compaction took   | Output of a script since removed: right, of 6 |
+| The conversation is mostly      | The summary ran | `/compact` took     | Output of a script since removed: right, of 6 |
 | ------------------------------- | --------------- | ------------------- | --------------------------------------------- |
 | Large tool results              | 0 of 3 · 3 of 3 | 0.1 s · 20–26 s     | 6 · 2                                         |
 | Files the agent wrote           | 0 of 3 · 3 of 3 | 0.05 s · 27–31 s    | 5 · 1                                         |
