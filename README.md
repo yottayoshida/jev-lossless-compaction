@@ -186,7 +186,8 @@ The protocol, every table and what they do not show:
   plain text under `~/.claude/lossless-compaction/`, in a directory closed to
   mode 700 before anything is written. Once a week the transcripts are read.
   A file that neither they nor a part kept before a summary names goes to a
-  trash, and is removed a week later if still named by none.
+  trash, and is removed a week later if still named by none. `/lossless-store`
+  says how much is kept and how the clean-up went, without opening a result.
 
 ## Limits
 
