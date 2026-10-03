@@ -612,6 +612,12 @@ export const register: Register = (on, options) => {
     return { result: found.parts === undefined ? found.text : blocksOf(found.parts) };
   });
 
+  // Listed with the tools in front of the agent, not behind ToolSearch: an agent that has
+  // not loaded recall reads neither its description nor find's, and answers that a moved-out
+  // result is not there (#54). Spelled out, not imported: tests hold them to the tools' names.
+  on('tool.describe', { tool: 'mcp__lossless-compaction__recall' }, async ($, e, next) => ({ ...(await next(e)), isDeferred: false }));
+  on('tool.describe', { tool: 'mcp__lossless-compaction__find' }, async ($, e, next) => ({ ...(await next(e)), isDeferred: false }));
+
   // Spelled out, not imported: a test holds it to FIND_TOOL.
   on('tool.call', { tool: 'mcp__lossless-compaction__find' }, async ($, e) => {
     try {
