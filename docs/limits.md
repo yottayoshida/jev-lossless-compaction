@@ -277,9 +277,13 @@ one of them, none of three in another), where without the line it answered
 with the file as it is now twelve times of twelve; Sonnet 5.5 answered right
 with the line and without it, in one run on two conversations
 ([the benchmark](measurements.md#a-file-shown-again-after-a-summary)). An id
-is 64 characters, and an agent copying one gets it wrong now and then;
-`recall` refuses it. Measured with `claude -p` and a manual `/compact`; a
-compaction Claude Code starts on its own was not.
+is 64 characters, and an agent copying one gets it wrong now and then:
+`recall` takes it for the one id written in the conversation that begins
+with its first 16 characters, and refuses it where none or more than one
+does
+([what is not taken](#what-an-agent-does-not-fetch)). Measured with
+`claude -p` and a manual `/compact`; a compaction Claude Code starts on its
+own was not.
 
 Every summary keeps the whole conversation, so the directory grows faster
 than moving out alone makes it grow.
@@ -792,7 +796,10 @@ less often, in made-up conversations asked right after the compaction
   `find`, and nothing in the conversation says which ticket is the one
   asked about. Of thirteen results whose calls say nothing of what is in
   them, all moved out, Haiku was right on 3 questions of 21 and called
-  `recall` for 4. With a key it was right on 19 of 21.
+  `recall` for 4. With a key it was right on 19 of 21. Asked with no key
+  for a code further down one of them, it was right on 3 of 9 in one set of
+  three runs and on 0 of 9 in another; for 3 and for 5 of the nine it did
+  not call `recall` at all.
 - **A changed file you hand over after a summary.** Once you hand a file
   over with an `@`, it is shown as it is, where Claude Code shows it again as
   well, and no line stands in its place. The plugin's message after the
@@ -803,10 +810,19 @@ less often, in made-up conversations asked right after the compaction
   measured with no `@`, on the plugin before a line stood in the file's
   place; with the file handed over it was tried in one session, where the
   reading was fetched.
-- **An id copied wrong.** An id is 64 characters. Haiku gave `recall` one it
-  refused in 15 of 990 calls, over every plugin measured for this, built or
-  not; in 8 of the 10 questions where that happened a later call went
-  through.
+- **An id copied wrong within its first 16 characters.** An id is 64
+  characters. Copied wrong, it is taken for the one id written in the
+  conversation that begins with its first 16 characters: written in the user
+  messages and in what tools returned, not in what the agent said or put in
+  its calls. One that goes wrong within the first 16 characters is refused,
+  as is one that two ids begin with, what is no id, and any id copied wrong
+  in a subagent's conversation. What the agent wrote can still stand there,
+  in Claude Code's summary or in a kept part `recall` returned: an id it
+  copied wrong there in full, 64 characters, makes two that begin alike,
+  and the id is refused. Haiku gave `recall` an id it
+  refused 15 times in 990 calls before this, over every plugin measured for
+  it: 10 of those are taken now, 3 went wrong at the thirteenth character,
+  and 2 were the size written on a ticket.
 
 ## What it was measured with
 

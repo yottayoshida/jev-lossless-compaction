@@ -113,4 +113,6 @@ and to characters that leave the line one line, shown as it is.
 - An agent copying the 64 characters of an id gets them wrong now and then
   (4 of 103 calls in the records of the benchmark's sessions, which are
   not published), and `recall` refuses it.
-  Not addressed here.
+  Not addressed here. Since #54, `recall` takes such an id for the one id
+  written in the conversation that begins with its first 16 characters
+  (`docs/measurements.md`, "The id that was meant").

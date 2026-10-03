@@ -20,7 +20,9 @@ at the first message you send, naming the setting to add
 ([what else it does, and what it does not reach](limits.md#function-hooks)).
 
 **`recall`.** The agent calls it with the id on a ticket and gets the result
-back unchanged. It needs no key.
+back unchanged. It needs no key. An id the agent copied wrong is taken for the
+one id written in the conversation that begins with its first 16 characters
+([what is not taken](limits.md#what-an-agent-does-not-fetch)).
 
 **`find`.** Optional. Asked in words, it returns the moved-out result of this
 conversation that the question is about, or lists the likeliest few when Jev
