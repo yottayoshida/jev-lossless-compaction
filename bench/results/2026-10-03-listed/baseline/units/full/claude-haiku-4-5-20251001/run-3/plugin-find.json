@@ -1,0 +1,207 @@
+{
+ "trace": "full",
+ "version": 1,
+ "base": "2a9d69b0-ba12-4811-993e-dcb63f5cd6a7",
+ "plugin": "f06e04efe7bb",
+ "pluginCommit": "44f410f7d95c",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 3,
+ "arm": "plugin",
+ "first": true,
+ "variant": "default",
+ "mode": "find",
+ "at": "2026-10-03T05:15:51.165Z",
+ "claudeCode": "2.1.288",
+ "compaction": {
+  "sessionId": "0cc5f5b5-f29c-4894-bc54-56843b602bcb",
+  "durationMs": 35706,
+  "wallMs": 36700,
+  "preTokens": 143016,
+  "postTokens": 5980,
+  "thinkingBefore": 881,
+  "line": {
+   "outcome": "nothing",
+   "moved": 0,
+   "results": 3,
+   "images": 0,
+   "charsBefore": 609213,
+   "charsAfter": 609213,
+   "ms": 4,
+   "estimate": 141121,
+   "window": 167000
+  },
+  "summarized": true,
+  "own": {
+   "inputTokens": 1534,
+   "outputTokens": 3382,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 143213,
+   "costUSD": 0.19746025,
+   "thinkingTokens": 1682
+  }
+ },
+ "questions": [
+  {
+   "id": "find-report",
+   "kind": "exact-gone",
+   "answer": "batch 58: 3 warnings, checksum d894a92d",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "Grep",
+    "Read"
+   ],
+   "retrieval": {
+    "recalls": 2,
+    "finds": 0,
+    "searches": 1,
+    "reads": 2
+   },
+   "outside": true,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    15014,
+    15528,
+    24398,
+    33040,
+    33633,
+    39574
+   ],
+   "durationMs": 22774,
+   "wallMs": 24001,
+   "own": {
+    "inputTokens": 52,
+    "outputTokens": 1807,
+    "cacheReadInputTokens": 127394,
+    "cacheCreationInputTokens": 33741,
+    "costUSD": 0.08930839999999995,
+    "thinkingTokens": 1107
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-kept",
+   "kind": "exact-gone",
+   "answer": "record 95-0017: station 7446 reported 622 units at step 17",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    15016
+   ],
+   "durationMs": 3805,
+   "wallMs": 5274,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 226,
+    "cacheReadInputTokens": 5825,
+    "cacheCreationInputTokens": 9181,
+    "costUSD": 0.02008449999999995,
+    "thinkingTokens": 200
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-script",
+   "kind": "exact-gone",
+   "answer": "The first line of the report.sh output was:\n\n**batch 01: 0 warnings, checksum 9e3a90c4**",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 2,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    15017,
+    15658,
+    16611,
+    18944
+   ],
+   "durationMs": 12471,
+   "wallMs": 13941,
+   "own": {
+    "inputTokens": 36,
+    "outputTokens": 888,
+    "cacheReadInputTokens": 53083,
+    "cacheCreationInputTokens": 13111,
+    "costUSD": 0.03600630000000005,
+    "thinkingTokens": 546
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-stays",
+   "kind": "exact-gone",
+   "answer": "kept-5.log. Its first line in full:\n\n```\nrecord 95-0001: station 418 reported 126 units at step 1\n```",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    15026
+   ],
+   "durationMs": 3632,
+   "wallMs": 5117,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 364,
+    "cacheReadInputTokens": 5825,
+    "cacheCreationInputTokens": 9191,
+    "costUSD": 0.02079450000000005,
+    "thinkingTokens": 322
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-changes",
+   "kind": "exact-gone",
+   "answer": "Based on the system reminder at the end of the file reads, `changing-5.log` was the file that changed on disk since it was read in the conversation.\n\nIts first line in full is:\n\n```\nrecord 85-0001: station 9081 reported 473 units at step 1\n```",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    15026
+   ],
+   "durationMs": 3374,
+   "wallMs": 5028,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 337,
+    "cacheReadInputTokens": 5825,
+    "cacheCreationInputTokens": 9191,
+    "costUSD": 0.020659500000000053,
+    "thinkingTokens": 263
+   }
+  }
+ ]
+}

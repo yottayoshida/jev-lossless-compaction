@@ -1,0 +1,375 @@
+{
+ "trace": "opaque",
+ "version": 1,
+ "base": "7485efcc-f478-483d-9db1-62e01222a341",
+ "plugin": "8e2ff528e11d",
+ "pluginCommit": "7727833185e2",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 3,
+ "arm": "plugin",
+ "first": true,
+ "variant": "find",
+ "mode": "find",
+ "at": "2026-10-03T06:16:53.577Z",
+ "claudeCode": "2.1.288",
+ "compaction": {
+  "sessionId": "bfa75bed-d8ee-45af-8304-3fc8be5e3a8a",
+  "durationMs": 245,
+  "wallMs": 1817,
+  "preTokens": 92388,
+  "postTokens": 22130,
+  "thinkingBefore": 1470,
+  "line": {
+   "outcome": "moved",
+   "moved": 16,
+   "results": 20,
+   "images": 0,
+   "charsBefore": 250457,
+   "charsAfter": 88103,
+   "ms": 198,
+   "estimate": 39592,
+   "window": 167000
+  },
+  "summarized": false,
+  "own": {
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0,
+   "thinkingTokens": 0
+  }
+ },
+ "questions": [
+  {
+   "id": "find-doc-1",
+   "kind": "exact-gone",
+   "answer": "\"Runbook: rotating the signing key used for release builds\"",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32887,
+    33528,
+    35540
+   ],
+   "durationMs": 7037,
+   "wallMs": 8260,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 461,
+    "cacheReadInputTokens": 99272,
+    "cacheCreationInputTokens": 2655,
+    "costUSD": 0.017570200000000008,
+    "thinkingTokens": 268
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-2",
+   "kind": "exact-gone",
+   "answer": "Incident report: the payment webhook that stopped answering",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32889,
+    33540,
+    35565
+   ],
+   "durationMs": 6309,
+   "wallMs": 7608,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 453,
+    "cacheReadInputTokens": 99288,
+    "cacheCreationInputTokens": 2678,
+    "costUSD": 0.017577800000000005,
+    "thinkingTokens": 267
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-4",
+   "kind": "exact-gone",
+   "answer": "The first line in full is:\n\n\"Onboarding a contractor onto the company VPN\"",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32884,
+    33621,
+    35860
+   ],
+   "durationMs": 10664,
+   "wallMs": 11949,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 777,
+    "cacheReadInputTokens": 99359,
+    "cacheCreationInputTokens": 2978,
+    "costUSD": 0.019804899999999986,
+    "thinkingTokens": 557
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-7",
+   "kind": "exact-gone",
+   "answer": "\"Where to gather, who sweeps each floor, and what happens to visitors and deliveries meanwhile.\"",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32886,
+    33526,
+    35518
+   ],
+   "durationMs": 6541,
+   "wallMs": 7830,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 493,
+    "cacheReadInputTokens": 99268,
+    "cacheCreationInputTokens": 2634,
+    "costUSD": 0.017687800000000004,
+    "thinkingTokens": 294
+   }
+  },
+  {
+   "id": "find-doc-9",
+   "kind": "exact-gone",
+   "answer": "\"The holiday rota for the support desk\"",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32885,
+    33529,
+    35518
+   ],
+   "durationMs": 5357,
+   "wallMs": 6613,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 408,
+    "cacheReadInputTokens": 99269,
+    "cacheCreationInputTokens": 2635,
+    "costUSD": 0.0172649,
+    "thinkingTokens": 221
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-10",
+   "kind": "exact-gone",
+   "answer": "Post-mortem: a database table deleted by mistake",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32887,
+    33547,
+    35578
+   ],
+   "durationMs": 6556,
+   "wallMs": 7953,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 489,
+    "cacheReadInputTokens": 99291,
+    "cacheCreationInputTokens": 2693,
+    "costUSD": 0.0177881,
+    "thinkingTokens": 300
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-12",
+   "kind": "exact-gone",
+   "answer": "I don't have any information about credentials or secure web traffic in this conversation. The discussion so far has been entirely about running shell scripts that output station records with unit reports at different steps.\n\nIf that information was in one of the 16 compacted results, I can search for it using the lossless-compaction tools. But based on what I can see, nothing in this session has covered that topic. Could you clarify what you're referring to, or would you like me to search the compacted results?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 3,
+   "requests": [
+    32886
+   ],
+   "durationMs": 5788,
+   "wallMs": 7178,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 490,
+    "cacheReadInputTokens": 32876,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.005747599999999992,
+    "thinkingTokens": 376
+   }
+  },
+  {
+   "id": "find-code-3",
+   "kind": "exact-gone",
+   "answer": "I cannot find the reference code \"RX-5323-T\" in the moved results or in the current conversation. It's possible it appears in one of the earlier Bash command results that were moved out, but the search didn't locate it in the available metadata. Could you clarify where this reference code should appear, or would you like me to recall a specific moved result by its id?",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 2,
+   "requests": [
+    32883,
+    33335,
+    33603
+   ],
+   "durationMs": 8692,
+   "wallMs": 10019,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 733,
+    "cacheReadInputTokens": 99071,
+    "cacheCreationInputTokens": 722,
+    "costUSD": 0.015044099999999977,
+    "thinkingTokens": 486
+   }
+  },
+  {
+   "id": "find-code-6",
+   "kind": "exact-gone",
+   "answer": "I cannot find the reference code \"RX-9646-M\" in either the current conversation or the moved-out results. The search returned no matches. Could you provide more context about where this reference code appeared, or verify the exact code?",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    32883,
+    33564,
+    33845
+   ],
+   "durationMs": 7244,
+   "wallMs": 8580,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 645,
+    "cacheReadInputTokens": 99300,
+    "cacheCreationInputTokens": 964,
+    "costUSD": 0.015111000000000013,
+    "thinkingTokens": 419
+   }
+  },
+  {
+   "id": "find-code-11",
+   "kind": "exact-gone",
+   "answer": "I couldn't find \"RX-4851-M\" in any of the earlier tool results. The outputs from running `sh show.sh 01` through `sh show.sh 20` contained station records (like \"record 203-0001\", \"record 211-0001\", \"record 212-0001\") with reported units and steps, but no reference code matching \"RX-4851-M\" appeared in those results.",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    32883,
+    33622,
+    33895
+   ],
+   "durationMs": 9441,
+   "wallMs": 10786,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 789,
+    "cacheReadInputTokens": 99358,
+    "cacheCreationInputTokens": 1014,
+    "costUSD": 0.0159368,
+    "thinkingTokens": 518
+   }
+  }
+ ]
+}

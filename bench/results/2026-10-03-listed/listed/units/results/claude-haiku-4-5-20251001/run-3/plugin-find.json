@@ -1,0 +1,316 @@
+{
+ "trace": "results",
+ "version": 1,
+ "base": "a270718b-538a-431d-9a8a-12723935df31",
+ "plugin": "d2a561d53d84",
+ "pluginCommit": "7977b38b25ae",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 3,
+ "arm": "plugin",
+ "first": true,
+ "variant": "default",
+ "mode": "find",
+ "at": "2026-10-03T05:45:39.161Z",
+ "claudeCode": "2.1.288",
+ "compaction": {
+  "sessionId": "9fbcb817-de9a-4891-9ed7-75ef93febd1c",
+  "durationMs": 97,
+  "wallMs": 1561,
+  "preTokens": 102377,
+  "postTokens": 23635,
+  "thinkingBefore": 977,
+  "line": {
+   "outcome": "moved",
+   "moved": 10,
+   "results": 15,
+   "images": 0,
+   "charsBefore": 235652,
+   "charsAfter": 94458,
+   "ms": 50,
+   "estimate": 45557,
+   "window": 167000
+  },
+  "summarized": false,
+  "own": {
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0,
+   "thinkingTokens": 0
+  }
+ },
+ "questions": [
+  {
+   "id": "find-report",
+   "kind": "exact-gone",
+   "answer": "batch 58: 2 warnings, checksum d8923051",
+   "calls": [
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    43721,
+    46105
+   ],
+   "durationMs": 4620,
+   "wallMs": 6150,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 274,
+    "cacheReadInputTokens": 87422,
+    "cacheCreationInputTokens": 2386,
+    "costUSD": 0.014902199999999977,
+    "thinkingTokens": 154
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-kept",
+   "kind": "exact-gone",
+   "answer": "record 91-0017: station 6922 reported 618 units at step 17",
+   "calls": [
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "Read",
+    "Grep",
+    "Grep"
+   ],
+   "retrieval": {
+    "recalls": 8,
+    "finds": 0,
+    "searches": 0,
+    "reads": 3
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    43724,
+    87116,
+    90971,
+    91712,
+    92080,
+    92334
+   ],
+   "durationMs": 46272,
+   "wallMs": 47437,
+   "own": {
+    "inputTokens": 50,
+    "outputTokens": 4122,
+    "cacheReadInputTokens": 449275,
+    "cacheCreationInputTokens": 48612,
+    "costUSD": 0.1628115,
+    "thinkingTokens": 2960
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-script",
+   "kind": "exact-gone",
+   "answer": "The first line of the report.sh output was:\n\n\"batch 01: 10 warnings, checksum 9e3817e8\"",
+   "calls": [
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    43725,
+    46153
+   ],
+   "durationMs": 5398,
+   "wallMs": 6642,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 354,
+    "cacheReadInputTokens": 87430,
+    "cacheCreationInputTokens": 2430,
+    "costUSD": 0.015390999999999988,
+    "thinkingTokens": 216
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-stays",
+   "kind": "exact-gone",
+   "answer": "kept-1.log. Its first line in full is:\n\n`record 91-0001: station 9867 reported 122 units at step 1`",
+   "calls": [
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    43734,
+    46494
+   ],
+   "durationMs": 6960,
+   "wallMs": 8432,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 457,
+    "cacheReadInputTokens": 87448,
+    "cacheCreationInputTokens": 2762,
+    "costUSD": 0.01657179999999997,
+    "thinkingTokens": 315
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-changes",
+   "kind": "exact-gone",
+   "answer": "Based on the file names, `changing-1.log` was the one that would be made anew. Its first line in full is:\n\n`1\trecord 81-0001: station 8557 reported 112 units at step 1`",
+   "calls": [
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 2,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    43734,
+    49108
+   ],
+   "durationMs": 10463,
+   "wallMs": 11667,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 812,
+    "cacheReadInputTokens": 87448,
+    "cacheCreationInputTokens": 5376,
+    "costUSD": 0.023574800000000007,
+    "thinkingTokens": 561
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-log-a",
+   "kind": "exact-gone",
+   "answer": "record 2-0150: station 1325 reported 664 units at step 150",
+   "calls": [
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 4,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    43724,
+    72803
+   ],
+   "durationMs": 16057,
+   "wallMs": 17129,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 1361,
+    "cacheReadInputTokens": 87428,
+    "cacheCreationInputTokens": 29081,
+    "costUSD": 0.07372780000000001,
+    "thinkingTokens": 971
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-log-b",
+   "kind": "exact-gone",
+   "answer": "Looking at the log9.txt output I read earlier, line 203 is:\n\n```\n203\trecord 9-0203: station 3083 reported 320 units at step 203\n```",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    43720
+   ],
+   "durationMs": 6847,
+   "wallMs": 8070,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 527,
+    "cacheReadInputTokens": 43710,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.007016000000000022,
+    "thinkingTokens": 475
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-seventh",
+   "kind": "exact-gone",
+   "answer": "`record 7-0001: station 8836 reported 38 units at step 1`\n\nLog7.txt is complete—it has 290 lines total, so no need to refetch.",
+   "calls": [
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    43724,
+    51314
+   ],
+   "durationMs": 10610,
+   "wallMs": 11797,
+   "own": {
+    "inputTokens": 18,
+    "outputTokens": 762,
+    "cacheReadInputTokens": 87428,
+    "cacheCreationInputTokens": 7592,
+    "costUSD": 0.02775479999999997,
+    "thinkingTokens": 612
+   },
+   "verdict": "correct"
+  }
+ ]
+}

@@ -1,0 +1,205 @@
+{
+ "trace": "full",
+ "version": 1,
+ "base": "2a9d69b0-ba12-4811-993e-dcb63f5cd6a7",
+ "plugin": "d2a561d53d84",
+ "pluginCommit": "7977b38b25ae",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 2,
+ "arm": "plugin",
+ "first": true,
+ "variant": "default",
+ "mode": "find",
+ "at": "2026-10-03T05:38:55.859Z",
+ "claudeCode": "2.1.288",
+ "compaction": {
+  "sessionId": "7efd2611-4fd2-4a37-bdd6-48758d361315",
+  "durationMs": 52429,
+  "wallMs": 53452,
+  "preTokens": 143016,
+  "postTokens": 5783,
+  "thinkingBefore": 881,
+  "line": {
+   "outcome": "nothing",
+   "moved": 0,
+   "results": 3,
+   "images": 0,
+   "charsBefore": 609213,
+   "charsAfter": 609213,
+   "ms": 5,
+   "estimate": 141122,
+   "window": 167000
+  },
+  "summarized": true,
+  "own": {
+   "inputTokens": 136392,
+   "outputTokens": 5397,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 8497,
+   "costUSD": 0.17399825000000002,
+   "thinkingTokens": 3772
+  }
+ },
+ "questions": [
+  {
+   "id": "find-report",
+   "kind": "exact-gone",
+   "answer": "batch 58: 3 warnings, checksum d894a92d",
+   "calls": [
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 4,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14679,
+    23591,
+    31123,
+    32051,
+    34385
+   ],
+   "durationMs": 16754,
+   "wallMs": 17905,
+   "own": {
+    "inputTokens": 42,
+    "outputTokens": 1079,
+    "cacheReadInputTokens": 106972,
+    "cacheCreationInputTokens": 28815,
+    "costUSD": 0.07376419999999995,
+    "thinkingTokens": 644
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-kept",
+   "kind": "exact-gone",
+   "answer": "`record 95-0017: station 7446 reported 622 units at step 17`",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14681
+   ],
+   "durationMs": 2658,
+   "wallMs": 4119,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 189,
+    "cacheReadInputTokens": 5562,
+    "cacheCreationInputTokens": 9109,
+    "costUSD": 0.019729200000000002,
+    "thinkingTokens": 160
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-script",
+   "kind": "exact-gone",
+   "answer": "\"batch 01: 0 warnings, checksum 9e3a90c4\"",
+   "calls": [
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 3,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14682,
+    23352,
+    24465,
+    26795
+   ],
+   "durationMs": 12453,
+   "wallMs": 13684,
+   "own": {
+    "inputTokens": 34,
+    "outputTokens": 813,
+    "cacheReadInputTokens": 68035,
+    "cacheCreationInputTokens": 21225,
+    "costUSD": 0.053352500000000025,
+    "thinkingTokens": 490
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-stays",
+   "kind": "exact-gone",
+   "answer": "The file to be left as is is **kept-5.log**. Its first line in full:\n\n```\nrecord 95-0001: station 418 reported 126 units at step 1\n```",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14691
+   ],
+   "durationMs": 2909,
+   "wallMs": 4362,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 207,
+    "cacheReadInputTokens": 5562,
+    "cacheCreationInputTokens": 9119,
+    "costUSD": 0.019839199999999946,
+    "thinkingTokens": 154
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-changes",
+   "kind": "exact-gone",
+   "answer": "The file that was going to be made anew was **changing-5.log**. Its first line is:\n\n```\nrecord 85-0001: station 9081 reported 473 units at step 1\n```",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14691
+   ],
+   "durationMs": 3410,
+   "wallMs": 4856,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 246,
+    "cacheReadInputTokens": 5562,
+    "cacheCreationInputTokens": 9119,
+    "costUSD": 0.020034200000000002,
+    "thinkingTokens": 190
+   }
+  }
+ ]
+}

@@ -1,0 +1,207 @@
+{
+ "trace": "full",
+ "version": 1,
+ "base": "2a9d69b0-ba12-4811-993e-dcb63f5cd6a7",
+ "plugin": "f06e04efe7bb",
+ "pluginCommit": "44f410f7d95c",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 2,
+ "arm": "plugin",
+ "first": true,
+ "variant": "default",
+ "mode": "find",
+ "at": "2026-10-03T05:03:57.696Z",
+ "claudeCode": "2.1.288",
+ "compaction": {
+  "sessionId": "800b2bf3-7d9f-45f6-93ca-2b960ed65baa",
+  "durationMs": 42772,
+  "wallMs": 43840,
+  "preTokens": 143016,
+  "postTokens": 5559,
+  "thinkingBefore": 881,
+  "line": {
+   "outcome": "nothing",
+   "moved": 0,
+   "results": 3,
+   "images": 0,
+   "charsBefore": 609213,
+   "charsAfter": 609213,
+   "ms": 5,
+   "estimate": 141121,
+   "window": 167000
+  },
+  "summarized": true,
+  "own": {
+   "inputTokens": 1534,
+   "outputTokens": 4290,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 143213,
+   "costUSD": 0.20200025,
+   "thinkingTokens": 2846
+  }
+ },
+ "questions": [
+  {
+   "id": "find-report",
+   "kind": "exact-gone",
+   "answer": "batch 58: 3 warnings, checksum d894a92d",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 3,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14586,
+    15235,
+    16214,
+    24786,
+    27109
+   ],
+   "durationMs": 15155,
+   "wallMs": 16492,
+   "own": {
+    "inputTokens": 44,
+    "outputTokens": 1033,
+    "cacheReadInputTokens": 76610,
+    "cacheCreationInputTokens": 21276,
+    "costUSD": 0.05542199999999986,
+    "thinkingTokens": 607
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-kept",
+   "kind": "exact-gone",
+   "answer": "record 95-0017: station 7446 reported 622 units at step 17",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14588
+   ],
+   "durationMs": 2115,
+   "wallMs": 3590,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 136,
+    "cacheReadInputTokens": 5825,
+    "cacheCreationInputTokens": 8753,
+    "costUSD": 0.01877850000000003,
+    "thinkingTokens": 109
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-script",
+   "kind": "exact-gone",
+   "answer": "\"batch 01: 0 warnings, checksum 9e3a90c4\"",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 3,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14589,
+    15088,
+    23651,
+    24635,
+    26960
+   ],
+   "durationMs": 13362,
+   "wallMs": 14617,
+   "own": {
+    "inputTokens": 44,
+    "outputTokens": 865,
+    "cacheReadInputTokens": 83752,
+    "cacheCreationInputTokens": 21127,
+    "costUSD": 0.05499820000000011,
+    "thinkingTokens": 456
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-stays",
+   "kind": "exact-gone",
+   "answer": "kept-5.log\n\n\"record 95-0001: station 418 reported 126 units at step 1\"",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14598
+   ],
+   "durationMs": 3278,
+   "wallMs": 4884,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 286,
+    "cacheReadInputTokens": 5825,
+    "cacheCreationInputTokens": 8763,
+    "costUSD": 0.01954849999999997,
+    "thinkingTokens": 252
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-changes",
+   "kind": "exact-gone",
+   "answer": "changing-5.log was the one that changed on disk.\n\nIts first line is:\n\"record 85-0001: station 9081 reported 473 units at step 1\"",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14598
+   ],
+   "durationMs": 5243,
+   "wallMs": 6496,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 343,
+    "cacheReadInputTokens": 5825,
+    "cacheCreationInputTokens": 8763,
+    "costUSD": 0.01983349999999995,
+    "thinkingTokens": 294
+   }
+  }
+ ]
+}
