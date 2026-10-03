@@ -4,7 +4,7 @@
 // file written out; a test holds the two together). A change to a trace after
 // results exist raises its `version`, and what measured the older one is left out.
 
-import { inventoryFile, jaDoc, jaPuzzle, logFile, logLine, proseDoc, puzzle, reportLine, reportScript, sourceFile, statusFile } from './fixtures.ts';
+import { OPAQUE_SUBJECTS, inventoryFile, jaDoc, jaPuzzle, logFile, logLine, opaqueCode, opaqueCodeLine, opaqueDoc, proseDoc, puzzle, reportLine, reportScript, showScript, sourceFile, statusFile } from './fixtures.ts';
 
 /** One thing that happens while a trace is built: something said to the agent, or a change to the files made from outside. */
 export type Step = { say: string; effort?: string } | { write: string; text: string } | { remove: string };
@@ -574,6 +574,60 @@ const japanese = trace(
   },
 );
 
+// T9. Thirteen documents printed by a numbered script: the call says nothing of what came back,
+// so which one a question is about is in the results alone (#38). Asked only what `find` is for.
+const OPAQUE_DOCS = OPAQUE_SUBJECTS.length;
+const OPAQUE_LINES = 48;
+/** Station logs printed after the documents: four that may leave once the documents have, three that the newest results keep. */
+const OPAQUE_SPARE = 4;
+const OPAQUE_KEPT = 3;
+const OPAQUE_SPARE_LINES = 400;
+const OPAQUE_KEPT_LINES = 330;
+const opaqueOutputs = [
+  ...Array.from({ length: OPAQUE_DOCS }, (_, i) => opaqueDoc(i + 1, OPAQUE_LINES)),
+  ...Array.from({ length: OPAQUE_SPARE }, (_, i) => logFile(200 + i, OPAQUE_SPARE_LINES)),
+  ...Array.from({ length: OPAQUE_KEPT }, (_, i) => logFile(210 + i, OPAQUE_KEPT_LINES)),
+];
+const shown = (from: number, to: number): Step => ({
+  say: `Run ${Array.from({ length: to - from + 1 }, (_, i) => `\`sh show.sh ${String(from + i).padStart(2, '0')}\``).join(', ')} with Bash, a separate call apiece, lowest number first. Then reply only: shown.`,
+});
+/** Asked by what each was: the subject in other words than its title. */
+const OPAQUE_MEANING: [doc: number, ask: string][] = [
+  [1, 'Which earlier result explained how to replace the key that software is signed with before it ships?'],
+  [2, 'Which earlier result described the outage in which buyers could not finish paying because a callback went silent?'],
+  [4, 'Which earlier result covered letting an outside worker reach the internal network from home?'],
+  [7, 'Which earlier result named the spot staff assemble at when the alarm is practised?'],
+  [9, 'Which earlier result set out who answers customers while most people are away in December?'],
+  [10, 'Which earlier result told how stored data wiped out by a tidying job was restored?'],
+  [12, 'Which earlier result was about keeping the credentials that secure web traffic from lapsing?'],
+];
+const OPAQUE_VALUE = [3, 6, 11];
+const opaque: Trace = {
+  name: 'opaque',
+  version: 1,
+  shape: `calls that say nothing of what they print: ${OPAQUE_DOCS} documents of about 7,000 characters on unrelated subjects, then ${OPAQUE_SPARE + OPAQUE_KEPT} station logs, each printed by \`sh show.sh NN\``,
+  files: [{ path: 'show.sh', text: showScript(opaqueOutputs) }],
+  steps: [
+    { say: 'We are going through what a script prints, output by output. I will ask you to run it; each time, reply with only the word I give.\n\nReply only: understood.' },
+    shown(1, 5),
+    shown(6, 10),
+    shown(11, OPAQUE_DOCS),
+    shown(OPAQUE_DOCS + 1, OPAQUE_DOCS + OPAQUE_SPARE),
+    shown(OPAQUE_DOCS + OPAQUE_SPARE + 1, OPAQUE_DOCS + OPAQUE_SPARE + OPAQUE_KEPT),
+    // Said last, in the words of the station logs: the logs share more with it than the documents do, so the documents leave first.
+    { say: `Station record outputs ${OPAQUE_DOCS + 1} to ${OPAQUE_DOCS + OPAQUE_SPARE + OPAQUE_KEPT} are shown. Next: tally units each station reported at each step into TALLY.md. Open: whether station 4107 reported twice.\n\nReply only: noted.` },
+  ],
+  // The script is the only place the documents are on disk: gone before any question, as a command's output is gone once it has scrolled away.
+  beforeCompaction: [{ remove: 'show.sh' }],
+  accept: { minTokens: 85_000, maxTokens: 140_000 },
+  questions: [],
+  finds: [
+    ...OPAQUE_MEANING.map(([doc, ask]) => ({ id: `find-doc-${doc}`, by: 'meaning' as const, ask, target: OPAQUE_SUBJECTS[doc - 1]?.[0] ?? '' })),
+    ...OPAQUE_VALUE.map((doc) => ({ id: `find-code-${doc}`, by: 'value' as const, ask: `Which earlier result gave the reference code ${opaqueCode(doc)}?`, target: opaqueCodeLine(doc) })),
+  ],
+  marks: [],
+};
+
 export const TRACES: readonly Trace[] = [results, writes, prose, short, full, thinking];
 
 /**
@@ -583,12 +637,19 @@ export const TRACES: readonly Trace[] = [results, writes, prose, short, full, th
  */
 export const PROBED: readonly Trace[] = [mixed, japanese];
 
+/**
+ * Conversations asked only the questions `find` is for (`find`, `pick`): whose
+ * calls say nothing of what came back, so an id in a ticket does not tell which
+ * result a question is about.
+ */
+export const FOUND: readonly Trace[] = [opaque];
+
 /** Every conversation that can be built. */
-export const BUILT: readonly Trace[] = [...TRACES, ...PROBED];
+export const BUILT: readonly Trace[] = [...TRACES, ...PROBED, ...FOUND];
 
 /** What `bench/questions.json` holds: every question, its answer and how it is graded. */
 export function described() {
-  return TRACES.map((one) => ({
+  return [...TRACES, ...FOUND].map((one) => ({
     trace: one.name,
     version: one.version,
     shape: one.shape,

@@ -1,7 +1,7 @@
 // The benchmark's commands. Sessions run outside the repository, under BENCH_BOX:
 //
 //   node bench/main.ts describe                      what is asked, and the answers
-//   node bench/main.ts build   --traces a,b          build the conversations: the six that are asked questions, and the two that are only probed
+//   node bench/main.ts build   --traces a,b          build the conversations: the six that are asked questions, the two that are only probed, and the one asked only what `find` is for
 //   node bench/main.ts run     --traces a,b --models m1,m2 --runs 3
 //   node bench/main.ts probe   --traces a,b --models m1 [--plugin-dirs name=path,...] [--max-after 100]   (both: each checkout at that setting)
 //   node bench/main.ts pick                          what `find` picks against a word match (asks Jev: BENCH_JEV_ENV)
@@ -25,7 +25,7 @@ import { keysIn } from './lib.ts';
 import { pick, pickTable, type Pick } from './pick.ts';
 import { whole } from './report.ts';
 import { leaf, runAll, variantsOf } from './run.ts';
-import { BUILT, PROBED, TRACES, described } from './traces.ts';
+import { BUILT, FOUND, PROBED, TRACES, described } from './traces.ts';
 
 const HAIKU = 'claude-haiku-4-5-20251001';
 
@@ -82,7 +82,8 @@ async function main(): Promise<void> {
   const places: Places = { box: resolve(box), pluginDir };
   const log = (text: string) => console.error(text);
   // Every conversation is built and probed; questions are asked of the six they were written for.
-  const traces = list(flag(args, 'traces'), (command === 'build' || command === 'probe' ? BUILT : TRACES).map((trace) => trace.name));
+  // A probe of every conversation leaves out those asked only what `find` is for: their size was not set against the count (#37).
+  const traces = list(flag(args, 'traces'), (command === 'build' ? BUILT : command === 'probe' ? [...TRACES, ...PROBED] : TRACES).map((trace) => trace.name));
   const buildModel = flag(args, 'build-model') ?? HAIKU;
   if (command === 'build') {
     for (const name of traces) {
@@ -94,8 +95,8 @@ async function main(): Promise<void> {
     return;
   }
   if (command === 'run' || command === 'probe') {
-    const unasked = command === 'run' ? traces.filter((name) => PROBED.some((one) => one.name === name)) : [];
-    if (unasked.length > 0) throw new Error(`no question is asked of ${unasked.join(', ')}: built for \`probe\` only`);
+    const unasked = command === 'run' ? traces.filter((name) => [...PROBED, ...FOUND].some((one) => one.name === name)) : [];
+    if (unasked.length > 0) throw new Error(`no question but those of \`find\` is asked of ${unasked.join(', ')}: built for \`probe\`, \`find\` or \`pick\` only`);
     const models = list(flag(args, 'models'), [HAIKU]);
     const runs = Number(flag(args, 'runs') ?? 1);
     const variants = variantsOf(flag(args, 'plugin-dirs'), flag(args, 'max-after'), pluginDir);
@@ -114,7 +115,7 @@ async function main(): Promise<void> {
     if (provider === null || 'error' in provider) throw new Error(`the key for Jev cannot be used: ${provider === null ? 'none was given' : provider.error}`);
     const picks: Pick[] = [];
     for (const name of traces) {
-      const trace = TRACES.find((one) => one.name === name);
+      const trace = [...TRACES, ...FOUND].find((one) => one.name === name);
       if (trace === undefined) throw new Error(`no trace named ${name}`);
       const conversation = JSON.parse(readFileSync(join(places.box, 'bases', `${name}.conversation.json`), 'utf8')) as Conversation;
       const of = await pick(name, trace.finds, conversation, provider, overHttp);

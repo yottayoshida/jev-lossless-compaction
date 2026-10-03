@@ -1,0 +1,372 @@
+{
+ "trace": "opaque",
+ "version": 1,
+ "base": "a6fdff77-4483-4549-9453-4a63c157653f",
+ "plugin": "288266aa862c",
+ "pluginCommit": "944055260476",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 2,
+ "arm": "plugin",
+ "first": true,
+ "variant": "find",
+ "mode": "find",
+ "at": "2026-10-03T01:50:17.944Z",
+ "claudeCode": "2.1.288",
+ "compaction": {
+  "sessionId": "98bc11c9-0fc2-42eb-8b9c-56cc8f724f06",
+  "durationMs": 153,
+  "wallMs": 2078,
+  "preTokens": 91601,
+  "postTokens": 22054,
+  "thinkingBefore": 693,
+  "line": {
+   "outcome": "moved",
+   "moved": 16,
+   "results": 20,
+   "images": 0,
+   "charsBefore": 250457,
+   "charsAfter": 88103,
+   "ms": 93,
+   "estimate": 39328,
+   "window": 167000
+  },
+  "summarized": false,
+  "own": {
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0,
+   "thinkingTokens": 0
+  }
+ },
+ "questions": [
+  {
+   "id": "find-doc-1",
+   "kind": "exact-gone",
+   "answer": "Runbook: rotating the signing key used for release builds",
+   "calls": [
+    "ToolSearch",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25442,
+    26088,
+    26481,
+    28481
+   ],
+   "durationMs": 10965,
+   "wallMs": 12195,
+   "own": {
+    "inputTokens": 38,
+    "outputTokens": 716,
+    "cacheReadInputTokens": 103413,
+    "cacheCreationInputTokens": 3041,
+    "costUSD": 0.020041299999999984,
+    "thinkingTokens": 450
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-2",
+   "kind": "exact-gone",
+   "answer": "Incident report: the payment webhook that stopped answering",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25444,
+    26234,
+    28238
+   ],
+   "durationMs": 9015,
+   "wallMs": 10216,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 605,
+    "cacheReadInputTokens": 77092,
+    "cacheCreationInputTokens": 2796,
+    "costUSD": 0.016354200000000013,
+    "thinkingTokens": 416
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-4",
+   "kind": "exact-gone",
+   "answer": "I don't see that content in our current conversation context. The conversation so far has focused on running the `show.sh` script with station record outputs and creating a tally. \n\nHowever, I notice the lossless-compaction tools are available, which may have compressed earlier context. Could you clarify which conversation or context this question refers to? I want to make sure I quote the correct first line accurately.",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    25439
+   ],
+   "durationMs": 6001,
+   "wallMs": 7227,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 332,
+    "cacheReadInputTokens": 25429,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.004212899999999992,
+    "thinkingTokens": 239
+   }
+  },
+  {
+   "id": "find-doc-7",
+   "kind": "exact-gone",
+   "answer": "\"What to do during a fire drill\"",
+   "calls": [
+    "ToolSearch",
+    "ToolSearch",
+    "mcp__lossless-compaction__find",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25441,
+    26085,
+    26462,
+    28437,
+    30492
+   ],
+   "durationMs": 13599,
+   "wallMs": 14815,
+   "own": {
+    "inputTokens": 46,
+    "outputTokens": 967,
+    "cacheReadInputTokens": 131818,
+    "cacheCreationInputTokens": 5053,
+    "costUSD": 0.028168799999999994,
+    "thinkingTokens": 604
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-9",
+   "kind": "exact-gone",
+   "answer": "\"The holiday rota for the support desk\"",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25440,
+    26210,
+    28205
+   ],
+   "durationMs": 7450,
+   "wallMs": 8624,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 516,
+    "cacheReadInputTokens": 77060,
+    "cacheCreationInputTokens": 2767,
+    "costUSD": 0.015848,
+    "thinkingTokens": 328
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-10",
+   "kind": "exact-gone",
+   "answer": "I don't see a previous result in our conversation that explains how stored data wiped out by a tidying job was restored. The earlier Bash results with \"[moved out]\" messages indicate those outputs were compressed, but they don't contain text explaining a restoration process.\n\nCould you clarify what you're referring to, or would you like me to use the recall tools to restore one of the moved-out results to check its contents?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 3,
+   "requests": [
+    25442
+   ],
+   "durationMs": 10898,
+   "wallMs": 12077,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 1092,
+    "cacheReadInputTokens": 25432,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.008013199999999998,
+    "thinkingTokens": 996
+   }
+  },
+  {
+   "id": "find-doc-12",
+   "kind": "exact-gone",
+   "answer": "I don't have visibility into the content that was compacted from the earlier conversation. The `/compact` command compressed prior messages, and I can only see the current context from our recent exchanges about the station records. \n\nCould you please provide the text or specify where I should look for this reference about \"keeping the credentials that secure web traffic from lapsing\"?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    25441
+   ],
+   "durationMs": 4683,
+   "wallMs": 6124,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 409,
+    "cacheReadInputTokens": 25431,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.004598099999999994,
+    "thinkingTokens": 328
+   }
+  },
+  {
+   "id": "find-code-3",
+   "kind": "exact-gone",
+   "answer": "I cannot find the reference code \"RX-5323-T\" in any of the output results shown or recalled. It does not appear in the visible output from commands 17 or 20, nor in the moved-out results that were preserved.",
+   "calls": [
+    "ToolSearch",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 2,
+   "requests": [
+    25438,
+    26306,
+    26693,
+    26872
+   ],
+   "durationMs": 13784,
+   "wallMs": 14938,
+   "own": {
+    "inputTokens": 38,
+    "outputTokens": 1189,
+    "cacheReadInputTokens": 103835,
+    "cacheCreationInputTokens": 1436,
+    "costUSD": 0.01923850000000002,
+    "thinkingTokens": 887
+   }
+  },
+  {
+   "id": "find-code-6",
+   "kind": "exact-gone",
+   "answer": "I cannot find the reference code \"RX-9646-M\" in any of the earlier results shown or stored. It does not appear in the displayed outputs from show.sh 17 or show.sh 20, nor in the moved-out results that were compacted. Could you clarify which output it should have appeared in?",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 2,
+   "requests": [
+    25438,
+    27080,
+    27285
+   ],
+   "durationMs": 17774,
+   "wallMs": 19001,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 1496,
+    "cacheReadInputTokens": 77926,
+    "cacheCreationInputTokens": 1849,
+    "costUSD": 0.018998600000000004,
+    "thinkingTokens": 1242
+   }
+  },
+  {
+   "id": "find-code-11",
+   "kind": "exact-gone",
+   "answer": "I cannot find the reference code \"RX-4851-M\" in any of the earlier results shown. The script outputs displayed (show.sh 17 and show.sh 20) contained records in the format \"record XXX-XXXX: station Y reported Z units at step N\", but none included \"RX-4851-M\". It does not appear in the compacted results either.",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    25438,
+    26416,
+    26616
+   ],
+   "durationMs": 11081,
+   "wallMs": 12291,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 934,
+    "cacheReadInputTokens": 77262,
+    "cacheCreationInputTokens": 1180,
+    "costUSD": 0.014784199999999997,
+    "thinkingTokens": 673
+   }
+  }
+ ]
+}

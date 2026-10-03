@@ -1,0 +1,392 @@
+{
+ "trace": "opaque",
+ "version": 1,
+ "base": "a6fdff77-4483-4549-9453-4a63c157653f",
+ "plugin": "3b4bdf93e529",
+ "pluginCommit": "40f7d34c4f52",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 2,
+ "arm": "plugin",
+ "first": true,
+ "variant": "find",
+ "mode": "find",
+ "at": "2026-10-03T03:08:56.614Z",
+ "claudeCode": "2.1.288",
+ "compaction": {
+  "sessionId": "92ae5c8c-c836-4217-bfab-79df14508712",
+  "durationMs": 687,
+  "wallMs": 2154,
+  "preTokens": 91601,
+  "postTokens": 22054,
+  "thinkingBefore": 693,
+  "line": {
+   "outcome": "moved",
+   "moved": 16,
+   "results": 20,
+   "images": 0,
+   "charsBefore": 250457,
+   "charsAfter": 88103,
+   "ms": 653,
+   "estimate": 39328,
+   "window": 167000
+  },
+  "summarized": false,
+  "own": {
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0,
+   "thinkingTokens": 0
+  }
+ },
+ "questions": [
+  {
+   "id": "find-doc-1",
+   "kind": "exact-gone",
+   "answer": "Runbook: rotating the signing key used for release builds",
+   "calls": [
+    "ToolSearch",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25442,
+    26052,
+    26455,
+    28465
+   ],
+   "durationMs": 10309,
+   "wallMs": 11518,
+   "own": {
+    "inputTokens": 38,
+    "outputTokens": 719,
+    "cacheReadInputTokens": 103351,
+    "cacheCreationInputTokens": 3025,
+    "costUSD": 0.020018099999999983,
+    "thinkingTokens": 453
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-2",
+   "kind": "exact-gone",
+   "answer": "I don't see any information about an outage involving buyers, payment issues, or a silent callback in our conversation history. The outputs we've reviewed so far contain only station record data (records showing units reported at each step). \n\nCould you clarify which earlier result you're referring to, or provide more context about when this outage information appeared?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25444
+   ],
+   "durationMs": 3707,
+   "wallMs": 5116,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 368,
+    "cacheReadInputTokens": 25434,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.004393399999999992,
+    "thinkingTokens": 290
+   }
+  },
+  {
+   "id": "find-doc-4",
+   "kind": "exact-gone",
+   "answer": "Onboarding a contractor onto the company VPN",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25439,
+    26147,
+    28137
+   ],
+   "durationMs": 6359,
+   "wallMs": 7578,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 455,
+    "cacheReadInputTokens": 76995,
+    "cacheCreationInputTokens": 2700,
+    "costUSD": 0.015402500000000013,
+    "thinkingTokens": 267
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-7",
+   "kind": "exact-gone",
+   "answer": "**What to do during a fire drill**",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 9,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25441,
+    26371,
+    35382,
+    37438,
+    39494,
+    41501,
+    43522,
+    45538,
+    47519,
+    49511,
+    51488,
+    52832,
+    54806
+   ],
+   "durationMs": 52431,
+   "wallMs": 53376,
+   "own": {
+    "inputTokens": 110,
+    "outputTokens": 3816,
+    "cacheReadInputTokens": 521366,
+    "cacheCreationInputTokens": 29367,
+    "costUSD": 0.13006059999999997,
+    "thinkingTokens": 2640
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-9",
+   "kind": "exact-gone",
+   "answer": "I don't have access to earlier result sets from this conversation. The context appears to have been compressed with the `/compact` command, and I cannot see the specific result set about who answers customers while people are away in December.\n\nCould you clarify which output or file you're referring to, or would you like me to search the current working directory for relevant files?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25440
+   ],
+   "durationMs": 4017,
+   "wallMs": 5498,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 334,
+    "cacheReadInputTokens": 25430,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.0042230000000000045,
+    "thinkingTokens": 253
+   }
+  },
+  {
+   "id": "find-doc-10",
+   "kind": "exact-gone",
+   "answer": "Post-mortem: a database table deleted by mistake",
+   "calls": [
+    "ToolSearch",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25442,
+    25931,
+    26321,
+    28293
+   ],
+   "durationMs": 7964,
+   "wallMs": 9198,
+   "own": {
+    "inputTokens": 38,
+    "outputTokens": 559,
+    "cacheReadInputTokens": 103096,
+    "cacheCreationInputTokens": 2853,
+    "costUSD": 0.018848599999999993,
+    "thinkingTokens": 297
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-12",
+   "kind": "exact-gone",
+   "answer": "I don't see any result in our conversation about credentials or securing web traffic. All the outputs we've reviewed so far (from `show.sh 01` through `show.sh 20`) have been station records with unit reports at different steps, like:\n\n\"record 203-0001: station 4593 reported 234 units at step 1\"\n\nCould you clarify which result you're referring to, or provide the context where this appeared?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25441
+   ],
+   "durationMs": 3706,
+   "wallMs": 5074,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 338,
+    "cacheReadInputTokens": 25431,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.0042431,
+    "thinkingTokens": 234
+   }
+  },
+  {
+   "id": "find-code-3",
+   "kind": "exact-gone",
+   "answer": "I don't see \"RX-5323-T\" in any of the outputs shown to me during this session. The visible outputs from show.sh 17 and 20 contained station records (format: \"record XXX-XXXX: station YYYY reported ZZZ units at step N\"), but none contain that reference code. The moved-out results (from show.sh 03-16) also don't contain it based on the search.\n\nCould you clarify where this reference code should appear, or provide more context?",
+   "calls": [
+    "ToolSearch",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    25438,
+    26562,
+    26944,
+    27185
+   ],
+   "durationMs": 19666,
+   "wallMs": 20833,
+   "own": {
+    "inputTokens": 38,
+    "outputTokens": 1456,
+    "cacheReadInputTokens": 104342,
+    "cacheCreationInputTokens": 1749,
+    "costUSD": 0.021250199999999997,
+    "thinkingTokens": 1092
+   }
+  },
+  {
+   "id": "find-code-6",
+   "kind": "exact-gone",
+   "answer": "I don't see the reference code \"RX-9646-M\" in any of the visible outputs from show.sh 17 or show.sh 20, nor did the search find it in the moved-out results. The outputs shown contain station records with the pattern \"record XXX-XXXX: station YYYY reported ZZZ units at step WWW\". \n\nCould you clarify which output number contained this reference code, or provide more context about where it should appear?",
+   "calls": [
+    "ToolSearch",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    25438,
+    26701,
+    27083,
+    27333
+   ],
+   "durationMs": 22807,
+   "wallMs": 23972,
+   "own": {
+    "inputTokens": 38,
+    "outputTokens": 1680,
+    "cacheReadInputTokens": 104620,
+    "cacheCreationInputTokens": 1897,
+    "costUSD": 0.022693999999999964,
+    "thinkingTokens": 1324
+   }
+  },
+  {
+   "id": "find-code-11",
+   "kind": "exact-gone",
+   "answer": "I cannot find the reference code RX-4851-M in either the visible outputs or the compacted results. The station records shown (from show.sh 17 and show.sh 20) contain IDs like \"record 203-0001\" and \"record 212-0001\", not reference codes matching that pattern. Could you provide more context about which script output contained RX-4851-M?",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    25438,
+    26282,
+    26550
+   ],
+   "durationMs": 11795,
+   "wallMs": 12988,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 778,
+    "cacheReadInputTokens": 77128,
+    "cacheCreationInputTokens": 1114,
+    "costUSD": 0.013858800000000032,
+    "thinkingTokens": 513
+   }
+  }
+ ]
+}

@@ -1,0 +1,441 @@
+{
+ "trace": "opaque",
+ "version": 1,
+ "base": "a6fdff77-4483-4549-9453-4a63c157653f",
+ "plugin": "df481f7b0b08",
+ "pluginCommit": "e792fad24938",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 3,
+ "arm": "plugin",
+ "first": true,
+ "variant": "find",
+ "mode": "find",
+ "at": "2026-10-03T01:29:30.793Z",
+ "claudeCode": "2.1.288",
+ "compaction": {
+  "sessionId": "609cb5eb-5ce5-4313-b621-d35479e5c1e7",
+  "durationMs": 97,
+  "wallMs": 1653,
+  "preTokens": 91601,
+  "postTokens": 22054,
+  "thinkingBefore": 693,
+  "line": {
+   "outcome": "moved",
+   "moved": 16,
+   "results": 20,
+   "images": 0,
+   "charsBefore": 250457,
+   "charsAfter": 88103,
+   "ms": 66,
+   "estimate": 39328,
+   "window": 167000
+  },
+  "summarized": false,
+  "own": {
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0,
+   "thinkingTokens": 0
+  }
+ },
+ "questions": [
+  {
+   "id": "find-doc-1",
+   "kind": "exact-gone",
+   "answer": "I don't recall seeing any content about replacing keys that software is signed with in the visible outputs from the `show.sh` commands I ran (outputs 1-20). Those outputs contained station records reporting units at different steps.\n\nIf that content was in one of the results that was moved out/compacted, I would need to use the recall tool to access it. Would you like me to search through the compacted results?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 5,
+   "requests": [
+    25442
+   ],
+   "durationMs": 9319,
+   "wallMs": 10665,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 720,
+    "cacheReadInputTokens": 25432,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.0061531999999999976,
+    "thinkingTokens": 625
+   }
+  },
+  {
+   "id": "find-doc-2",
+   "kind": "exact-gone",
+   "answer": "Incident report: the payment webhook that stopped answering",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 9,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25444,
+    26291,
+    28975,
+    30921,
+    32857,
+    34810,
+    36753,
+    38691,
+    51421,
+    51921,
+    53899
+   ],
+   "durationMs": 46790,
+   "wallMs": 47900,
+   "own": {
+    "inputTokens": 94,
+    "outputTokens": 2834,
+    "cacheReadInputTokens": 383432,
+    "cacheCreationInputTokens": 28457,
+    "costUSD": 0.10952119999999993,
+    "thinkingTokens": 1683
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-4",
+   "kind": "exact-gone",
+   "answer": "I don't have access to the earlier context that was compacted away. The /compact command summarized the prior conversation, and I can only see the current working session which has involved running the station record scripts. I cannot quote or reference content from the compacted section without being able to see it.\n\nIf you could provide the information or context you're referring to, I'd be happy to help.",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 3,
+   "requests": [
+    25439
+   ],
+   "durationMs": 5143,
+   "wallMs": 6769,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 409,
+    "cacheReadInputTokens": 25429,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.004597899999999988,
+    "thinkingTokens": 321
+   }
+  },
+  {
+   "id": "find-doc-7",
+   "kind": "exact-gone",
+   "answer": "\"What to do during a fire drill\"",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 9,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25441,
+    26848,
+    27091,
+    29709,
+    31687,
+    33661,
+    35620,
+    37574,
+    39519,
+    41476,
+    43428,
+    44852,
+    46832
+   ],
+   "durationMs": 57657,
+   "wallMs": 58833,
+   "own": {
+    "inputTokens": 110,
+    "outputTokens": 4503,
+    "cacheReadInputTokens": 442235,
+    "cacheCreationInputTokens": 21393,
+    "costUSD": 0.10963450000000002,
+    "thinkingTokens": 3353
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-9",
+   "kind": "exact-gone",
+   "answer": "I don't see any earlier result set in our conversation that discusses who answers customers while most people are away in December. The outputs shown so far have been station records with unit reports at various steps (from `show.sh 14` through `show.sh 20`).\n\nThe `/compact` command was just run, which may have compressed earlier context, but I don't have access to what was in those compacted messages. Could you provide the specific output or clarify which earlier result you're referring to?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    25440
+   ],
+   "durationMs": 3843,
+   "wallMs": 5759,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 329,
+    "cacheReadInputTokens": 25430,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.004198000000000007,
+    "thinkingTokens": 217
+   }
+  },
+  {
+   "id": "find-doc-10",
+   "kind": "exact-gone",
+   "answer": "Post-mortem: a database table deleted by mistake",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 6,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25442,
+    26574,
+    28576,
+    30529,
+    32475,
+    34429,
+    36380,
+    38322
+   ],
+   "durationMs": 32074,
+   "wallMs": 33188,
+   "own": {
+    "inputTokens": 68,
+    "outputTokens": 1937,
+    "cacheReadInputTokens": 239777,
+    "cacheCreationInputTokens": 12882,
+    "costUSD": 0.05949470000000001,
+    "thinkingTokens": 1238
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-12",
+   "kind": "exact-gone",
+   "answer": "\"Renewing the TLS certificates before they expire\"",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25441,
+    26058,
+    28085
+   ],
+   "durationMs": 7794,
+   "wallMs": 9044,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 586,
+    "cacheReadInputTokens": 76910,
+    "cacheCreationInputTokens": 2646,
+    "costUSD": 0.01594100000000001,
+    "thinkingTokens": 395
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-code-3",
+   "kind": "exact-gone",
+   "answer": "Reference code RX-5323-T appeared in the output from `sh show.sh 03`:\n\n**Reference code RX-5323-T was given to this document when it was filed.**",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25438,
+    26054,
+    28478
+   ],
+   "durationMs": 16351,
+   "wallMs": 17937,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 1122,
+    "cacheReadInputTokens": 76900,
+    "cacheCreationInputTokens": 3042,
+    "costUSD": 0.019411999999999985,
+    "thinkingTokens": 852
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-code-6",
+   "kind": "exact-gone",
+   "answer": "Based on my search through all the recalled results from `sh show.sh 03` through `sh show.sh 16`, I could not find the reference code RX-9646-M. \n\nThe reference codes I found were:\n- RX-5323-T (result 03)\n- RX-9764-W (result 04)\n- RX-5205-K (result 05)\n- RX-9528-T (result 08)\n- RX-4969-W (result 09)\n- RX-9410-K (result 10)\n- RX-9292-P (result 12)\n- RX-4733-T (result 13)\n- Result 16 contained station records with no reference code\n\nRX-9646-M does not appear in any of the earlier results I have access to.",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "Grep",
+    "Glob"
+   ],
+   "retrieval": {
+    "recalls": 9,
+    "finds": 0,
+    "searches": 1,
+    "reads": 1
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    25438,
+    26586,
+    32847,
+    38617,
+    51378,
+    51932,
+    52709
+   ],
+   "durationMs": 55008,
+   "wallMs": 54028,
+   "own": {
+    "inputTokens": 60,
+    "outputTokens": 4437,
+    "cacheReadInputTokens": 252174,
+    "cacheCreationInputTokens": 27273,
+    "costUSD": 0.1020084,
+    "thinkingTokens": 3131
+   }
+  },
+  {
+   "id": "find-code-11",
+   "kind": "exact-gone",
+   "answer": "I've recalled the major results from calls 03, 04, 05, 08, 09, 10, 12, and 13. These contained reference codes RX-5323-T, RX-9764-W, RX-5205-K, RX-9528-T, RX-4969-W, RX-9410-K, RX-9292-P, and RX-4733-T respectively. However, I cannot find the reference code RX-4851-M in any of the results I've accessed so far. It does not appear in the visible outputs from calls 17 and 20 either. I cannot locate and quote that reference code from the earlier results.",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "Grep",
+    "Bash"
+   ],
+   "retrieval": {
+    "recalls": 9,
+    "finds": 0,
+    "searches": 1,
+    "reads": 1
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    25438,
+    26268,
+    32580,
+    40269,
+    42276,
+    42662,
+    43031
+   ],
+   "durationMs": 41808,
+   "wallMs": 42889,
+   "own": {
+    "inputTokens": 60,
+    "outputTokens": 3107,
+    "cacheReadInputTokens": 234869,
+    "cacheCreationInputTokens": 17595,
+    "costUSD": 0.07427190000000006,
+    "thinkingTokens": 1912
+   }
+  }
+ ]
+}

@@ -1,0 +1,316 @@
+{
+ "trace": "results",
+ "version": 1,
+ "base": "5adde713-fb9d-46b7-99b5-f59b8c9c814f",
+ "plugin": "3b4bdf93e529",
+ "pluginCommit": "40f7d34c4f52",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 2,
+ "arm": "plugin",
+ "first": true,
+ "variant": "default",
+ "mode": "find",
+ "at": "2026-10-03T03:06:11.768Z",
+ "claudeCode": "2.1.287",
+ "compaction": {
+  "sessionId": "9bdfc21f-a556-48ab-a233-7599ae77e343",
+  "durationMs": 184,
+  "wallMs": 1759,
+  "preTokens": 102276,
+  "postTokens": 23635,
+  "thinkingBefore": 873,
+  "line": {
+   "outcome": "moved",
+   "moved": 10,
+   "results": 15,
+   "images": 0,
+   "charsBefore": 235652,
+   "charsAfter": 94458,
+   "ms": 115,
+   "estimate": 45354,
+   "window": 167000
+  },
+  "summarized": false,
+  "own": {
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0,
+   "thinkingTokens": 0
+  }
+ },
+ "questions": [
+  {
+   "id": "find-report",
+   "kind": "exact-gone",
+   "answer": "I don't have access to that specific string from what I can currently see. The line with \"d8923051\" is likely in one of the moved-out results. Based on the compaction IDs shown, it was probably in the `sh report.sh` output which was moved out. However, I don't have the specific ID that contains that string readily available to recall.\n\nCould you provide the ID (the 64 hex characters) from the line that stood in place of the result containing \"d8923051\"? That will let me recall it and quote it for you.",
+   "calls": [
+    "ToolSearch"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 5,
+   "requests": [
+    43983,
+    44613
+   ],
+   "durationMs": 19681,
+   "wallMs": 20816,
+   "own": {
+    "inputTokens": 20,
+    "outputTokens": 1325,
+    "cacheReadInputTokens": 87946,
+    "cacheCreationInputTokens": 630,
+    "costUSD": 0.01669959999999998,
+    "thinkingTokens": 1085
+   }
+  },
+  {
+   "id": "find-kept",
+   "kind": "exact-gone",
+   "answer": "I found a record with 618 units, but it's at step 277, not step 17:\n\n**record 7-0277: station 420 reported 618 units at step 277**\n\nThis is from log7.txt (line 277). I searched all recalled logs (1-7) and found no station reporting exactly 618 units at step 17.",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 7,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    43986,
+    44914,
+    52412,
+    59532,
+    66705,
+    73852,
+    81346,
+    88473,
+    95626
+   ],
+   "durationMs": 44024,
+   "wallMs": 45014,
+   "own": {
+    "inputTokens": 76,
+    "outputTokens": 3430,
+    "cacheReadInputTokens": 555128,
+    "cacheCreationInputTokens": 51642,
+    "costUSD": 0.17602280000000003,
+    "thinkingTokens": 2479
+   }
+  },
+  {
+   "id": "find-script",
+   "kind": "exact-gone",
+   "answer": "\"batch 01: 10 warnings, checksum 9e3817e8\"",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    43987,
+    44398,
+    46742
+   ],
+   "durationMs": 6536,
+   "wallMs": 7700,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 442,
+    "cacheReadInputTokens": 132342,
+    "cacheCreationInputTokens": 2757,
+    "costUSD": 0.02098620000000001,
+    "thinkingTokens": 231
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-stays",
+   "kind": "exact-gone",
+   "answer": "The file to be left as it is was **kept-1.log**. Its first line in full is:\n\n`record 91-0001: station 9867 reported 122 units at step 1`",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    43996,
+    44539,
+    47301
+   ],
+   "durationMs": 10522,
+   "wallMs": 11708,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 778,
+    "cacheReadInputTokens": 132501,
+    "cacheCreationInputTokens": 3307,
+    "costUSD": 0.023782100000000028,
+    "thinkingTokens": 537
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-changes",
+   "kind": "exact-gone",
+   "answer": "`1\trecord 81-0001: station 8557 reported 112 units at step 1`",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    43996,
+    44651,
+    47263
+   ],
+   "durationMs": 9427,
+   "wallMs": 10664,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 742,
+    "cacheReadInputTokens": 132613,
+    "cacheCreationInputTokens": 3269,
+    "costUSD": 0.02353730000000004,
+    "thinkingTokens": 528
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-log-a",
+   "kind": "exact-gone",
+   "answer": "I cannot find \"664 units at step 150\" in the logs I've read. The logs I have full visibility into are log8.txt through log12.txt, and in those, step 150 records show: 670, 671, 672, 673, and 674 units respectively. \n\nThe earlier logs (1-7) had their content compressed, so I cannot search them directly. If the line exists, it would be in one of those logs. Would you like me to re-read one of logs 1-7 to search for this record?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    43986
+   ],
+   "durationMs": 11914,
+   "wallMs": 13084,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 1317,
+    "cacheReadInputTokens": 43976,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.010992600000000019,
+    "thinkingTokens": 1187
+   }
+  },
+  {
+   "id": "find-log-b",
+   "kind": "exact-gone",
+   "answer": "From log9.txt:\n\n```\n203\trecord 9-0203: station 3083 reported 320 units at step 203\n```",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    43982
+   ],
+   "durationMs": 2573,
+   "wallMs": 4027,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 205,
+    "cacheReadInputTokens": 43972,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.005432199999999998,
+    "thinkingTokens": 165
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-seventh",
+   "kind": "exact-gone",
+   "answer": "record 7-0001: station 8836 reported 38 units at step 1",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "Read"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 1,
+    "reads": 1
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    43986,
+    44556,
+    44829,
+    48597
+   ],
+   "durationMs": 37446,
+   "wallMs": 38410,
+   "own": {
+    "inputTokens": 36,
+    "outputTokens": 4348,
+    "cacheReadInputTokens": 177319,
+    "cacheCreationInputTokens": 4613,
+    "costUSD": 0.04873389999999994,
+    "thinkingTokens": 4000
+   },
+   "verdict": "correct"
+  }
+ ]
+}

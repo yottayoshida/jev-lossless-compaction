@@ -595,7 +595,17 @@ lines over 2,000 characters) may reach the agent cut. A request to Jev is
 given up after twenty seconds.
 
 When Claude Code loads tools on demand, the agent has to load `recall` or
-`find` by name before calling it. It did so on its own in the measured runs.
+`find` by name before calling it, and sees a tool's description only once it
+has. It loads `recall`, which the tickets name; with a key set, `recall`'s
+description says that `find` finds a result from what it was about. Where
+the calls that made the results say nothing of what is in them, Haiku 4.5
+with a key set calls `find`, without being told to, for about half the
+questions about what a result was about: 11 of 21, in a made-up conversation of
+thirteen such results, all moved out (Sonnet 5.5, one run: 6 of 7). Where the calls
+name what they read, it calls `find` seldom and `recall` by the ticket's
+id. Asked for a value further down a result, `find` mostly says that none
+of them is about it, since Jev is shown each result's first lines; its
+answer says so and how to look further.
 
 ## Sizes and older versions
 

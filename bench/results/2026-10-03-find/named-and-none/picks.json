@@ -1,0 +1,180 @@
+{
+ "at": "2026-10-03T01:32:47.627Z",
+ "provider": "cloudflare",
+ "picks": [
+  {
+   "trace": "opaque",
+   "question": "find-doc-1",
+   "by": "meaning",
+   "options": 20,
+   "right": [
+    "6a9576ece0a5e93e9afc3bef8dd7c0704f47d7b9bd05796a5e33af689c076e92"
+   ],
+   "words": "6a9576ece0a5e93e9afc3bef8dd7c0704f47d7b9bd05796a5e33af689c076e92",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "6a9576ece0a5e93e9afc3bef8dd7c0704f47d7b9bd05796a5e33af689c076e92"
+    ],
+    "ms": 1108,
+    "said": "[found] Bash result, 7084 bytes; id 6a9576ece0a5e93e9afc3bef8dd7c0704f47d7b9bd05796a5e33af689c076e92; probability 0.97"
+   }
+  },
+  {
+   "trace": "opaque",
+   "question": "find-doc-2",
+   "by": "meaning",
+   "options": 20,
+   "right": [
+    "c021b51f43b37b98fd81bd89d849110f93f30f9874c4b8c675463b8642c40c07"
+   ],
+   "words": "9ceafb25b70337d78e3a591bad5df5aac908349708d5388498b36abc9bf29a22",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "c021b51f43b37b98fd81bd89d849110f93f30f9874c4b8c675463b8642c40c07"
+    ],
+    "ms": 371,
+    "said": "[found] Bash result, 7084 bytes; id c021b51f43b37b98fd81bd89d849110f93f30f9874c4b8c675463b8642c40c07; probability 0.99"
+   }
+  },
+  {
+   "trace": "opaque",
+   "question": "find-doc-4",
+   "by": "meaning",
+   "options": 20,
+   "right": [
+    "f316b2e90d320b7642de6e2ca1c3319f00f4208d374c3f73547824e116a062d7"
+   ],
+   "words": "9ceafb25b70337d78e3a591bad5df5aac908349708d5388498b36abc9bf29a22",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "f316b2e90d320b7642de6e2ca1c3319f00f4208d374c3f73547824e116a062d7"
+    ],
+    "ms": 349,
+    "said": "[found] Bash result, 7074 bytes; id f316b2e90d320b7642de6e2ca1c3319f00f4208d374c3f73547824e116a062d7; probability 0.99"
+   }
+  },
+  {
+   "trace": "opaque",
+   "question": "find-doc-7",
+   "by": "meaning",
+   "options": 20,
+   "right": [
+    "15cc6c1f067fb2439b36b3bfc2a4ecf284ca537f9c01cf604a59f43479e4fca2"
+   ],
+   "words": "9ceafb25b70337d78e3a591bad5df5aac908349708d5388498b36abc9bf29a22",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "15cc6c1f067fb2439b36b3bfc2a4ecf284ca537f9c01cf604a59f43479e4fca2"
+    ],
+    "ms": 331,
+    "said": "[found] Bash result, 7061 bytes; id 15cc6c1f067fb2439b36b3bfc2a4ecf284ca537f9c01cf604a59f43479e4fca2; probability 0.96"
+   }
+  },
+  {
+   "trace": "opaque",
+   "question": "find-doc-9",
+   "by": "meaning",
+   "options": 20,
+   "right": [
+    "22e0b17b9e9a204bf457e5b36eb1529e7b77376e4a29c538070e9f21a3292671"
+   ],
+   "words": "22e0b17b9e9a204bf457e5b36eb1529e7b77376e4a29c538070e9f21a3292671",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "22e0b17b9e9a204bf457e5b36eb1529e7b77376e4a29c538070e9f21a3292671"
+    ],
+    "ms": 407,
+    "said": "[found] Bash result, 7066 bytes; id 22e0b17b9e9a204bf457e5b36eb1529e7b77376e4a29c538070e9f21a3292671; probability 0.99"
+   }
+  },
+  {
+   "trace": "opaque",
+   "question": "find-doc-10",
+   "by": "meaning",
+   "options": 20,
+   "right": [
+    "677297148c4d56ff580374348130245d786127219507f417ad25734d8197bdb3"
+   ],
+   "words": "22e0b17b9e9a204bf457e5b36eb1529e7b77376e4a29c538070e9f21a3292671",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "677297148c4d56ff580374348130245d786127219507f417ad25734d8197bdb3"
+    ],
+    "ms": 478,
+    "said": "[found] Bash result, 7130 bytes; id 677297148c4d56ff580374348130245d786127219507f417ad25734d8197bdb3; probability 0.99"
+   }
+  },
+  {
+   "trace": "opaque",
+   "question": "find-doc-12",
+   "by": "meaning",
+   "options": 20,
+   "right": [
+    "8e8cc222ee94d7d7fb29ee0e303110e0a9faf1006155a6a2afa0043f4604b0f7"
+   ],
+   "words": "9ceafb25b70337d78e3a591bad5df5aac908349708d5388498b36abc9bf29a22",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "8e8cc222ee94d7d7fb29ee0e303110e0a9faf1006155a6a2afa0043f4604b0f7"
+    ],
+    "ms": 498,
+    "said": "[found] Bash result, 7116 bytes; id 8e8cc222ee94d7d7fb29ee0e303110e0a9faf1006155a6a2afa0043f4604b0f7; probability 0.99"
+   }
+  },
+  {
+   "trace": "opaque",
+   "question": "find-code-3",
+   "by": "value",
+   "options": 20,
+   "right": [
+    "c995f0024bc8f1d69916b7b66bf3aec0fedf065b929b6afb78958447ea97c201"
+   ],
+   "words": "c995f0024bc8f1d69916b7b66bf3aec0fedf065b929b6afb78958447ea97c201",
+   "jev": {
+    "kind": "none",
+    "ids": [],
+    "ms": 402,
+    "said": "[not found] None of the moved-out results seems to be about that: it may still be in the conversation, or was never moved out."
+   }
+  },
+  {
+   "trace": "opaque",
+   "question": "find-code-6",
+   "by": "value",
+   "options": 20,
+   "right": [
+    "c203e34bf92329b8fb7fbdff47156602b7da87971663105b58caebadb5f6e2db"
+   ],
+   "words": "9ceafb25b70337d78e3a591bad5df5aac908349708d5388498b36abc9bf29a22",
+   "jev": {
+    "kind": "none",
+    "ids": [],
+    "ms": 436,
+    "said": "[not found] None of the moved-out results seems to be about that: it may still be in the conversation, or was never moved out."
+   }
+  },
+  {
+   "trace": "opaque",
+   "question": "find-code-11",
+   "by": "value",
+   "options": 20,
+   "right": [
+    "6392aa4bd916bff038c33bff329373629acd1839c37a9985c4e693976ab1fb87"
+   ],
+   "words": "9ceafb25b70337d78e3a591bad5df5aac908349708d5388498b36abc9bf29a22",
+   "jev": {
+    "kind": "none",
+    "ids": [],
+    "ms": 484,
+    "said": "[not found] None of the moved-out results seems to be about that: it may still be in the conversation, or was never moved out."
+   }
+  }
+ ]
+}

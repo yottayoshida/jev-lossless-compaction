@@ -772,5 +772,77 @@
         "target": "record 86-0001: station 9212 reported 117 units at step 1"
       }
     ]
+  },
+  {
+    "trace": "opaque",
+    "version": 1,
+    "shape": "calls that say nothing of what they print: 13 documents of about 7,000 characters on unrelated subjects, then 7 station logs, each printed by `sh show.sh NN`",
+    "said": 7,
+    "filesBeforeCompaction": [
+      "removed: show.sh"
+    ],
+    "questions": [],
+    "finds": [
+      {
+        "id": "find-doc-1",
+        "by": "meaning",
+        "ask": "Which earlier result explained how to replace the key that software is signed with before it ships?",
+        "target": "Runbook: rotating the signing key used for release builds"
+      },
+      {
+        "id": "find-doc-2",
+        "by": "meaning",
+        "ask": "Which earlier result described the outage in which buyers could not finish paying because a callback went silent?",
+        "target": "Incident report: the payment webhook that stopped answering"
+      },
+      {
+        "id": "find-doc-4",
+        "by": "meaning",
+        "ask": "Which earlier result covered letting an outside worker reach the internal network from home?",
+        "target": "Onboarding a contractor onto the company VPN"
+      },
+      {
+        "id": "find-doc-7",
+        "by": "meaning",
+        "ask": "Which earlier result named the spot staff assemble at when the alarm is practised?",
+        "target": "What to do during a fire drill"
+      },
+      {
+        "id": "find-doc-9",
+        "by": "meaning",
+        "ask": "Which earlier result set out who answers customers while most people are away in December?",
+        "target": "The holiday rota for the support desk"
+      },
+      {
+        "id": "find-doc-10",
+        "by": "meaning",
+        "ask": "Which earlier result told how stored data wiped out by a tidying job was restored?",
+        "target": "Post-mortem: a database table deleted by mistake"
+      },
+      {
+        "id": "find-doc-12",
+        "by": "meaning",
+        "ask": "Which earlier result was about keeping the credentials that secure web traffic from lapsing?",
+        "target": "Renewing the TLS certificates before they expire"
+      },
+      {
+        "id": "find-code-3",
+        "by": "value",
+        "ask": "Which earlier result gave the reference code RX-5323-T?",
+        "target": "Reference code RX-5323-T was given to this document when it was filed."
+      },
+      {
+        "id": "find-code-6",
+        "by": "value",
+        "ask": "Which earlier result gave the reference code RX-9646-M?",
+        "target": "Reference code RX-9646-M was given to this document when it was filed."
+      },
+      {
+        "id": "find-code-11",
+        "by": "value",
+        "ask": "Which earlier result gave the reference code RX-4851-M?",
+        "target": "Reference code RX-4851-M was given to this document when it was filed."
+      }
+    ]
   }
 ]
