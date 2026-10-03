@@ -110,7 +110,9 @@ test('/lossless-store says each place and the clean-up, names no path but the pl
   // Claude Code puts the plugin's name in front of it: it is not said twice.
   assert.ok(!text.startsWith('lossless-compaction'));
   assert.match(text, /results: 5 \(\d+ B\), 2026-10-15 to 2026-10-19/);
-  assert.match(text, /kept from: tool results 2 \(\d+ B\), conversations before a summary 1 \(\d+ B\), lossless-compaction's own tools 1 \(\d+ B\), no readable entry 1 \(\d+ B\)/);
+  // A part is counted the same whether it was kept before a summary or in place of one (ADR 0019): the line speaks of neither.
+  assert.match(text, /kept from: tool results 2 \(\d+ B\), kept conversations 1 \(\d+ B\), lossless-compaction's own tools 1 \(\d+ B\), no readable entry 1 \(\d+ B\)/);
+  assert.ok(!text.includes('before a summary'));
   assert.match(text, /trash: 3 \(\d+ B\) files, by day moved there: 2026-10-10 2 \(\d+ B\), 2026-10-12 1 \(2 B\)/);
   assert.match(text, /tmp\/: 3 \(\d+ B\) files, 2 over a day old, left by a write that stopped; those can be removed by hand/);
   assert.match(text, /last ended: never; last tried: 2026-10-20 00:00 UTC/);
