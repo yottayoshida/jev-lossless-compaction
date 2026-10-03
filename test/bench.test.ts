@@ -1486,7 +1486,7 @@ const FOUND_AT = fileURLToPath(new URL('../bench/results/2026-10-03-find', impor
 /** The plugin's code the published units of the plugin as it now is were measured with (`checkoutOf`): this change on `e792fad`, before #48. */
 const MEASURED_CODE = '3b4bdf93e529';
 
-// docs/limits.md and README.md give the figures of the plugin as it now is: the test of #54 below holds those.
+// docs/limits.md, docs/comparison.md and README.md give the figures of the plugin as it now is: the test of #54 below holds those.
 test('the units in the repository measured where the calls say nothing: every figure docs/measurements.md and CHANGELOG.md give of it (#38)', () => {
   const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
   const measurements = read('../docs/measurements.md');
@@ -1575,7 +1575,7 @@ const VALUES_CODE = 'b6736911384a';
 
 test('the units and picks in the repository measured with the value match: every figure the documents give of them (#55)', async () => {
   const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
-  const [measurements, readme, changelog] = [read('../docs/measurements.md'), read('../README.md'), read('../CHANGELOG.md')];
+  const [measurements, comparison, changelog] = [read('../docs/measurements.md'), read('../docs/comparison.md'), read('../CHANGELOG.md')];
   const has = (text: string, phrase: string, what: string) => assert.ok(text.replace(/\s+/g, ' ').includes(phrase), `${what}: ${phrase}`);
   const and = (list: readonly number[]) => `${list.slice(0, -1).join(', ')} and ${list.at(-1)}`;
   /** A row of a table in the measurements, whatever its padding. */
@@ -1628,8 +1628,8 @@ test('the units and picks in the repository measured with the value match: every
   const first = answerable(earlier);
   const saidNone = first.filter((one) => wentOf(one) === 'said none').length;
   assert.equal(now.value - first.length, 3);
-  has(readme, `it said ${saidNone} times of ${first.length} that none was about that`, 'README');
-  has(readme, `and gave the right one ${now.valueGiven} times of ${now.value};`, 'README');
+  has(comparison, `it said ${saidNone} times of ${first.length} that none was about that`, 'comparison');
+  has(comparison, `and gave the right one ${now.valueGiven} times of ${now.value};`, 'comparison');
   has(changelog, `${saidNone} times of ${first.length} in the benchmark. On those questions and three more it now gives the right result ${now.valueGiven} times of ${now.value}.`, 'CHANGELOG');
 
   // Questions the rule was not made from, asked of Jev: what Jev is told (by the code as it is) and what `find` did (as published), on the three conversations.
@@ -1742,7 +1742,7 @@ test('the units and picks in the repository measured with the value match: every
   );
   assert.ok(called(codes).every((one) => one.findQuestions?.length === 1 && /^RX-\d{4}-[A-Z]$/.test(one.findQuestions[0] ?? '')));
   const found = `Haiku 4.5 found a code in the middle of a document ${codes.filter(right).length} times of ${codes.length}, where it had found ${codesWas.filter(right).length}.`;
-  has(readme, `asked through an agent, ${found}`, 'README');
+  has(comparison, `asked through an agent, ${found}`, 'comparison');
   has(changelog, `With an agent in between, ${found}`, 'CHANGELOG');
   const trace = TRACES.find((one) => one.name === 'results');
   assert.ok(trace !== undefined);
@@ -1793,6 +1793,7 @@ const OPUS_AT = fileURLToPath(new URL('../bench/results/2026-10-03-opus', import
 test('the units in the repository measured with Opus 5.5, three conversations and one in a window of 1,000,000: every figure the documents give of them (#57)', () => {
   const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
   const [measurements, readme, changelog, limits] = [read('../docs/measurements.md'), read('../README.md'), read('../CHANGELOG.md'), read('../docs/limits.md')];
+  const comparison = read('../docs/comparison.md');
   const has = (text: string, phrase: string, what: string) => assert.ok(text.replace(/\s+/g, ' ').includes(phrase), `${what}: ${phrase}`);
   /** A row of a table in the section on Opus, whatever its padding. */
   const section = measurements.slice(measurements.indexOf('## With Opus 5.5, and in a window of 1,000,000'), measurements.indexOf('## A compaction, and a result read back'));
@@ -1982,12 +1983,14 @@ test('the units in the repository measured with Opus 5.5, three conversations an
     'limits',
   );
   has(
-    readme,
+    comparison,
     `of ${count(ours, exact)} questions about an exact text, ${byProgram(ours)} were counted right with the plugin and ${byProgram(theirs)} without, which one run does not tell apart. ` +
       `The plugin's \`/compact\` of ${thousands(large.compaction.preTokens)} tokens took ${seconds(large.compaction.durationMs)} s against ${seconds(summary.compaction.durationMs)} s ` +
       `and left more to send, ${thousands(next(large))} tokens a request against ${thousands(next(summary))}`,
-    'README',
+    'comparison',
   );
+  // The README gives the count alone.
+  has(readme, `one run does not tell the answers apart: ${byProgram(ours)} of ${count(ours, exact)} counted right with the plugin, ${byProgram(theirs)} without`, 'README');
   has(
     changelog,
     `of ${count(ours, exact)} questions about an exact text, ${byProgram(ours)} were counted right in the plugin's arm and ${byProgram(theirs)} in the built-in arm, ` +
@@ -2006,10 +2009,11 @@ const LISTED_CODE = 'd2a561d53d84';
 /** And the units of `merged`: `d43ffeb`, which has #55, with the two hooks. */
 const MERGED_CODE = '64c6e33e3f11';
 
-test('the units in the repository measured the tools listed in front of the agent: every figure docs/measurements.md, docs/limits.md, README.md and CHANGELOG.md give of it (#54)', () => {
+test('the units in the repository measured the tools listed in front of the agent: every figure docs/measurements.md, docs/limits.md, docs/comparison.md, README.md and CHANGELOG.md give of it (#54)', () => {
   const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\s+/g, ' ');
   const measurements = read('../docs/measurements.md');
   const limits = read('../docs/limits.md');
+  const comparison = read('../docs/comparison.md');
   const readme = read('../README.md');
   const has = (text: string, phrase: string, what: string) => assert.ok(text.includes(phrase), `${what}: ${phrase}`);
   type Asked = Unit['questions'][number];
@@ -2152,9 +2156,9 @@ test('the units in the repository measured the tools listed in front of the agen
     'limits',
   );
   has(
-    readme,
-    `Haiku 4.5 called \`find\` for ${count(named, found)} of ${named.length} questions where each call named its file, and for ${count(meaning('merged'), found)} of 21 about what a result was about where the calls said nothing of what came back, finding the code ${right(codes('merged'))} times of 9. Each call sends the provider what [Usage](#usage) lists.`,
-    'README',
+    comparison,
+    `Haiku 4.5 called \`find\` for ${count(named, found)} of ${named.length} questions where each call named its file, and for ${count(meaning('merged'), found)} of 21 about what a result was about where the calls said nothing of what came back, finding the code ${right(codes('merged'))} times of 9. Each call sends the provider what [Usage](usage.md) lists.`,
+    'comparison',
   );
 
   // The README's opening: of the two conversations where results were moved out, which is what the sentence is about (`full` goes to the summary).

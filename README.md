@@ -1,34 +1,24 @@
 # lossless-compaction
 
+[![CI](https://github.com/yottayoshida/lossless-compaction/actions/workflows/ci.yml/badge.svg)](https://github.com/yottayoshida/lossless-compaction/actions/workflows/ci.yml)
+
+> A Claude Code plugin that compacts a conversation by moving old tool results to files on your machine, and gives the agent the exact result back when it asks.
+
+Claude Code's built-in compaction replaces a full conversation with a
+summary, and what the summary leaves out is gone. This plugin moves old tool
+results out instead and leaves a one-line ticket for each. Where tool results
+are not what fills the conversation it has nothing to move, and a full
+conversation still goes to Claude Code's summary, the plugin keeping it first
+([limits](docs/limits.md)).
+
+## Demo
+
 ![Built-in compaction turns a conversation into one summary. lossless-compaction moves tool results out of the conversation into a local store of files named by the SHA-256 of their content, and recall brings an exact result back. Measured: a compaction in 61 ms; find answered 13 of 13.](docs/assets/lossless-compaction-animated.svg)
 
-The two figures in the picture are each from one recorded session
-([how each was taken](docs/measurements.md)), and show the plugin where it
-does best. Of six kinds of conversation measured with `/compact` typed by
-hand, the plugin compacted one by itself and left four as they were, having
-nothing to move and room to go on; the sixth ended in Claude Code's summary
-with the plugin as without it, as an automatic compaction of any of those
-five still does. Asked about a result that was moved out, Haiku 4.5 with a
-key set called `find` for 48 of 54 questions:
-[against the built-in compaction](#against-the-built-in-compaction).
-
-When a Claude Code conversation fills up, the built-in compaction replaces it
-with a summary, and what the summary leaves out is gone from the conversation.
-This plugin compacts by moving old tool results to files on your machine
-instead. One line, a ticket, stays behind for each result, and the agent gets
-the exact result back when it needs it: by the id on the ticket with `recall`,
-or by saying what it is about with `find`, which asks
-[Jev](https://typesafe.ai) to choose. Where tool results are not what fills
-the conversation, a `/compact` without instructions and with room left does
-nothing, and a full conversation still goes to Claude Code's summary, the
-plugin keeping it first ([Limits](#limits)).
-
-A compaction sends nothing anywhere. `find` is optional and needs a Jev key;
-with one set, it sends [excerpts of the conversation](#usage) to the Jev
-provider you choose. A repository's own settings files do not decide where
-results are written or where `find` sends: a key, proxy or place from them
-stops the plugin instead
-([what a repository can change](docs/limits.md#what-a-repository-can-change)).
+Each figure is from one recorded session
+([how each was taken](docs/measurements.md)), and shows the plugin where it
+does best. Asked about a result that was moved out, Haiku 4.5 with a key set
+called `find` for 48 of 54 questions.
 
 ## Quick start
 
@@ -48,73 +38,31 @@ the plugin installs and shows in the list without this line, and moves
 nothing out.
 
 Start a new session. From then on `/compact` and automatic compaction go
-through the plugin. It is not on npm; it installs from this repository. More
-ways to set it up — one repository only, the key from the environment, coming
-from `jev-lossless-compaction` — are in
-[docs/limits.md](docs/limits.md#setting-it-up).
+through the plugin. It is not on npm; it installs from this repository
+([more ways to set it up](docs/limits.md#setting-it-up)).
 
-## Usage
+## What it does
 
-Three things, in the order you will meet them.
-
-**A compaction.** A line starting `lossless-compaction:` says what each one
-did. From a real session of `Read` results:
-
-```text
-lossless-compaction: moved 6 of 21 tool results out (844544 -> 548237 chars, about 52357 of 167000 tokens in use) in 61 ms
-```
-
-Each result that left has a ticket in its place:
-
-```text
-[moved out] Read result, 83261 bytes; recall with mcp__lossless-compaction__recall id ed8701f23087852c07ee8eb0b91b9335cc94cc8b21e42826c6b684299e8008e3
-```
-
-In a session where the plugin is enabled and is not running, a line says so
-at the first message you send, naming the setting to add
-([what else it does, and what it does not reach](docs/limits.md#function-hooks)).
-
-**`recall`.** The agent calls it with the id on a ticket and gets the result
-back unchanged. It needs no key.
-
-**`find`.** Optional. Asked in words, it returns the moved-out result of this
-conversation that the question is about, or lists the likeliest few when Jev
-is not sure which. Asked in other words which of thirteen moved-out results
-reported a refusal on an unsupported kernel call, in a session where the
-calls said nothing of what they returned, the agent called `find` and got it
-back:
-
-```text
-[found] Bash result, 2271 bytes; id 968e6cdd8a21069b3907388db507c061ce28cac950b7a63eae5a0967adf39edc; probability 0.99
-```
-
-It needs a Jev key: set it with
-`/plugin configure lossless-compaction@lossless-compaction` inside Claude
-Code. For Jev on Cloudflare Workers AI, enter the account id there as well:
-with `provider` left on `auto`, an account id entered there sends the key to
-Cloudflare, and none sends it to TypeSafe.
-
-With a key set, each call to `find` sends the provider:
-
-- the agent's question;
-- for every result moved out of the conversation, the call that made it and
-  a 400-character digest of it;
-- for every part of the conversation kept before a summary, the head of what
-  was said in it;
-- where one result alone has a line holding a number, a checksum or a code
-  the question names: that it has, in one sentence, and no line of it.
-
-Jev chooses among them, with "none of these" among the choices; a phrase of
-twelve characters or more in double quotes is looked for as written first.
-Shapes of secrets are blanked before anything is sent, which is a courtesy
-and not a guarantee. A result that holds an image is not offered, and nothing
-of it is sent. Without a key there is no `find`, and nothing is sent.
+- **Moves tool results out, each stored whole.** A result is written to a
+  file named by the SHA-256 of its content, read back and compared before a
+  ticket takes its place. Where that makes room no summary is written, and a
+  compaction sends nothing anywhere ([how it works](docs/how-it-works.md)).
+- **Gives a result back unchanged.** `recall` takes the id on a ticket and
+  needs no key. `find` is optional: with a Jev key it takes a question in
+  words and has [Jev](https://typesafe.ai) choose the result, sending
+  excerpts of the conversation to the Jev provider you choose
+  ([usage](docs/usage.md)).
+- **Says what it did.** A line starting `lossless-compaction:` follows each
+  compaction. A `/compact` with nothing to move out and room left says so
+  and does nothing. Where Claude Code's summary runs, the plugin keeps what
+  it replaces first, except images, documents and thinking
+  ([limits](docs/limits.md)).
 
 ## Against the built-in compaction
 
-Six made-up conversations, each given `/compact` by hand once with the plugin
-and once without, three times with Haiku 4.5. In every cell the plugin's
-figure is first and the built-in compaction's second:
+Six made-up conversations, each given `/compact` by hand with the plugin and
+without, three times with Haiku 4.5. The plugin's figure is first, the
+built-in compaction's second:
 
 | The conversation is mostly      | The summary ran | `/compact` took     | Output of a script since removed: right, of 6 |
 | ------------------------------- | --------------- | ------------------- | --------------------------------------------- |
@@ -125,125 +73,29 @@ figure is first and the built-in compaction's second:
 | Text filling most of the window | 3 of 3 · 3 of 3 | 25–31 s · 22–26 s   | 6 · 3                                         |
 | Thinking                        | 0 of 3 · 3 of 3 | 0.04 s · 29–34 s    | 6 · 1                                         |
 
-- **The plugin compacted by itself in one kind of the six**, the one where
-  tool results are what fills the conversation. **In four it did nothing**:
-  there was nothing to move out and room to go on, so the `/compact` was not
-  carried out and the conversation stayed as it was. The one filling most of
-  the window it kept and handed over to Claude Code's summary.
-- **What a file said before it changed was answered** 15 times of 18,
-  against none after the built-in compaction: in the four left as they were
-  it was still in the conversation, and all 12 were answered with no tool.
-  A script's output that no file held any more: 33 of 36 against 12.
-- **Where the plugin hands over**, as an automatic compaction of those four
-  does, the conversation is kept first: measured on 0.6.1, which handed over
-  all five, a script's output that no file held any more was still answered
-  26 times of 30 through `recall`, against 10 of 30 after the built-in
-  compaction alone, and the summary took longer with the plugin in 14 of 15
-  pairs of runs, by a median 7.7 s.
-- **Left as it was, a conversation is sent whole and read from the prompt
-  cache.** Every later request carries 29,343 to 69,039 tokens where a
-  summary left 12,522 to 26,318, but the conversation is what was sent just
-  before: with the cache still warm the nine questions cost 0.04 to 0.08 USD,
-  against 0.18 to 0.61 for a summary and its nine questions, which start a
-  new cache and read files again. With the cache cold they cost 0.40 to
-  1.12. On one machine, 40 of 42 `/compact`s by hand came within the hour
-  Claude Code keeps it.
-- **Opus 5.5 was asked once.** After the built-in compaction it searched
-  Claude Code's own record of the session: of 17 questions about an exact
-  text, 13 were counted right with the plugin and 15 without, which one run
-  does not tell apart. The plugin's `/compact` of 575,632 tokens took 0.35 s
-  against 51.4 s and left more to send, 272,428 tokens a request against
-  6,538
-  ([measurements](docs/measurements.md#with-opus-55-and-in-a-window-of-1000000)).
-- **What goes the other way.** Where the plugin compacted by itself the next
-  request was 43,995 tokens against 8,313. A rule stated in the first
-  message was answered 34 times of 36 against 36: in the conversation that
-  is a third thinking, left as it was, the agent twice asked back about the
-  format, as it did three times of six asked of that conversation never
-  compacted. The summary had written the rule out.
-- **`find` was compared apart**, on seven distinct questions about what a
-  result was and six about a value in it. Asked what a result was about, it
-  gave or listed first the right one 16 times of 19; asked by a value
-  further down a result, it said 13 times of 14 that none was about that,
-  where one was. It now looks for a value the question names in the whole of
-  each result and tells Jev of the one result that holds it, and gave the
-  right one 17 times of 17; asked through an agent, Haiku 4.5 found a code in
-  the middle of a document 8 times of 9, where it had found 1.
-  With `recall` and `find` listed among the tools in front of it and no
-  question naming them, Haiku 4.5 called `find` for 19 of 24 questions
-  where each call named its file, and for 20 of 21 about what a result was
-  about where the calls said nothing of what came back, finding the code 9
-  times of 9. Each call sends the provider what [Usage](#usage) lists.
+Only the first kind did the plugin compact by itself. Four it left as they
+were, with nothing to move out and room to go on, and an automatic compaction
+of those still ends in Claude Code's summary. Where it compacted, more is
+left to send: 43,995 tokens a request against 8,313. Opus 5.5, asked once,
+searched Claude Code's own record of the session after the built-in
+compaction, and one run does not tell the answers apart: 13 of 17 counted
+right with the plugin, 15 without
+([all of it](docs/comparison.md), [every table](docs/measurements.md#the-benchmark)).
 
-The protocol, every table and what they do not show:
-[docs/measurements.md](docs/measurements.md#the-benchmark).
+## Docs
 
-## How it works
-
-- **A result is stored before it is replaced.** It is written to a file named
-  by the SHA-256 of its content, read back, and compared. Only then does a
-  ticket take its place. The tool call itself stays in the conversation, and
-  `recall` checks the content against its name again before returning it. A
-  write that fails loses nothing: a result is ticketed only once all of it is
-  written.
-- **Rules decide what leaves. On this path no summary is written, and
-  nothing is sent.** Where moving results out makes room, a compaction takes
-  the time of writing a few files. Results leave in this
-  order until the conversation is estimated to be under the target size
-  (`targetPercent`): those a later call replaced, then those sharing the
-  least with what you are working on, then the oldest. The newest results
-  stay, up to `keepTokens` tokens of them (20,000 by default). A result a
-  later call made obsolete can leave even when it is the newest, and a result
-  that holds an image always leaves.
-- **Nothing is deleted that a recorded transcript still names.** Files are
-  plain text under `~/.claude/lossless-compaction/`, in a directory closed to
-  mode 700 before anything is written. Once a week the transcripts are read.
-  A file that neither they nor a part kept before a summary names goes to a
-  trash, and is removed a week later if still named by none. `/lossless-store`
-  says how much is kept and how the clean-up went, without opening a result.
-
-## Limits
-
-- **A `/compact` with nothing to move out and room left does nothing** but
-  say so: Claude Code shows it as not compacted, and `/compact` with
-  instructions summarizes (ADR 0015).
-- **Claude Code's own summary still runs** when moving results out is not
-  enough; when nothing can be moved out and the compaction is automatic,
-  `/compact` is given instructions, or more than `maxAfterPercent` is in use,
-  the last being one of the six kinds of conversation above; when the
-  conversation holds
-  an image or a document outside a tool result, a block of a kind the plugin
-  does not know, or 4096 messages or more; and in a subagent.
-- **What a summary replaces is kept first**, on the main conversation, and
-  `recall` returns it unchanged by the ids left right after the summary. Not
-  kept: images, documents, thinking, and messages older than the 4096 Claude
-  Code shows.
-- **`find` does not see everything.** It offers the tickets it sees in the
-  conversation and in the parts kept before a summary, shows Jev the first
-  lines of each result, and gives a request to Jev up after twenty seconds.
-- **Sizes are not capped, and are estimates.** There is no limit on how much
-  is kept. How full the conversation is afterwards is counted from Claude
-  Code's own figures: where results were moved out it came within 20 % of
-  what the next request sent, and within 3 % in five long working
-  sessions. `keepTokens` is turned into characters at three to a token.
-
-Each of these in full, and the rest: [docs/limits.md](docs/limits.md).
-
-## Documentation
-
-- [Limits](docs/limits.md), [Measurements](docs/measurements.md),
-  [Development](docs/development.md), [CHANGELOG](CHANGELOG.md), and the
-  settings with their defaults in
-  [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json).
-- Why it is built this way: the decision records in [docs/adr/](docs/adr/).
+- [Usage](docs/usage.md) — what a compaction prints, `recall`, `find` and what it sends
+- [How it works](docs/how-it-works.md) — what is stored, what leaves and in what order, what is deleted
+- [Limits](docs/limits.md) — when Claude Code's summary still runs, what is not kept, setting it up
+- [Against the built-in compaction](docs/comparison.md), and every [measurement](docs/measurements.md)
+- [Development](docs/development.md), [CHANGELOG](CHANGELOG.md), [settings](.claude-plugin/plugin.json) and [decision records](docs/adr/)
 
 The idea of putting Jev beside a compaction comes from
-[fast-jev-compaction](https://github.com/tamaratran/fast-jev-compaction). This
-project shares no code with it.
+[fast-jev-compaction](https://github.com/tamaratran/fast-jev-compaction);
+this project shares no code with it and is not affiliated with TypeSafe AI or
+Anthropic.
 
 ## License
 
 Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
 [MIT license](LICENSE-MIT) at your option.
-
-This project is not affiliated with TypeSafe AI or Anthropic.
