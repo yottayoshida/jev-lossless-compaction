@@ -151,7 +151,7 @@ function partsIn(text: string, seen: Set<string>): Stored[] {
     const part = readPartTicket(line);
     if (!part || seen.has(part.id)) continue;
     seen.add(part.id);
-    out.push({ ...part, line, about: `part ${part.part} of ${part.parts} of the conversation before a summary, messages ${part.first}-${part.last}` });
+    out.push({ ...part, line, about: `part ${part.part} of ${part.parts} of the kept conversation, messages ${part.first}-${part.last}` });
   }
   return out;
 }

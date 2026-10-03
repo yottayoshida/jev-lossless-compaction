@@ -20,9 +20,12 @@ import {
   retrievalOf,
   shuffled,
   spread,
+  summarizedBy,
   tellsIn,
+  type Line,
   type ToolCall,
 } from '../bench/lib.ts';
+import { cutLine } from '../src/cut.ts';
 import { saidBy, saidIn, type Conversation } from '../bench/build.ts';
 import { argsOf, envOf, toolsOf } from '../bench/cc.ts';
 import { MISSED, batchName, currentOf, itemsOf, keyOf, promptOf, published, scrubbed, summed, unitsUnder, verdictsIn, type Grades } from '../bench/grade.ts';
@@ -198,6 +201,25 @@ test('the plugin\'s line is read in every form it has, and from the function tha
   });
   assert.deepEqual(readLine(`lossless-compaction: ${undoneLine(null, 167000)}`), { outcome: 'undone', moved: 0, results: 0, images: 0, charsBefore: 0, charsAfter: 0, ms: 0 });
   assert.equal(readLine('something else'), null);
+});
+
+test('a conversation cut in place of a summary is read as one the summary did not run on, with how much was kept (ADR 0019)', () => {
+  const report: Report = { results: 21, candidates: 0, moved: 0, images: 0, charsBefore: 440000, charsAfter: 330000, tokensAfter: 118000, counted: true, window: 167000, notMoved: {}, writeErrors: [], ms: 48 };
+  // From the function that writes it: the sizes are those of what was handed back.
+  const cut = readLine(`lossless-compaction: ${cutLine(report, { first: 2, last: 5, of: 16, parts: 3, over: false })}`);
+  assert.deepEqual(cut, {
+    outcome: 'cut', moved: 0, results: 21, images: 0, charsBefore: 440000, charsAfter: 330000, estimate: 118000, window: 167000, ms: 48, cut: { first: 2, last: 5, of: 16, parts: 3 },
+  });
+  assert.equal(readLine(cutLine(report, { first: 1, last: 2, of: 9, parts: 1, over: true }))?.outcome, 'cut', 'one part, and still over what may stay');
+  const rebuilt = readLine(`lossless-compaction: ${cutLine(report, null)}`);
+  assert.equal(rebuilt?.outcome, 'rebuilt');
+  assert.equal(rebuilt?.cut, undefined);
+  assert.equal(rebuilt?.estimate, 118000);
+
+  // The summary ran where the plugin handed over, whatever for, and nowhere else.
+  const of = (outcome: Line['outcome']): Line => ({ outcome, moved: 0, results: 0, images: 0, charsBefore: 0, charsAfter: 0, ms: 0 });
+  assert.deepEqual((['too-much', 'nothing', 'other'] as const).map((outcome) => summarizedBy(of(outcome))), [true, true, true]);
+  assert.deepEqual((['moved', 'undone', 'cut', 'rebuilt'] as const).map((outcome) => summarizedBy(of(outcome))), [false, false, false, false]);
 });
 
 test('a compaction a hook skipped is read as not carried out, with what Claude Code said of it', () => {
@@ -589,6 +611,9 @@ test('probes alone are tabled without the tables of questions, and a checkout ca
   assert.deepEqual(variantsOf('new=/a,v0.6.0=/b', undefined, '/here'), [{ name: 'new', pluginDir: '/a' }, { name: 'v0.6.0', pluginDir: '/b' }]);
   assert.deepEqual(variantsOf('v0.6.0=/b', '100', '/here'), [{ name: 'v0.6.0-max-after-100', pluginDir: '/b', options: { maxAfterPercent: 100 } }]);
   assert.throws(() => variantsOf('v0.6.0', undefined, '/here'), /name=path/);
+  // The share a compaction aims at, alone or with the share that may stay.
+  assert.deepEqual(variantsOf(undefined, undefined, '/here', '50'), [{ name: 'target-50', pluginDir: '/here', options: { targetPercent: 50 } }]);
+  assert.deepEqual(variantsOf('new=/a', '75', '/here', '1'), [{ name: 'new-max-after-75-target-1', pluginDir: '/a', options: { maxAfterPercent: 75, targetPercent: 1 } }]);
 });
 
 test('two conversations are built and probed and asked nothing: they are no part of the questions, the grading or the comparison', () => {

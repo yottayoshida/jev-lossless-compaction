@@ -19,10 +19,12 @@ import {
   windowFrom,
   type Config,
   type Context,
+  type Count,
   type Host,
   type Outcome,
 } from '../src/compact.ts';
 import { shownAgainNote } from '../src/changed.ts';
+import { cutLine, decide, keepOldest } from '../src/cut.ts';
 import { find } from '../src/find.ts';
 import { keepThenSummarize, messagesFromApi, namedThroughParts } from '../src/keep.ts';
 import { IMAGE_TOKENS, blocksOf, mediaIn } from '../src/media.ts';
@@ -417,9 +419,18 @@ type HandedOver = { why: string; keep: { store: StoreDirs; messages: readonly Me
 /**
  * What a compaction came to, and what it was measured with: what was in use
  * before, whether Claude Code gave that figure or it was made up from
- * characters, and the share of the window that may stay in use.
+ * characters, the share of the window that may stay in use, and what a cut
+ * in place of a summary is decided from (src/cut.ts).
  */
-type Tried = { outcome: Outcome; store: StoreDirs; inUse: number; given: boolean; maxAfterPercent: number };
+type Tried = {
+  outcome: Outcome;
+  store: StoreDirs;
+  inUse: number;
+  given: boolean;
+  maxAfterPercent: number;
+  count: Count | undefined;
+  keepTokens: number;
+};
 
 /**
  * One compaction, up to what would be handed back, or why the built-in
@@ -475,11 +486,12 @@ async function attempt(
     const given = typeof tokens === 'number' && tokens > 0;
     // Made up from characters when Claude Code gives none: images, which are no characters, at their rough figure.
     const inUse = given ? tokens : Math.ceil(charsOf(messages) / CHARS_PER_TOKEN) + media.images * IMAGE_TOKENS;
+    const count = countFrom(context?.breakdown, tokens, api, messages);
     const outcome = await compact(
       {
         messages,
         tokens: inUse,
-        count: countFrom(context?.breakdown, tokens, api, messages),
+        count,
         window: windowFrom(context, FALLBACK_WINDOW),
         goal: goalOf(messages, e.instructions),
         media: media.results,
@@ -489,7 +501,15 @@ async function attempt(
     );
     // A result that holds an image could not be moved out: nothing was rebuilt.
     if (outcome.abandoned !== undefined) return { why: outcome.abandoned, keep: { store, messages: asSent } };
-    return { outcome, store, inUse, given, maxAfterPercent: config.maxAfterPercent };
+    return {
+      outcome,
+      store,
+      inUse,
+      given,
+      maxAfterPercent: config.maxAfterPercent,
+      count,
+      keepTokens: config.keepTokens,
+    };
   } catch (error) {
     const why = error instanceof Error ? error.message : String(error);
     return { why, keep: store === null ? { unkept: 'the place to keep it in could not be read' } : { store, messages: asSent } };
@@ -505,6 +525,32 @@ async function summarizeKeeping(
 ): Promise<SessionCompactResult> {
   const where = 'unkept' in keep ? keep : { dir: keep.store.write, read: keep.store.read, messages: keep.messages };
   return keepThenSummarize(storingFilesOf($), where, (text) => say($, text), () => next(handed), (why) => ({ skip: why }));
+}
+
+/**
+ * Keeps the messages from `after` up to `at` of what a compaction rebuilt, in
+ * place of a summary, and says so (src/cut.ts keeps them). Null when a part
+ * could not be written: nothing is cut then, and the caller hands over as
+ * before.
+ */
+async function cutKeeping(
+  $: WithUi & WithFiles & WithProcess,
+  tried: Tried,
+  after: number,
+  at: number,
+  over: boolean,
+): Promise<SessionCompactResult | null> {
+  const { outcome } = tried;
+  const started = Date.now();
+  try {
+    const cut = await keepOldest(storingFilesOf($), tried.store, { messages: outcome.messages, tokens: outcome.report.tokensAfter, count: tried.count }, after, at);
+    if ('failed' in cut) return null;
+    const report = { ...outcome.report, charsAfter: charsOf(cut.messages), tokensAfter: cut.tokensAfter, ms: outcome.report.ms + (Date.now() - started) };
+    say($, cutLine(report, { first: after + 1, last: at, of: outcome.messages.length, parts: cut.parts, over }));
+    return { messages: cut.messages };
+  } catch {
+    return null;
+  }
 }
 
 type WithTools = { tool: { register: (tool: { name: string; description: string; inputSchema: Record<string, unknown> }) => Promise<unknown> } };
@@ -524,8 +570,8 @@ export async function registerTools($: WithTools & WithUi, provider: Provider | 
       await $.tool.register({
         name: FIND,
         description:
-          `Finds, among the tool results that ${PLUGIN} moved out of this conversation and the parts of it kept before ` +
-          'a summary replaced them, the one a question is about, and returns it unchanged. Ask in words what the result contains or is about; a phrase of twelve characters ' +
+          `Finds, among the tool results that ${PLUGIN} moved out of this conversation and the parts of it that were ` +
+          'kept, the one a question is about, and returns it unchanged. Ask in words what the result contains or is about; a phrase of twelve characters ' +
           'or more in double quotes is looked for as written. A number, a checksum or a code the question names, one of them with three digits or more, is looked for as written, letter case too, in the whole of each result, a line at a time, and Jev is told when one result alone holds it. ' +
           'When Jev is not sure which result it is, the likeliest few ' +
           'are listed with the ids to recall them by; when none of them seems to be about it, it says so.',
@@ -685,20 +731,34 @@ export const register: Register = (on, options) => {
       return summarizeKeeping($, e, next, tried.keep);
     }
     const { outcome, store } = tried;
-    if (outcome.report.moved === 0) {
-      // By hand, with room and nothing that could leave: no summary was asked for and none is needed (ADR 0015, src/compact.ts decides).
-      if (leftUndone({ trigger: e.trigger, instructions: e.instructions, inUse: tried.inUse, window: outcome.report.window, maxAfterPercent: tried.maxAfterPercent, candidates: outcome.report.candidates })) {
-        // Said once, as the reason Claude Code shows for not compacting: a line of the plugin's beside it says the same twice.
-        return { skip: `${PLUGIN}: ${undoneLine(tried.given ? tried.inUse : null, outcome.report.window)}` };
+    const nothing = outcome.report.moved === 0;
+    // By hand, with room and nothing that could leave: no summary was asked for and none is needed (ADR 0015, src/compact.ts decides).
+    if (nothing && leftUndone({ trigger: e.trigger, instructions: e.instructions, inUse: tried.inUse, window: outcome.report.window, maxAfterPercent: tried.maxAfterPercent, candidates: outcome.report.candidates })) {
+      // Said once, as the reason Claude Code shows for not compacting: a line of the plugin's beside it says the same twice.
+      return { skip: `${PLUGIN}: ${undoneLine(tried.given ? tried.inUse : null, outcome.report.window)}` };
+    }
+    if (!nothing && outcome.enough) {
+      say($, reportLine(outcome.report));
+      return { messages: outcome.messages };
+    }
+    // Nothing could be moved out, or too much is still in use. Without instructions the oldest messages are kept
+    // in place of a summary, down to the size moving results out aimed at; whether, and where the cut falls, is
+    // decided before anything is written (ADR 0019, src/cut.ts decides).
+    const decision = decide({ messages: outcome.messages, tokens: outcome.report.tokensAfter, count: tried.count, window: outcome.report.window, maxAfterPercent: tried.maxAfterPercent, cutTo: outcome.target, keepTokens: tried.keepTokens, instructions: e.instructions });
+    if (decision.hand === 'back') {
+      if (decision.at === 0) {
+        say($, cutLine(outcome.report, null));
+        return { messages: outcome.messages };
       }
+      const cut = await cutKeeping($, tried, decision.after, decision.at, decision.over);
+      if (cut !== null) return cut;
+      // A part could not be written. Handed over below, where what could not be kept is said, or the compaction is skipped (ADR 0008).
+    }
+    if (nothing) {
       say($, `built-in compaction: nothing could be moved out (${reportLine(outcome.report)})`);
       return summarizeKeeping($, e, next, { store, messages: e.messages as readonly Message[] });
     }
-    if (!outcome.enough) {
-      say($, `built-in compaction on what is left, too much is still in use: ${reportLine(outcome.report)}`);
-      return summarizeKeeping($, { ...e, messages: outcome.messages }, next, { store, messages: outcome.messages });
-    }
-    say($, reportLine(outcome.report));
-    return { messages: outcome.messages };
+    say($, `built-in compaction on what is left, too much is still in use: ${reportLine(outcome.report)}`);
+    return summarizeKeeping($, { ...e, messages: outcome.messages }, next, { store, messages: outcome.messages });
   });
 };

@@ -10,7 +10,7 @@ import { dirname, join, resolve } from 'node:path';
 
 import { build, workDir, type Base, type Places } from './build.ts';
 import { claude } from './cc.ts';
-import { gapsOf, holdsAll, lookedOutside, ownUsage, readLine, retrievalOf, tellsIn, type Arm, type Line, type Retrieval, type Usage } from './lib.ts';
+import { gapsOf, holdsAll, lookedOutside, ownUsage, readLine, retrievalOf, summarizedBy, tellsIn, type Arm, type Line, type Retrieval, type Usage } from './lib.ts';
 import { BUILT, FIND_TOOL, QUESTION_TOOLS, type Kind, type Trace } from './traces.ts';
 
 export type Asked = {
@@ -74,7 +74,10 @@ export type Unit = {
     thinkingBefore?: number;
     /** The plugin's line, read; null in the built-in arm. */
     line: Line | null;
-    /** True when the built-in summary ran: always in the built-in arm, and in the plugin's when it handed over. */
+    /**
+     * True when the built-in summary ran: always in the built-in arm, and in the plugin's when it handed over.
+     * Not where the plugin kept the oldest messages in place of a summary, or handed the conversation back as rebuilt (ADR 0019).
+     */
     summarized: boolean;
     /**
      * True when nothing was compacted: the plugin left a `/compact` with nothing to move
@@ -249,7 +252,7 @@ export async function unit(
       postTokens: sizes.postTokens,
       thinkingBefore: base.thinkingTokens,
       line,
-      summarized: arm === 'builtin' || (line !== null && line.outcome !== 'moved' && line.outcome !== 'undone'),
+      summarized: arm === 'builtin' || (line !== null && summarizedBy(line)),
       ...(undone ? { undone: true as const } : {}),
       own,
     },
@@ -270,12 +273,17 @@ export type Plan = { traces: string[]; models: string[]; runs: number; buildMode
 
 /**
  * The variants of the plugin a command line names: checkouts by name
- * (`name=path,name=path`), a share of the window that may stay in use, or each
- * checkout at that share. Undefined when it names none.
+ * (`name=path,name=path`), a share of the window that may stay in use, the
+ * share a compaction aims at (which is also how far a cut in place of a
+ * summary goes, ADR 0019), or each checkout at those. Undefined when it names
+ * none.
  */
-export function variantsOf(dirs: string | undefined, maxAfter: string | undefined, pluginDir: string): Variant[] | undefined {
-  const options = maxAfter === undefined ? undefined : { maxAfterPercent: Number(maxAfter) };
-  const setting = `max-after-${maxAfter}`;
+export function variantsOf(dirs: string | undefined, maxAfter: string | undefined, pluginDir: string, target?: string): Variant[] | undefined {
+  const options =
+    maxAfter === undefined && target === undefined
+      ? undefined
+      : { ...(maxAfter === undefined ? {} : { maxAfterPercent: Number(maxAfter) }), ...(target === undefined ? {} : { targetPercent: Number(target) }) };
+  const setting = [...(maxAfter === undefined ? [] : [`max-after-${maxAfter}`]), ...(target === undefined ? [] : [`target-${target}`])].join('-');
   if (dirs === undefined) return options === undefined ? undefined : [{ name: setting, pluginDir, options }];
   return dirs.split(',').map((pair) => {
     const [name, path] = pair.split('=');

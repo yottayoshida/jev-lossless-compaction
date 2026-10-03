@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 
-import { judgeNotRunning, judgeRunning, judgeSessions, streamOf, type Stream } from '../bench/host.ts';
-import { RECALL_TOOL, idOf } from '../src/store.ts';
+import { judgeCut, judgeNotRunning, judgeRunning, judgeSessions, partsIn, streamOf, type Stream } from '../bench/host.ts';
+import { PART, RECALL_TOOL, idOf } from '../src/store.ts';
 
 // Cut from the streams of one `npm run check:host` on Claude Code 2.1.288: the events the checks read, nothing of the machine.
 const read = (label: string) => streamOf(readFileSync(new URL(`fixtures/host/${label}.jsonl`, import.meta.url), 'utf8'));
@@ -66,9 +68,51 @@ test('each check fails when the part of the stream it reads is changed, and only
   assert.deepEqual(notRunning(notFirst, { ...notCompact, result: 'Compacted' }), ['not running: a /compact is held']);
 });
 
+test('a conversation cut in place of a summary is told from the line of a real run, and from what the store holds (ADR 0019)', () => {
+  const cut = read('cut');
+  const first = 'Read f1.txt, f2.txt, f3.txt, f4.txt, f5.txt, f6.txt with the Read tool, one file per call, in that order. Then reply only: read.';
+  const later = `Call ${RECALL_TOOL} with the id ${'e'.repeat(64)}. Then reply only: done.`;
+  // A part writes each message under its role. The first message stays in the conversation, so the part starts with the reply to it.
+  const part = `--- assistant\nRead.\n--- user\n${later}\n--- assistant\ndone\n`;
+  const cutting = 'a conversation too full is cut, and no summary runs';
+  const kept = 'what was cut is kept, as it was said';
+  const stays = 'the first message is not cut';
+  const judged = (stream: Stream, parts: string[]) => failing(judgeCut(stream, parts, first, later));
+  assert.deepEqual(judged(cut, [part]), [], ok(judgeCut(cut, [part], first, later)).join('\n'));
+  assert.match(cut.logs[0] ?? '', /no summary, messages 2-19 of 20 kept in 1 part: /);
+
+  // A compaction that moved results out is not one that cut; nor is one that cut nothing, or one the summary ran after.
+  assert.deepEqual(judged(read('compact'), [part]), [cutting, stays]);
+  assert.deepEqual(judged({ ...cut, logs: [] }, [part]), [cutting, stays]);
+  assert.deepEqual(judged({ ...cut, logs: cut.logs.map((line) => line.replace('messages 2-19 of', 'messages 2-1 of')) }, [part]), [cutting]);
+  assert.deepEqual(judged({ ...cut, logs: [...cut.logs, 'lossless-compaction: built-in compaction on what is left, too much is still in use: moved 0 of 7 tool results out (9 -> 9 chars) in 1 ms'] }, [part]), [cutting]);
+  // Nothing in the store, or parts that do not hold what was said later as it was said.
+  assert.deepEqual(judged(cut, []), [kept]);
+  assert.deepEqual(judged(cut, [part.replace('Then reply only: done.', 'Then reply: done.')]), [kept]);
+  // The first message cut with the rest: the line says so, or a part holds it.
+  assert.deepEqual(judged({ ...cut, logs: cut.logs.map((line) => line.replace('messages 2-19 of', 'messages 1-19 of')) }, [part]), [stays]);
+  assert.deepEqual(judged(cut, [`--- user\n${first}\n${part}`]), [stays]);
+});
+
+test('the parts of a store are told by their entries: a result is not one, nor an entry that cannot be read', () => {
+  const store = mkdtempSync(join(tmpdir(), 'lossless-parts-'));
+  assert.deepEqual(partsIn(store), [], 'a store nothing was written to');
+  mkdirSync(join(store, 'index'));
+  mkdirSync(join(store, 'blobs'));
+  const put = (id: string, entry: string, text: string) => {
+    writeFileSync(join(store, 'index', `${id}.json`), entry);
+    writeFileSync(join(store, 'blobs', `${id}.txt`), text);
+  };
+  put('a'.repeat(64), JSON.stringify({ bytes: 9, tool: PART }), '--- user\nhello\n');
+  put('b'.repeat(64), JSON.stringify({ bytes: 4, tool: 'Read' }), 'a result');
+  put('c'.repeat(64), 'not json', 'left by a write that failed');
+  writeFileSync(join(store, 'index', `${'d'.repeat(64)}.json`), JSON.stringify({ bytes: 1, tool: PART }));
+  assert.deepEqual(partsIn(store), ['--- user\nhello\n'], 'the part alone; one whose text is gone is passed over');
+});
+
 test('every session ran on one known Claude Code, with the plugin loaded from the copy checked', () => {
   // The records have the paths taken out: each plugin was loaded from `<path>`.
-  const sessions = ['first', 'compact', 'recall', 'not-running-first', 'not-running-compact'].map((label) => ({ label, stream: read(label), pluginPath: '<path>' }));
+  const sessions = ['first', 'compact', 'recall', 'cut', 'not-running-first', 'not-running-compact'].map((label) => ({ label, stream: read(label), pluginPath: '<path>' }));
   assert.ok(sessions.every(({ stream }) => stream.pluginPath === '<path>'));
   assert.deepEqual(failing(judgeSessions(sessions)), []);
   // Another copy loaded in one session; a version that is not known; two versions.

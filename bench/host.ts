@@ -1,8 +1,10 @@
 // Checks the working tree in the Claude Code you have, with no person watching:
 // that it registers recall, that a /compact moves results out and recall gives
-// one back as it was, and that a hook file Claude Code does not load leaves the
-// plugin "enabled but not running", told at the first message and holding a
-// /compact. Prints the Claude Code version it ran on; exits 1 when a check fails.
+// one back as it was, that a conversation over what may stay is cut with no
+// summary and what was cut is kept (ADR 0019), and that a hook file Claude Code
+// does not load leaves the plugin "enabled but not running", told at the first
+// message and holding a /compact. Prints the Claude Code version it ran on;
+// exits 1 when a check fails.
 //
 //   npm run check:host
 //   node bench/host.ts --plugin-dir <a copy>     the running plugin's checks on another copy (the not-running
@@ -15,13 +17,14 @@
 // a line per run.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { RECALL_TOOL, idOf } from '../src/store.ts';
+import { PART, RECALL_TOOL, idOf } from '../src/store.ts';
 import { argsOf, envOf } from './cc.ts';
 import { logFile } from './fixtures.ts';
+import { readLine } from './lib.ts';
 
 const MODEL = 'claude-haiku-4-5-20251001';
 /** Long enough that a /compact moves some of them out: about 20,000 characters each, past the newest 60,000 kept. */
@@ -130,6 +133,48 @@ export function judgeRunning(first: Stream, compact: Stream, recalled: Stream, i
   ];
 }
 
+/** The parts of a kept conversation in a store, as text: told by their entries and read from the files, with no session. */
+export function partsIn(store: string): string[] {
+  const index = join(store, 'index');
+  if (!existsSync(index)) return [];
+  const parts: string[] = [];
+  for (const name of readdirSync(index)) {
+    try {
+      const entry = JSON.parse(readFileSync(join(index, name), 'utf8')) as { tool?: unknown };
+      if (entry.tool === PART) parts.push(readFileSync(join(store, 'blobs', name.replace(/\.json$/, '.txt')), 'utf8'));
+    } catch {
+      // An entry that cannot be read holds no part.
+    }
+  }
+  return parts;
+}
+
+/**
+ * A conversation over what may stay in use: its oldest messages are kept in
+ * parts in place of a summary (ADR 0019). What was said later is in one of
+ * them as it was said, and what was said first is in none: the first message
+ * stays in the conversation.
+ */
+export function judgeCut(cut: Stream, parts: readonly string[], first: string, later: string): Check[] {
+  const read = cut.logs.map((line) => ({ line, kept: readLine(line) })).find(({ kept }) => kept?.outcome === 'cut');
+  const summarized = cut.logs.some((line) => line.includes('built-in compaction'));
+  const holding = (said: string) => parts.filter((part) => part.includes(said)).length;
+  const some = `${parts.length} part${parts.length === 1 ? '' : 's'} in the store`;
+  return [
+    {
+      name: 'a conversation too full is cut, and no summary runs',
+      ok: read?.kept?.cut !== undefined && read.kept.cut.last >= read.kept.cut.first && !summarized,
+      detail: read?.line ?? (cut.logs.join(' | ').slice(0, 160) || cut.result.slice(0, 160)),
+    },
+    { name: 'what was cut is kept, as it was said', ok: holding(later) > 0, detail: `${some}, ${holding(later)} holding what was said later` },
+    {
+      name: 'the first message is not cut',
+      ok: read?.kept?.cut?.first === 2 && holding(first) === 0,
+      detail: `${some}, ${holding(first)} holding what was said first; kept from message ${read?.kept?.cut?.first ?? '?'}`,
+    },
+  ];
+}
+
 /** The plugin enabled and not running: no recall, told at the first message, and a /compact held. */
 export function judgeNotRunning(first: Stream, compact: Stream): Check[] {
   const told = promptHook(first);
@@ -161,8 +206,8 @@ async function main(): Promise<void> {
   if (list.status !== 0 || tar.status !== 0 || patched.status !== 0) throw new Error('could not make the broken copy of the working tree');
 
   const sessions: { label: string; stream: Stream; pluginPath: string }[] = [];
-  const run = (label: string, pluginDir: string, prompt: string, resume?: string, env: Record<string, string> = {}): Stream => {
-    const args = argsOf({ out: '', cwd: work, model: MODEL, arm: 'plugin', pluginDir, storeDir: store, allowedTools: ['Read', 'ToolSearch', RECALL_TOOL], prompt, ...(resume ? { resume, fork: false } : {}) });
+  const run = (label: string, pluginDir: string, prompt: string, resume?: string, env: Record<string, string> = {}, pluginOptions?: Record<string, unknown>): Stream => {
+    const args = argsOf({ out: '', cwd: work, model: MODEL, arm: 'plugin', pluginDir, storeDir: store, allowedTools: ['Read', 'ToolSearch', RECALL_TOOL], prompt, ...(resume ? { resume, fork: false } : {}), ...(pluginOptions ? { pluginOptions } : {}) });
     const ran = spawnSync('claude', [...args, '--include-hook-events'], { cwd: work, env: envOf({ env }), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: LIMIT_MS });
     if (ran.error !== undefined) throw new Error(`claude could not be run, or ran past ${LIMIT_MS / 60000} minutes: ${ran.error.message}`);
     writeFileSync(join(dir, `${label}.jsonl`), ran.stdout);
@@ -177,7 +222,8 @@ async function main(): Promise<void> {
   // No mark handed down to the running side: one of the calling session's ("any" when it could not read its own id)
   // would quiet hooks/notice.sh whatever the module does, and "nothing is told" would pass for the wrong reason.
   const unmarked = { LOSSLESS_COMPACTION_RUNNING: '' };
-  const first = run('first', plugin, `Read ${names.join(', ')} with the Read tool, one file per call, in that order. Then reply only: read.`, undefined, unmarked);
+  const said = `Read ${names.join(', ')} with the Read tool, one file per call, in that order. Then reply only: read.`;
+  const first = run('first', plugin, said, undefined, unmarked);
   const compact = run('compact', plugin, '/compact', first.sessionId, unmarked);
   // A result that was moved out, chosen by its own text: the id is the SHA-256 of what was read.
   let chosen: { id: string; text: string } | undefined;
@@ -186,12 +232,24 @@ async function main(): Promise<void> {
     const id = await idOf(text);
     if (existsSync(join(store, 'blobs', `${id}.txt`))) chosen = { id, text };
   }
-  const recalled = chosen === undefined ? compact : run('recall', plugin, `Call ${RECALL_TOOL} with the id ${chosen.id}. Then reply only: done.`, first.sessionId, unmarked);
+  const asked = `Call ${RECALL_TOOL} with the id ${chosen?.id ?? '-'}. Then reply only: done.`;
+  const recalled = chosen === undefined ? compact : run('recall', plugin, asked, first.sessionId, unmarked);
+  // The same conversation with next to nothing allowed to stay and no result long enough to leave: over the line with
+  // nothing to move out, whatever it holds and whatever the system prompt comes to, so its oldest messages are cut,
+  // all but the first and the newest.
+  // (With results to move out, a conversation over the line for what is not the conversation is handed back as it is.)
+  // A /compact calls no model, and the parts are read from the store's files.
+  const cut = run('cut', plugin, '/compact', first.sessionId, unmarked, { maxAfterPercent: 1, keepTokens: 0, minChars: 10_000_000 });
   // With another process's mark handed down, as from a session that started this one: it must not count as this one's.
   const notFirst = run('not-running-first', broken, 'Reply only: ok', undefined, { LOSSLESS_COMPACTION_RUNNING: ANOTHER_MARK });
   const notCompact = run('not-running-compact', broken, '/compact', notFirst.sessionId, { LOSSLESS_COMPACTION_RUNNING: ANOTHER_MARK });
 
-  const checks = [...judgeSessions(sessions), ...judgeRunning(first, compact, recalled, chosen?.id ?? '-', chosen?.text ?? ''), ...judgeNotRunning(notFirst, notCompact)];
+  const checks = [
+    ...judgeSessions(sessions),
+    ...judgeRunning(first, compact, recalled, chosen?.id ?? '-', chosen?.text ?? ''),
+    ...judgeCut(cut, partsIn(store), said, asked),
+    ...judgeNotRunning(notFirst, notCompact),
+  ];
   console.log(`Claude Code ${first.version || '?'} (${MODEL}), plugin from ${plugin}`);
   for (const check of checks) console.log(`${check.ok ? 'ok  ' : 'FAIL'} ${check.name}: ${check.detail}`);
   console.log(`(sessions and copies in ${dir})`);

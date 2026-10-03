@@ -16,8 +16,8 @@ export const FIND_IN_RECALL = `When no id at hand is known to be the result that
 export function recallDescription(withFind: boolean): string {
   return (
     `Returns, unchanged, a tool result that ${PLUGIN} moved out of the conversation, or a part of the ` +
-    'conversation it kept before a summary replaced it. ' +
-    "Call it with the id written in the line that stands in the result's place, or in the lines right after the summary." +
+    'conversation it kept, before a summary replaced it or in place of one. ' +
+    "Call it with the id written in the line that stands in the result's place, or in the list of the parts it kept." +
     (withFind ? ` ${FIND_IN_RECALL}` : '')
   );
 }
