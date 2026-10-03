@@ -1167,7 +1167,7 @@ over, as before.
   the agent asked whether to keep the format instead of stating it. After a
   summary of the same conversation it had stated it every time.
 - Every later request carries the whole conversation, where a summary left
-  about 13,000 to 26,000 tokens. What the nine questions cost turns on the
+  12,522 to 26,318 tokens. What the nine questions cost turns on the
   prompt cache: the three runs of the plugin's arm were run one after
   another, so the first wrote the conversation to the cache and the two
   after it read it (on `writes` 1.12 USD, then 0.08 each, against 0.42 to

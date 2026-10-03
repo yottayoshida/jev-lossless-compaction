@@ -141,7 +141,7 @@ test('a /compact left undone is decided in src/: by who asked, with what, what C
   assert.ok(hooks.includes('const inUse = given ? tokens : Math.ceil(charsOf(messages) / CHARS_PER_TOKEN) + media.images * IMAGE_TOKENS;'));
   assert.ok(hooks.includes('tokens: inUse,'));
   assert.ok(hooks.includes('return { outcome, store, inUse, given, maxAfterPercent: config.maxAfterPercent };'));
-  // Only where nothing was moved out, and before that branch keeps and hands over: nothing is written, nothing is summarized.
+  // Only where nothing was moved out, and before that branch keeps and hands over: nothing of the conversation is kept, and nothing is summarized.
   const branch = handler.slice(handler.indexOf('if (outcome.report.moved === 0) {'), handler.indexOf('if (!outcome.enough) {'));
   assert.ok(branch.includes('leftUndone('));
   assert.ok(branch.indexOf('return { skip: ') > 0 && branch.indexOf('return { skip: ') < branch.indexOf('return summarizeKeeping('));

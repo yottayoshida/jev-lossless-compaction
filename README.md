@@ -4,10 +4,11 @@
 
 The two figures in the picture are each from one recorded session
 ([how each was taken](docs/measurements.md)), and show the plugin where it
-does best. Of six kinds of conversation measured, the plugin compacted one
-by itself and left four as they were, having nothing to move and room to go
-on; the sixth ended in Claude Code's summary with the plugin as without it,
-and with `find` registered the agent did not call it:
+does best. Of six kinds of conversation measured with `/compact` typed by
+hand, the plugin compacted one by itself and left four as they were, having
+nothing to move and room to go on; the sixth ended in Claude Code's summary
+with the plugin as without it, as an automatic compaction of any of those
+five still does. With `find` registered the agent did not call it:
 [against the built-in compaction](#against-the-built-in-compaction).
 
 When a Claude Code conversation fills up, the built-in compaction replaces it
@@ -108,9 +109,9 @@ of it is sent. Without a key there is no `find`, and nothing is sent.
 
 ## Against the built-in compaction
 
-Six made-up conversations, each compacted by the plugin and by Claude Code
-itself, three times with Haiku 4.5. In every cell the plugin's figure is
-first and the built-in compaction's second:
+Six made-up conversations, each given `/compact` by hand once with the plugin
+and once without, three times with Haiku 4.5. In every cell the plugin's
+figure is first and the built-in compaction's second:
 
 | The conversation is mostly      | The summary ran | A compaction took   | Output of a script since removed: right, of 6 |
 | ------------------------------- | --------------- | ------------------- | --------------------------------------------- |
@@ -130,16 +131,20 @@ first and the built-in compaction's second:
   against none after the built-in compaction: in the four left as they were
   it was still in the conversation, and all 12 were answered with no tool.
   A script's output that no file held any more: 33 of 36 against 12.
+- **Where the plugin hands over**, as an automatic compaction of those four
+  does, the conversation is kept first: measured on 0.6.1, which handed over
+  all five, a script's output that no file held any more was still answered
+  26 times of 30 through `recall`, against 10 of 30 after the built-in
+  compaction alone, and the summary took longer with the plugin in 14 of 15
+  pairs of runs, by a median 7.7 s.
 - **What goes the other way.** Where nothing was compacted, every later
   request carries the whole conversation: 29,343 to 69,039 tokens against
-  12,573 to 26,034 after a summary. The nine questions on files written cost
-  1.12 USD in the first run, which put the conversation in the prompt cache,
-  and 0.08 in each run after it, against 0.42 to 0.51 after a summary; with
-  Sonnet 5.5, 2.81 against 1.00. Where the plugin compacted by itself the
-  next request was 43,995 tokens against 8,313. A rule stated in the first
-  message was answered 34 times of 36 against 36: in the conversation that
-  is a third thinking, left as it was, the agent twice asked back about the
-  format instead of stating it.
+  12,522 to 26,318 after a summary, and what the questions cost turns on the
+  prompt cache. Where the plugin compacted by itself the next request was
+  43,995 tokens against 8,313. A rule stated in the first message was
+  answered 34 times of 36 against 36: in the conversation that is a third
+  thinking, left as it was, the agent twice asked back about the format
+  instead of stating it.
 - **`find` was compared apart**, on seven distinct questions about what a
   result was and six about a value in it. Asked what a result was about, it
   gave or listed first the right one 16 times of 19; asked by a value
@@ -180,9 +185,10 @@ The protocol, every table and what they do not show:
   say so: Claude Code shows it as not compacted, and `/compact` with
   instructions summarizes (ADR 0015).
 - **Claude Code's own summary still runs** when moving results out is not
-  enough, or nothing can be moved out and the conversation is full, the
-  compaction automatic or `/compact` given instructions, which was one of the
-  six kinds of conversation above; when the conversation holds
+  enough; when nothing can be moved out and the compaction is automatic,
+  `/compact` is given instructions, or more than `maxAfterPercent` is in use,
+  the last being one of the six kinds of conversation above; when the
+  conversation holds
   an image or a document outside a tool result, a block of a kind the plugin
   does not know, or 4096 messages or more; and in a subagent.
 - **What a summary replaces is kept first**, on the main conversation, and
