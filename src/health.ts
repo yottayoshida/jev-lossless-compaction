@@ -124,7 +124,7 @@ export function storeReport(counted: readonly Counted[], gc: GcState, now: numbe
     const span = one.results.oldest === null || one.results.newest === null ? '' : `, ${dayText(one.results.oldest)} to ${dayText(one.results.newest)}`;
     lines.push(`  results: ${tallyText(one.results)}${span}; their entries: ${tallyText(one.entries)}`);
     lines.push(
-      `  kept from: tool results ${tallyText(one.from.results)}, conversations before a summary ${tallyText(one.from.parts)}, ` +
+      `  kept from: tool results ${tallyText(one.from.results)}, kept conversations ${tallyText(one.from.parts)}, ` +
         `${PLUGIN}'s own tools ${tallyText(one.from.own)}` +
         (one.from.unknown.count > 0 ? `, no readable entry ${tallyText(one.from.unknown)}` : ''),
     );

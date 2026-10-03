@@ -568,7 +568,7 @@ lossless-compaction: Results are kept in one place, set by storeDir:
 
 /Users/you/results
   results: 3 (4.9 KB), 2026-09-30 to 2026-10-02; their entries: 2 (68 B)
-  kept from: tool results 1 (42 B), conversations before a summary 1 (4.9 KB), lossless-compaction's own tools 0 (0 B), no readable entry 1 (22 B)
+  kept from: tool results 1 (42 B), kept conversations 1 (4.9 KB), lossless-compaction's own tools 0 (0 B), no readable entry 1 (22 B)
   trash: 3 (60 B) files, by day moved there: 2026-09-25 2 (58 B), 2026-10-01 1 (2 B)
   tmp/: 2 (35 B) files, 1 over a day old, left by a write that stopped; those can be removed by hand
 
