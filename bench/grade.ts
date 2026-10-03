@@ -13,7 +13,7 @@ import { type Places } from './build.ts';
 import { claude } from './cc.ts';
 import { shuffled } from './lib.ts';
 import { type Unit } from './run.ts';
-import { BUILT, TRACES, type Question } from './traces.ts';
+import { ASKED, BUILT, type Question } from './traces.ts';
 
 export type Verdict = 'correct' | 'incorrect' | 'abstained';
 
@@ -121,7 +121,7 @@ export const MISSED =
 export function itemsOf(units: readonly Unit[]): Item[] {
   const items: Item[] = [];
   const asked = new Map<string, Question>();
-  for (const trace of TRACES) for (const question of trace.questions) asked.set(`${trace.name}|${question.id}`, question);
+  for (const trace of ASKED) for (const question of trace.questions) asked.set(`${trace.name}|${question.id}`, question);
   for (const unit of units) {
     if (unit.mode !== 'ask') continue;
     for (const one of unit.questions) {
@@ -139,7 +139,7 @@ export function itemsOf(units: readonly Unit[]): Item[] {
       TOLD.forEach((words, at) => items.push({ ...base, key: `control|${name}|${label}|told-${at + 1}`, answer: words + answer, expected }));
     }
   }
-  for (const trace of TRACES) {
+  for (const trace of ASKED) {
     const [exact, other] = trace.questions.filter((question) => question.needles !== undefined);
     if (exact === undefined || other === undefined) continue;
     const base = { ask: exact.ask, reference: exact.reference, rubric: MISSED };

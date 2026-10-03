@@ -844,5 +844,151 @@
         "target": "Reference code RX-4851-M was given to this document when it was filed."
       }
     ]
+  },
+  {
+    "trace": "large",
+    "version": 1,
+    "shape": "large: thirty-two files of about 43,000 characters read in a window of 1,000,000 tokens, nothing written",
+    "window": 1000000,
+    "said": 12,
+    "filesBeforeCompaction": [
+      "removed: report.sh",
+      "regenerated: changing-10.log",
+      "removed: log5.txt",
+      "removed: log32.txt"
+    ],
+    "questions": [
+      {
+        "id": "gone-1",
+        "kind": "exact-gone",
+        "ask": "What did report.sh print for batch 07? Give the whole line.",
+        "reference": "batch 07: 2 warnings, checksum 538a81fd",
+        "needles": [
+          "batch 07: 2 warnings, checksum 538a81fd"
+        ]
+      },
+      {
+        "id": "gone-2",
+        "kind": "exact-gone",
+        "ask": "What was the checksum on the line report.sh printed for batch 93?",
+        "reference": "batch 93: 10 warnings, checksum 7a2d6373",
+        "needles": [
+          "7a2d6373"
+        ]
+      },
+      {
+        "id": "unchanged",
+        "kind": "exact-unchanged",
+        "ask": "What does the line for record 100-0061 in kept-10.log say?",
+        "reference": "record 100-0061: station 7482 reported 994 units at step 61",
+        "needles": [
+          "station 7482 reported 994 units"
+        ]
+      },
+      {
+        "id": "then",
+        "kind": "exact-then",
+        "ask": "changing-10.log has been regenerated since you read it. What did its line for record 90-0044 say when you read it, before that?",
+        "reference": "record 90-0044: station 1198 reported 457 units at step 44",
+        "needles": [
+          "station 1198 reported 457 units"
+        ]
+      },
+      {
+        "id": "now",
+        "kind": "exact-now",
+        "ask": "changing-10.log has been regenerated since you read it. What does its line for record 90-0044 say now?",
+        "reference": "record 90-0044: station 1198 reported 95 units at step 44",
+        "needles": [
+          "station 1198 reported 95 units"
+        ]
+      },
+      {
+        "id": "next",
+        "kind": "continuity",
+        "ask": "Without starting on it yet: what is the next step, and which files does it involve?",
+        "reference": "Read log33.txt to log36.txt and list the stations reporting more than 990 units in each.",
+        "rubric": "Right if it says the next step is reading log33 to log36 (those four files) and listing stations over 990 units. Wrong if it names other files or another task, or does not know.",
+        "right": "Next is reading log33.txt through log36.txt and listing, for each, the stations that reported over 990 units.",
+        "wrong": "Next is to re-read logs 1 to 4 and compute the average units per station."
+      },
+      {
+        "id": "decided",
+        "kind": "continuity",
+        "ask": "What did we decide about when to flag a station, and what is still open?",
+        "reference": "Flag a station only when it reports more than 990 units in three different logs. Still open: whether log19.txt, which looked truncated, must be fetched again.",
+        "rubric": "Right if it gives both: the three-different-logs rule for flagging (over 990 units), and that log19.txt possibly being truncated is the open point. Wrong if either is missing or different.",
+        "right": "A station is flagged only if it is over 990 units in three different logs; open is whether the truncated-looking log19.txt needs fetching again.",
+        "wrong": "A station is flagged as soon as it is over 990 units in any one log; nothing is open."
+      },
+      {
+        "id": "rule-1",
+        "kind": "constraint",
+        "ask": "Where are we supposed to write our conclusions?",
+        "reference": "Conclusions go in audit-notes.md and nowhere else.",
+        "rubric": "Right if it names audit-notes.md as the place for conclusions. Wrong if it names another file or says there is no rule.",
+        "right": "In audit-notes.md, and only there.",
+        "wrong": "In a summary.txt file next to each log."
+      },
+      {
+        "id": "rule-2",
+        "kind": "constraint",
+        "ask": "How do we write a station id in our notes?",
+        "reference": "With the prefix SN-, as in SN-2044.",
+        "rubric": "Right if it says station ids take the prefix SN-. Wrong if it gives another form or says there is no rule.",
+        "right": "Always with the SN- prefix, for example SN-2044.",
+        "wrong": "As the bare number, exactly as the log prints it."
+      },
+      {
+        "id": "gone-early",
+        "kind": "exact-gone",
+        "ask": "log5.txt has been deleted since you read it. What did its line for record 5-0412 say?",
+        "reference": "record 5-0412: station 2112 reported 813 units at step 412",
+        "needles": [
+          "station 2112 reported 813 units"
+        ]
+      },
+      {
+        "id": "gone-last",
+        "kind": "exact-gone",
+        "ask": "log32.txt has been deleted since you read it. What did its line for record 32-0412 say?",
+        "reference": "record 32-0412: station 5649 reported 840 units at step 412",
+        "needles": [
+          "station 5649 reported 840 units"
+        ]
+      }
+    ],
+    "finds": [
+      {
+        "id": "find-report",
+        "by": "value",
+        "ask": "Which earlier result held a line reading \"d897c040\"?",
+        "target": "batch 58: 7 warnings, checksum d897c040"
+      },
+      {
+        "id": "find-kept",
+        "by": "value",
+        "ask": "Which earlier result listed a station that reported 627 units at step 17?",
+        "target": "record 100-0017: station 8101 reported 627 units at step 17"
+      },
+      {
+        "id": "find-script",
+        "by": "meaning",
+        "ask": "Which earlier result was what the shell script printed when it was run at the start?",
+        "target": "batch 01: 4 warnings, checksum 9e3da7d7"
+      },
+      {
+        "id": "find-stays",
+        "by": "meaning",
+        "ask": "Of the two log files looked at near the start, which earlier result was the one that was to be left as it is?",
+        "target": "record 100-0001: station 1073 reported 131 units at step 1"
+      },
+      {
+        "id": "find-changes",
+        "by": "meaning",
+        "ask": "Of the two log files looked at near the start, which earlier result was the one that was going to be made anew?",
+        "target": "record 90-0001: station 9736 reported 121 units at step 1"
+      }
+    ]
   }
 ]

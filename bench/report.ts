@@ -130,6 +130,10 @@ export function report(units: readonly Unit[], grades: Grades | null, older = 0)
           ['Answers after reading outside the working directory', ...ARMS.map((arm) => cell(arm, (unit) => unit.questions.filter((one) => one.outside).length))],
           ['Exact answers the program found wrong and the grader called right', ...ARMS.map((arm) => cell(arm, (unit) => unit.questions.filter((one) => overruled(unit, one, grades)).length))],
           ['Words that tell the arm, in all answers', ...ARMS.map((arm) => cell(arm, (unit) => sum(unit.questions.map((one) => one.tells))))],
+          // Only where it happened: an answer after the model asked for refused is another model's.
+          ...(group.some((unit) => unit.questions.some((one) => one.fellBackTo !== undefined))
+            ? [['Answered by another model after a refusal', ...ARMS.map((arm) => cell(arm, (unit) => unit.questions.filter((one) => one.fellBackTo !== undefined).length))]]
+            : []),
         ],
       ),
       '',
@@ -171,8 +175,10 @@ export function whole(units: readonly Unit[], grades: Grades | null, older = 0, 
  * is decided by the program: the line asked for is in the answer.
  */
 export function finds(units: readonly Unit[]): string {
-  const rows = units
-    .filter((unit) => unit.mode === 'find')
+  const asked = units.filter((unit) => unit.mode === 'find');
+  // Shown only where it happened: an answer after the model refused is another model's, and is counted in Right all the same.
+  const fellBack = asked.some((unit) => unit.questions.some((one) => one.fellBackTo !== undefined));
+  const rows = asked
     .sort((a, b) => `${a.trace}${a.model}${a.run}${a.variant}`.localeCompare(`${b.trace}${b.model}${b.run}${b.variant}`))
     .map((unit) => [
       unit.trace,
@@ -181,6 +187,7 @@ export function finds(units: readonly Unit[]): string {
       unit.variant === 'default' ? '`recall` only' : '`recall` and `find`',
       unit.compaction.line?.outcome ?? '—',
       `${unit.questions.filter((one) => one.verdict === 'correct').length}/${unit.questions.length}`,
+      ...(fellBack ? [String(unit.questions.filter((one) => one.fellBackTo !== undefined).length)] : []),
       String(sum(unit.questions.map((one) => one.retrieval.finds))),
       String(sum(unit.questions.map((one) => one.retrieval.recalls))),
       String(sum(unit.questions.map((one) => one.retrieval.reads))),
@@ -188,7 +195,10 @@ export function finds(units: readonly Unit[]): string {
       String(sum(unit.questions.flatMap((one) => one.requests))),
       sum(unit.questions.map((one) => one.own.costUSD)).toFixed(4),
     ]);
-  return table(['Trace', 'Model', 'Run', 'Tools', 'Compaction', 'Right', '`find` calls', '`recall` calls', 'Files read again', 'Seconds', 'Input tokens', 'Cost, USD'], rows);
+  return table(
+    ['Trace', 'Model', 'Run', 'Tools', 'Compaction', 'Right', ...(fellBack ? ['Answered by another model after a refusal'] : []), '`find` calls', '`recall` calls', 'Files read again', 'Seconds', 'Input tokens', 'Cost, USD'],
+    rows,
+  );
 }
 
 /**

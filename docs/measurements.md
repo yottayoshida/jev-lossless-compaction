@@ -291,7 +291,9 @@ nothing](#find-where-the-calls-say-nothing).
 - The conversations are made up, and each is one shape. A working session
   mixes them.
 - Three runs, and one for Sonnet: enough to see a difference of thirty
-  against nine, not to put a rate on anything.
+  against nine, not to put a rate on anything. Opus 5.5 was asked once,
+  [later](#with-opus-55-and-in-a-window-of-1000000), and that difference was
+  not there.
 - Every question is asked of a fresh copy, so what `recall` brings back does
   not stay in the context for the next question, and what that adds up to
   over a long session is not here.
@@ -300,7 +302,8 @@ nothing](#find-where-the-calls-say-nothing).
 - A question may read and search but not run anything, which shuts out
   running a command again.
 - `find` with an agent is one run of thirteen questions on Haiku.
-- One window, 200,000 tokens.
+- One window, 200,000 tokens; one conversation was measured since in a
+  window of 1,000,000.
 
 ## The benchmark, run again on 0.6.1
 
@@ -377,6 +380,107 @@ answered 26 times of 30 against 10 of 30 (26 against 8 the first time). What
 a file said before it changed was answered 5 times of 18 against none, as
 before. With Sonnet, on three of the conversations, both arms answered all
 27.
+
+## With Opus 5.5, and in a window of 1,000,000
+
+On 2026-10-03, Opus 5.5 was asked once what Haiku 4.5 was asked three times
+(#57): the questions of `results` and `prose`, after a `/compact` by the
+plugin and by Claude Code, and on `opaque` the questions `find` is for, with
+a key and without. One conversation was added and asked the same way,
+`large`: the shape of `results` in a window of 1,000,000 tokens, thirty-two
+logs of 700 lines read, 575,632 tokens when it was compacted. It has two
+questions more than the nine, each about a log deleted before the
+compaction: one read early, which the plugin moved out, and the last one
+read, which it kept. `large` was built with Sonnet 5.5; the others are the
+conversations Haiku built. The plugin is `b6736911384a` at its default
+settings, on Claude Code 2.1.287 for `results` and `prose` and 2.1.288 for
+`opaque` and `large`, the versions they were built with. The units, their
+grades and every table are in `bench/results/2026-10-03-opus/`, and a test
+holds every figure here to them.
+
+**The compaction.** The plugin's figure is first, the built-in compaction's
+second.
+
+|                           |      `results` |         `prose` |         `large` |
+| ------------------------- | -------------: | --------------: | --------------: |
+| The summary ran           |       no · yes |        no · yes |        no · yes |
+| `/compact` took, s        |    0.10 · 23.2 |     0.05 · 22.6 |     0.35 · 51.4 |
+| The compaction cost, USD  |       0 · 0.51 |        0 · 0.35 |        0 · 2.93 |
+| The next request, tokens  | 43,884 · 6,952 | 84,720 · 11,848 | 272,428 · 6,538 |
+| Its questions cost, USD   |    0.62 · 0.18 |     0.99 · 0.52 |     3.58 · 0.20 |
+
+In `results` the plugin moved 10 of 15 results out, and in `large` 20 of 35,
+in a window it read as 967,000 tokens: it estimated 272,303 tokens in use
+afterwards, and 272,428 were sent next. `prose` holds nothing to move out
+and had room, and was left as it was.
+
+**The answers**, right of those asked, the plugin's first:
+
+|                                                    | `results` | `prose` | `large` |
+| -------------------------------------------------- | --------: | ------: | ------: |
+| A script's output, the script gone, of 2           |     2 · 2 |   2 · 2 |   2 · 2 |
+| A line of a deleted log read early, moved out      |         — |       — |   0 · 1 |
+| A line of a deleted log read last, kept            |         — |       — |   1 · 0 |
+| A file that is unchanged                           |     0 · 1 |   1 · 1 |   1 · 1 |
+| What a file said before it changed                 |     1 · 0 |   1 · 1 |   0 · 1 |
+| What that file says now                            |     0 · 1 |   1 · 1 |   1 · 1 |
+| Where the work stands, of 2                        |     2 · 2 |   2 · 2 |   2 · 2 |
+| A rule stated once, of 2                           |     2 · 2 |   2 · 2 |   2 · 2 |
+
+- **Six answers are counted wrong for how they write a station.** The first
+  message of `results` and of `large` states a rule, that a station's id is
+  written with a prefix (ST-1325, SN-2044), and Opus gave the line it was
+  asked for that way: `station ST-6303 reported 985 units`. The program looks for the line as the log has it,
+  which was fixed before any answer was seen, and a grader cannot make such
+  an answer right: 4 in the plugin's arm and 2 in the built-in arm are
+  counted wrong, which leaves 13 of 17 questions about an exact text right
+  in the plugin's arm and 15 in the built-in arm. With the prefix taken off,
+  a count made after the answers were seen, all 17 are right in both.
+- **After the built-in compaction Opus searched Claude Code's own record of
+  the session**, which the summary names: 11 of its answers came after
+  reading outside the working directory (3, 3 and 5), all of them holding
+  the right line, 2 with the prefix. Of the questions about a script's
+  output it read that record for all 6 and was right on all 6, where Haiku
+  read it for 22 of 36 and was right on 9. In the plugin's arm
+  nothing outside was read: `recall` was called 3 times in `results` and 4
+  in `large`, and the line of the log read last was given with no tool.
+- **The plugin's compaction cost nothing, and what came after it cost more.**
+  It took 0.35 s or less and called no model, where the summary of `large`
+  took 51.4 s and cost 2.93 USD. Then every request carried what the plugin
+  had left, 272,428 tokens in `large` against 6,538 after a summary, and the
+  eleven questions cost 3.58 USD against 0.20: with the compaction, 3.58
+  against 3.13.
+
+**`find`, on `opaque`**, ten questions with `recall` alone and ten with
+`find` as well:
+
+|                                                         | `recall` only | `recall` and `find` |
+| ------------------------------------------------------- | ------------: | ------------------: |
+| Right, of 10                                            |             4 |                   8 |
+| Answered by another model after Opus 5.5 was stopped    |             3 |                   2 |
+| Right, of those Opus 5.5 answered                       |        4 of 7 |              8 of 8 |
+| `find` calls                                            |             0 |                   8 |
+| `recall` calls                                          |            63 |                   0 |
+| The ten questions cost, USD                             |          2.52 |                0.52 |
+
+In 5 of the 20 sessions Opus 5.5's safeguards stopped the response and
+Claude Code went on with Opus 4.8, which said that no result was about that,
+or declined. `opaque` is thirteen made-up notes of an operations team, one
+of them on replacing the key software is signed with. None of the 5 answers
+was right, and they are not Opus 5.5's: each unit names the model that
+answered (`fellBackTo`), written in after the measurement from the record of
+each session, and a unit measured from here on records it by itself. What
+the ten questions cost includes those sessions, and the two columns were not
+stopped at the same questions: `find-code-6` was stopped with `recall`
+alone and answered with `find`. In `results`, `prose` and `large` it
+happened in no session.
+
+**Not shown by this.** One run, so no rate, and the differences of one or
+two answers between the arms above are within it. The plugin at its default
+settings: one set to move out more (`targetPercent`) leaves less to send.
+`large` is one shape, logs read and nothing written, built with another
+model than the one asked. A conversation that compacts several times, and
+automatic compaction, are not here either.
 
 ## A compaction, and a result read back
 
@@ -524,8 +628,9 @@ they read (three runs; the one run of 0.6.0 [above](#find) beside it):
 of 5 with a key and 4, 3 and 4 without (0.6.0: 4 and 3), calling it never. Sonnet 5.5 on
 `opaque`, one run: with a key it called `find` for 6 of the 7 questions by meaning and was right on 6, and on 1 of the 3 codes; with no key, right on 4 and on 1.
 
-Not measured: Opus; a working session; a conversation where the results
-that are asked about were never moved out. The units are in
+Not measured: Opus (it was since, once: [below](#with-opus-55-and-in-a-window-of-1000000)); a working
+session; a conversation where the results that are asked about were never
+moved out. The units are in
 `bench/results/2026-10-03-find/`, one directory for each plugin above. They
 were measured on `e792fad`, with this change for the last two. #48, merged
 since, changes only a `/compact` that moves nothing out: `opaque` and
@@ -636,9 +741,9 @@ settled by a phrase the agent quoted.
 The change is in the first row. The rows by meaning and of `results` are
 there to show that nothing fell: three runs do not tell 12 of 21 from 11.
 
-Not measured: Sonnet and Opus with an agent in between; a working session;
-values as people ask for them, which may come in another letter case or in
-part.
+Not measured: Sonnet with an agent in between, and Opus but once
+([with Opus 5.5](#with-opus-55-and-in-a-window-of-1000000)); a working session; values as people ask for
+them, which may come in another letter case or in part.
 
 ## The README's demo, after the rename
 

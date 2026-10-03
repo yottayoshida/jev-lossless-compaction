@@ -700,6 +700,23 @@ number written with commas between its digits ("9,821.50") gives none, and a
 question whose values all have fewer than three digits ("step 17") has none
 looked for. Without a key there is no `find`, and so none of this.
 
+## What it was measured with
+
+What an agent could answer after a compaction was measured with Haiku 4.5
+three times and Sonnet 5.5 once, in a window of 200,000 tokens. It is
+measured with Opus 5.5 as well, at the default settings, in one run: on
+`results`, `prose` and `large`, a conversation built in a window of
+1,000,000, against Claude Code's own compaction on the same; and on `opaque`
+with `find` and without
+([measurements](measurements.md#with-opus-55-and-in-a-window-of-1000000)).
+After the built-in compaction Opus searched Claude Code's own record of the
+session, which the summary names. Of 17 questions about an exact text, 13
+are counted right in the plugin's arm and 15 in the built-in arm; the other
+6 answers hold the right line with a station's id written with the prefix a
+rule of the conversation asks for, which was seen only once they were read.
+One run tells no rate, the conversations are made up, and a plugin set to
+move out more than by default leaves less than was measured.
+
 ## Sizes and older versions
 
 `keepTokens` is turned into characters at three to a token, and since

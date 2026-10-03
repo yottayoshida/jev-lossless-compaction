@@ -27,6 +27,8 @@ export type Asked = {
   calls: string[];
   /** What the agent asked `find`, in the order it asked: absent where it did not call it. */
   findQuestions?: string[];
+  /** The model that answered instead, where the unit's model refused and Claude Code went on with another: the answer is then not the unit's model's. */
+  fellBackTo?: string;
   retrieval: Retrieval;
   outside: boolean;
   /** Calls the session made that were refused: something it tried that a question does not allow. */
@@ -165,6 +167,7 @@ export async function unit(
     ...(arm === 'plugin' ? { pluginDir: variant.pluginDir } : {}),
     ...(variant.options !== undefined ? { pluginOptions: variant.options } : {}),
     ...(arm === 'plugin' && variant.env !== undefined ? { env: variant.env } : {}),
+    ...(trace.window !== undefined ? { window: trace.window } : {}),
   };
   const tools = variant.tools ?? QUESTION_TOOLS;
 
@@ -178,6 +181,8 @@ export async function unit(
   const missing = boundary === null ? [] : gapsOf(compacted.session, 'compaction');
   if (missing.length > 0) throw new Error(`${records}: ${missing.join('; ')}`);
   if (arm === 'plugin' && line === null) throw new Error(`${records}: the plugin said nothing at the compaction`);
+  // A summary written by another model than the one asked for is no compaction of this unit's.
+  if (compacted.session.fellBackTo !== null) throw new Error(`${records}: ${model} refused at the compaction, and ${compacted.session.fellBackTo} went on in its place`);
   // Left undone, nothing changed: the time is the session's, and what was in use is what the plugin's line named, or the trace as it was built.
   const inUse = line?.inUse ?? base.tokens;
   const sizes =
@@ -204,6 +209,7 @@ export async function unit(
       answer: session.answer,
       calls: session.toolCalls.map((call) => call.name),
       ...(putToFind.length > 0 ? { findQuestions: putToFind } : {}),
+      ...(session.fellBackTo !== null ? { fellBackTo: session.fellBackTo } : {}),
       retrieval: retrievalOf(session.toolCalls),
       // Against the directory the session says it ran in: the box may be reached through a link.
       outside: lookedOutside(session.toolCalls, session.cwd || cwd),
