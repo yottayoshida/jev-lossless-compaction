@@ -1,0 +1,379 @@
+{
+ "trace": "opaque",
+ "version": 1,
+ "base": "a6fdff77-4483-4549-9453-4a63c157653f",
+ "plugin": "b6736911384a",
+ "pluginCommit": "8074a6f32e66",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 1,
+ "arm": "plugin",
+ "first": true,
+ "variant": "find",
+ "mode": "find",
+ "at": "2026-10-03T06:42:52.711Z",
+ "claudeCode": "2.1.288",
+ "compaction": {
+  "sessionId": "c19d2ee6-6f51-4c93-9085-235913604ba1",
+  "durationMs": 95,
+  "wallMs": 1501,
+  "preTokens": 91601,
+  "postTokens": 22054,
+  "thinkingBefore": 693,
+  "line": {
+   "outcome": "moved",
+   "moved": 16,
+   "results": 20,
+   "images": 0,
+   "charsBefore": 250457,
+   "charsAfter": 88103,
+   "ms": 63,
+   "estimate": 39328,
+   "window": 167000
+  },
+  "summarized": false,
+  "own": {
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0,
+   "thinkingTokens": 0
+  }
+ },
+ "questions": [
+  {
+   "id": "find-doc-1",
+   "kind": "exact-gone",
+   "answer": "I don't see any earlier result in our conversation that explains how to replace software signing keys before shipping. Our conversation has focused on running the `show.sh` script and examining station record outputs (steps 01-20), with a note to tally units into TALLY.md and check if station 4107 reported twice.\n\nCould you clarify where this information about signing keys appeared? It may be from a different conversation or context that I don't have access to.",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25442
+   ],
+   "durationMs": 5158,
+   "wallMs": 6472,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 448,
+    "cacheReadInputTokens": 25432,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.0047931999999999975,
+    "thinkingTokens": 342
+   }
+  },
+  {
+   "id": "find-doc-2",
+   "kind": "exact-gone",
+   "answer": "I don't have access to that information. The results I've seen in this conversation are the station record outputs (14-20) showing unit reports at different steps. I haven't encountered output describing a payment outage or silent callback issue.\n\nIf that information was in earlier context that was compacted, I would need to recall it. Could you clarify which output number or time period you're referring to?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 2,
+   "requests": [
+    25444
+   ],
+   "durationMs": 5570,
+   "wallMs": 6820,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 435,
+    "cacheReadInputTokens": 25434,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.004728399999999994,
+    "thinkingTokens": 345
+   }
+  },
+  {
+   "id": "find-doc-4",
+   "kind": "exact-gone",
+   "answer": "I don't see any earlier result in our conversation that covers letting an outside worker reach the internal network from home. Our conversation so far has focused on running shell scripts (`show.sh`) that output station record data, and then creating a tally of units reported.\n\nIf there was prior context that was compacted, I don't have access to it. Could you provide more details about what you're referring to, or clarify if this question relates to a different conversation?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 1,
+   "requests": [
+    25439
+   ],
+   "durationMs": 4210,
+   "wallMs": 5716,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 358,
+    "cacheReadInputTokens": 25429,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.004342900000000011,
+    "thinkingTokens": 255
+   }
+  },
+  {
+   "id": "find-doc-7",
+   "kind": "exact-gone",
+   "answer": "**sh show.sh 07** named it. Its first line in full:\n\n\"Where to gather, who sweeps each floor, and what happens to visitors and deliveries meanwhile.\"",
+   "calls": [
+    "ToolSearch",
+    "ToolSearch",
+    "mcp__lossless-compaction__find",
+    "mcp__lossless-compaction__recall"
+   ],
+   "findQuestions": [
+    "spot staff assemble alarm practised"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25441,
+    26290,
+    27191,
+    27537,
+    29504
+   ],
+   "durationMs": 22965,
+   "wallMs": 24020,
+   "own": {
+    "inputTokens": 46,
+    "outputTokens": 1603,
+    "cacheReadInputTokens": 131852,
+    "cacheCreationInputTokens": 4065,
+    "costUSD": 0.02937620000000002,
+    "thinkingTokens": 1212
+   }
+  },
+  {
+   "id": "find-doc-9",
+   "kind": "exact-gone",
+   "answer": "The holiday rota for the support desk",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "who answers customers while most people are away in December"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25440,
+    26264,
+    28292
+   ],
+   "durationMs": 8048,
+   "wallMs": 9232,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 557,
+    "cacheReadInputTokens": 77114,
+    "cacheCreationInputTokens": 2854,
+    "costUSD": 0.016232400000000008,
+    "thinkingTokens": 371
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-10",
+   "kind": "exact-gone",
+   "answer": "Post-mortem: a database table deleted by mistake",
+   "calls": [
+    "ToolSearch",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "tidying job wiped out data restored"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25442,
+    26590,
+    27033,
+    29012
+   ],
+   "durationMs": 18470,
+   "wallMs": 19677,
+   "own": {
+    "inputTokens": 38,
+    "outputTokens": 1264,
+    "cacheReadInputTokens": 104467,
+    "cacheCreationInputTokens": 3572,
+    "costUSD": 0.023948700000000017,
+    "thinkingTokens": 1002
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-doc-12",
+   "kind": "exact-gone",
+   "answer": "I don't see any results in our conversation history about credentials or secure web traffic. The visible exchange has consisted of running `sh show.sh` commands that output station records, and your request to tally units into TALLY.md and check station 4107.\n\nIf that content was in an earlier part of the conversation that was compacted, I don't have access to the compacted summary. Could you provide more context or clarify what you're referring to?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 3,
+   "requests": [
+    25441
+   ],
+   "durationMs": 4710,
+   "wallMs": 6219,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 365,
+    "cacheReadInputTokens": 25431,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.004378099999999996,
+    "thinkingTokens": 261
+   }
+  },
+  {
+   "id": "find-code-3",
+   "kind": "exact-gone",
+   "answer": "I don't see \"RX-5323-T\" in the displayed outputs from commands 17 or 20. Many of the earlier results were stored as \"moved out\" and are not directly visible to me. \n\nCould you clarify which command number contained that reference code, or would you like me to use the lossless-compaction recall tool to retrieve a specific stored result?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 3,
+   "requests": [
+    25438
+   ],
+   "durationMs": 7184,
+   "wallMs": 8749,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 697,
+    "cacheReadInputTokens": 25428,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.00603780000000001,
+    "thinkingTokens": 608
+   }
+  },
+  {
+   "id": "find-code-6",
+   "kind": "exact-gone",
+   "answer": "Reference code RX-9646-M was given to this document when it was filed.",
+   "calls": [
+    "ToolSearch",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "RX-9646-M"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25438,
+    26506,
+    26980,
+    28978
+   ],
+   "durationMs": 19176,
+   "wallMs": 20397,
+   "own": {
+    "inputTokens": 38,
+    "outputTokens": 1222,
+    "cacheReadInputTokens": 104322,
+    "cacheCreationInputTokens": 3542,
+    "costUSD": 0.023664200000000024,
+    "thinkingTokens": 954
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-code-11",
+   "kind": "exact-gone",
+   "answer": "Reference code RX-4851-M was given to this document when it was filed.",
+   "calls": [
+    "ToolSearch",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "RX-4851-M"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    25438,
+    26350,
+    26801,
+    28790
+   ],
+   "durationMs": 12975,
+   "wallMs": 14190,
+   "own": {
+    "inputTokens": 38,
+    "outputTokens": 991,
+    "cacheReadInputTokens": 103987,
+    "cacheCreationInputTokens": 3354,
+    "costUSD": 0.022099700000000028,
+    "thinkingTokens": 689
+   },
+   "verdict": "correct"
+  }
+ ]
+}

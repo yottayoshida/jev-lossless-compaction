@@ -1,0 +1,23 @@
+[
+ {
+  "trace": "results",
+  "kind": "meaning with a number",
+  "ask": "Which earlier result was what the shell script printed, all 120 batches of it?",
+  "target": "batch 01: 10 warnings, checksum 9e3817e8",
+  "must": "not-wrong"
+ },
+ {
+  "trace": "mixed",
+  "kind": "meaning with a number",
+  "ask": "Which earlier result was what the shell script printed, all 120 batches of it?",
+  "target": "batch 01: 6 warnings, checksum 9e3bcd32",
+  "must": "not-wrong"
+ },
+ {
+  "trace": "japanese",
+  "kind": "meaning with a number",
+  "ask": "Which earlier result was what the shell script printed, all 120 batches of it?",
+  "target": "batch 01: 9 warnings, checksum 9e3c6b69",
+  "must": "not-wrong"
+ }
+]

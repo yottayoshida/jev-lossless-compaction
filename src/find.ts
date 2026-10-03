@@ -1,7 +1,8 @@
 // Finding, among the results moved out of a conversation, the one a question
 // is about: what the `find` tool answers with.
 
-import { choose, digest, inputLine, type Provider } from './ask.ts';
+import { choose, digest, inputLine, stateFor, type Provider } from './ask.ts';
+import { unnumbered } from './changed.ts';
 import { PART, PLUGIN, RECALL_TOOL, isOwnTool, isStored, readPartTicket, readTicket, recall, type Ticket } from './store.ts';
 import type { Files, Http, Message } from './types.ts';
 
@@ -66,6 +67,53 @@ export function phrasesOf(question: string): string[] {
   }
   return phrases;
 }
+
+/** The values of a question count only when one of them has at least this many digits: "step 17 of log 42" names no result. */
+export const MIN_DIGITS = 3;
+/** A run with fewer digits than this is no value at all: the 2 of "the 2 logs", the 7 of `log7.txt`. */
+export const VALUE_DIGITS = 2;
+/** At most this many results that hold the values are listed by name when Jev takes none of the results. */
+export const VALUED_LISTED = 8;
+
+const digitsOf = (value: string) => (value.match(/\d/g) ?? []).length;
+
+/**
+ * The values the question names: runs of letters and digits, with `-`, `.`,
+ * `:` or `_` inside, that hold `VALUE_DIGITS` digits or more — a number, a
+ * checksum, a record's code — in quotes or not. None unless one of them has
+ * `MIN_DIGITS` digits. A number written with commas between its digits
+ * ("9,821.50") is cut by them into runs none of which is the number: it
+ * gives no value. Jev is shown the start of each result, so a value further
+ * down is not in front of it: the result that holds the values is looked
+ * for and told to it.
+ */
+export function valuesOf(question: string): string[] {
+  const values = new Set<string>();
+  for (const match of question.matchAll(/[A-Za-z0-9](?:[A-Za-z0-9._:-]*[A-Za-z0-9])?/g)) {
+    const [value, at] = [match[0], match.index];
+    if (/\d,$/.test(question.slice(Math.max(0, at - 2), at)) || /^,\d/.test(question.slice(at + value.length, at + value.length + 2))) continue;
+    if (digitsOf(value) >= VALUE_DIGITS) values.add(value);
+  }
+  const all = [...values];
+  return all.some((value) => digitsOf(value) >= MIN_DIGITS) ? all : [];
+}
+
+/**
+ * A value as a word of its own: no letter or digit right before or after it.
+ * Joined to another word by `-`, `.`, `:` or `_` it is still one — the 4821
+ * of `job-4821`, the 500 of `status:500` — since a value found too often is
+ * told to Jev of no result, and one not found is said not to be there.
+ */
+const wordOf = (value: string) => new RegExp(`(?<![A-Za-z0-9])${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z0-9])`);
+
+/** Whether one line of the text holds every value, each as a word of its own. */
+export function lineHolds(text: string, values: readonly string[]): boolean {
+  if (values.length === 0) return false;
+  const words = values.map(wordOf);
+  return text.split('\n').some((line) => words.every((word) => word.test(line)));
+}
+
+const quoted = (values: readonly string[]) => values.map((value) => `"${value}"`).join(' and ');
 
 /** What of a stored text is blanked and digested: all of it, or the head of a large one cut at a line. */
 export function shown(text: string): string {
@@ -159,7 +207,8 @@ async function everyTicket(files: Files, dirs: readonly string[], messages: read
   return tickets;
 }
 
-type Entry = { ticket: Stored; option: string; holds: boolean };
+/** `valued`: one of its lines holds every value the question names. */
+type Entry = { ticket: Stored; option: string; holds: boolean; valued: boolean };
 
 const describe = (ticket: Stored) => `${ticket.about}; ${ticket.bytes} bytes`;
 
@@ -170,9 +219,11 @@ async function found(files: Files, dirs: readonly string[], ticket: Stored, why:
   return `[found] ${what}, ${ticket.bytes} bytes; id ${ticket.id}; ${why}\n\n${got.text}`;
 }
 
-function listed(entries: readonly [Entry, number][], none: number | undefined): string {
+function listed(entries: readonly [Entry, number][], none: number | undefined, values: readonly string[]): string {
+  // Said of a result one of whose lines holds the values the question names.
+  const holding = (entry: Entry) => (entry.valued ? `; one of its lines holds ${quoted(values)}` : '');
   const lines = entries.map(
-    ([entry, p]) => `- ${describe(entry.ticket)}; probability ${p.toFixed(2)}; recall with ${RECALL_TOOL} id ${entry.ticket.id}`,
+    ([entry, p]) => `- ${describe(entry.ticket)}; probability ${p.toFixed(2)}${holding(entry)}; recall with ${RECALL_TOOL} id ${entry.ticket.id}`,
   );
   if (none !== undefined) lines.push(`- or none of them; probability ${none.toFixed(2)}`);
   return [`[not sure] The likeliest results, most likely first:`, ...lines].join('\n');
@@ -195,6 +246,9 @@ export async function find(input: FindInput): Promise<string> {
 
   const { files, dirs } = input;
   const phrases = phrasesOf(question);
+  // The values are those of the question as it is sent — shapes of secrets blanked, cut where it is cut — so that what Jev
+  // is told of a result's line is in the question it is asked, and a secret the question names is told of no result.
+  const values = valuesOf(stateFor(question).task);
   const entries: Entry[] = [];
   // One stored text at a time: what is kept of each is a few hundred characters.
   for (const ticket of await everyTicket(files, dirs, input.messages)) {
@@ -204,7 +258,10 @@ export async function find(input: FindInput): Promise<string> {
     // A result that holds an image is not offered: nothing of it is sent to Jev, its text included.
     if (got.parts !== undefined) continue;
     const holds = phrases.length > 0 && phrases.every((phrase) => got.text.includes(phrase));
-    entries.push({ ticket, option: `${describe(ticket)}. It reads: ${digest(shown(got.text), DIGEST_CHARS)}`, holds });
+    // A part of a kept conversation holds what was asked as well as what came back, and is not looked through for
+    // the values; the numbers `Read` puts in front of lines are no part of what the file said.
+    const valued = values.length > 0 && ticket.tool !== PART && lineHolds(ticket.tool === 'Read' ? (unnumbered(got.text) ?? got.text) : got.text, values);
+    entries.push({ ticket, option: `${describe(ticket)}. It reads: ${digest(shown(got.text), DIGEST_CHARS)}`, holds, valued });
   }
   if (entries.length === 0) {
     return (
@@ -213,17 +270,24 @@ export async function find(input: FindInput): Promise<string> {
     );
   }
 
-  const holding = entries.filter((entry) => entry.holds);
-  if (holding.length === 1) {
-    return found(files, dirs, (holding[0] as Entry).ticket, `matched the quoted phrase "${phrases[0]}"`);
+  const quoting = entries.filter((entry) => entry.holds);
+  if (quoting.length === 1) {
+    return found(files, dirs, (quoting[0] as Entry).ticket, `matched the quoted phrase "${phrases[0]}"`);
   }
-  const pool = holding.length > 1 ? holding : entries;
+  const pool = quoting.length > 1 ? quoting : entries;
+  // Where one result alone has a line holding the values, Jev is told so beside its first lines: the values are in the
+  // question already, so nothing more of the result is sent, and Jev still chooses — a line holding "sha256" does not
+  // make a result what was asked for. Where several hold them nothing is said: told the same of each, Jev was measured
+  // taking the first of them for the answer.
+  const valued = pool.filter((entry) => entry.valued);
+  const only = valued.length === 1 ? valued[0] : undefined;
+  const optionOf = (entry: Entry) => (entry === only ? `${entry.option} One of its lines holds ${quoted(values)}.` : entry.option);
   const byKey = new Map(pool.map((entry, index): [string, Entry] => [`t${index + 1}`, entry]));
   const chosen = await choose(
     input.http,
     input.provider,
     question,
-    [...byKey].map(([key, entry]) => ({ key, text: entry.option })),
+    [...byKey].map(([key, entry]) => ({ key, text: optionOf(entry) })),
     { always: { key: NONE, text: NONE_TEXT }, wait: input.wait },
   );
   if ('error' in chosen) return `[${PLUGIN}] Jev could not be asked: ${chosen.error}.`;
@@ -232,18 +296,37 @@ export async function find(input: FindInput): Promise<string> {
   const decisive = first !== undefined && first[1] >= FOUND_AT && first[1] - (second?.[1] ?? 0) >= MARGIN;
   if (decisive && first[0] === NONE) {
     // More than one result holds the quoted phrase as written: Jev's "none" does not make that untrue, so they are listed.
-    if (holding.length > 1) {
+    if (quoting.length > 1) {
       const holders = chosen.ranked.flatMap(([key, p]): [Entry, number][] => {
         const entry = key === NONE ? undefined : byKey.get(key);
         return entry ? [[entry, p]] : [];
       });
-      return listed(holders.slice(0, LISTED), first[1]);
+      return listed(holders.slice(0, LISTED), first[1], values);
+    }
+    // Jev took none of them to be what was asked, and some have a line holding the values: that stays true, so they are
+    // named for the agent to read, the likeliest first. None of them is given as the answer. They are taken from the
+    // options and not from the ranking: asked in several requests, the ranking holds the last round's options only.
+    if (valued.length > 0) {
+      const p = new Map(chosen.ranked);
+      const ranked = [...byKey].filter(([, entry]) => entry.valued).sort(([a], [b]) => (p.get(b) ?? 0) - (p.get(a) ?? 0));
+      const lines = ranked.slice(0, VALUED_LISTED).map(([, entry]) => `- ${describe(entry.ticket)}; recall with ${RECALL_TOOL} id ${entry.ticket.id}`);
+      if (ranked.length > VALUED_LISTED) lines.push(`- and ${ranked.length - VALUED_LISTED} more: say more of what is asked for to tell them apart`);
+      const count = ranked.length === 1 ? 'one has' : `${ranked.length} have`;
+      return [`[not sure] None of the moved-out results seems to be about that from its call and first lines, but ${count} a line holding ${quoted(values)}:`, ...lines].join('\n');
     }
     // The quoted phrase was looked for in the whole of every result, and none holds it.
     if (phrases.length > 0) {
       return (
         `[not found] None of the moved-out results holds the quoted phrase as written, looked for in the whole of each, ` +
         'and none seems to be about that from its call and first lines. It may still be in the conversation, or was never moved out.'
+      );
+    }
+    // The values were looked for in the whole of every result, and no line holds them, each as a word of its own.
+    if (values.length > 0) {
+      return (
+        `[not found] None of the moved-out results has a line holding ${quoted(values)} as a word of its own, and none seems to be about that from its call and first lines. ` +
+        `Not looked for this way: values on different lines, in another letter case, or that are only part of a longer word or number there; the number of a line; and what a kept part of the conversation says. ` +
+        `To look further, quote twelve characters or more of a line as written, or read the results with ${RECALL_TOOL}. It may also still be in the conversation, or was never moved out.`
       );
     }
     // Jev is shown each result's call and first lines: a value further down is not in front of it, and an
@@ -256,7 +339,7 @@ export async function find(input: FindInput): Promise<string> {
   }
   if (decisive) {
     const entry = byKey.get(first[0]);
-    if (entry) return found(files, dirs, entry.ticket, `probability ${first[1].toFixed(2)}`);
+    if (entry) return found(files, dirs, entry.ticket, `probability ${first[1].toFixed(2)}${entry === only ? `; the one result with a line holding ${quoted(values)}` : ''}`);
   }
   const likeliest = chosen.ranked.slice(0, LISTED);
   const results = likeliest.flatMap(([key, p]): [Entry, number][] => {
@@ -264,5 +347,5 @@ export async function find(input: FindInput): Promise<string> {
     return entry ? [[entry, p]] : [];
   });
   const none = likeliest.find(([key, p]) => key === NONE && p > 0)?.[1];
-  return listed(results, none);
+  return listed(results, none, values);
 }

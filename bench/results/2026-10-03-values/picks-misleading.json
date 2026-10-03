@@ -1,0 +1,115 @@
+{
+ "at": "2026-10-03T06:40:49.429Z",
+ "provider": "cloudflare",
+ "picks": [
+  {
+   "trace": "results",
+   "question": "value of another result",
+   "by": "value",
+   "options": 15,
+   "right": [
+    "dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c"
+   ],
+   "words": "db25679aceba547b822c89eefc2aeb8f2bbbeb4185b3c651d9244fd2212d470a",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c"
+    ],
+    "ms": 319,
+    "said": "[found] Bash result, 4831 bytes; id dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c; probability 0.84"
+   }
+  },
+  {
+   "trace": "results",
+   "question": "value said not to be it",
+   "by": "value",
+   "options": 15,
+   "right": [
+    "db25679aceba547b822c89eefc2aeb8f2bbbeb4185b3c651d9244fd2212d470a"
+   ],
+   "words": "dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c",
+   "jev": {
+    "kind": "listed",
+    "ids": [
+     "db25679aceba547b822c89eefc2aeb8f2bbbeb4185b3c651d9244fd2212d470a",
+     "dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c"
+    ],
+    "ms": 259,
+    "said": "[not sure] The likeliest results, most likely first:\n- Read called with {\"file_path\":\"<work>/kept-1.log\"}; 6170 bytes; probability 0.42; recall with mcp__lossless-compaction__recall id db25679aceba547b822c89eefc2aeb8f2bbbeb4185b3c651d9244fd2212d470a\n- Bash called with {\"command\":\"sh report.sh\"}; 4831 bytes; probability 0.15; one of its lines holds \"9e3817e8\"; recall with mcp__lossless-compaction__recall id dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c\n- or none of them; probability 0.26"
+   }
+  },
+  {
+   "trace": "mixed",
+   "question": "value of another result",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "74bb139c1ad510d36fd6abc88cc39948be86ea9ab2bc987c360922c85aca168d"
+   ],
+   "words": "8a28510f3f2e17eaa0e6abbf9cfd15c266b2643faf255db3a29b8c42e79d77d0",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "74bb139c1ad510d36fd6abc88cc39948be86ea9ab2bc987c360922c85aca168d"
+    ],
+    "ms": 245,
+    "said": "[found] Bash result, 4830 bytes; id 74bb139c1ad510d36fd6abc88cc39948be86ea9ab2bc987c360922c85aca168d; probability 0.80"
+   }
+  },
+  {
+   "trace": "mixed",
+   "question": "value said not to be it",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "8a28510f3f2e17eaa0e6abbf9cfd15c266b2643faf255db3a29b8c42e79d77d0"
+   ],
+   "words": "74bb139c1ad510d36fd6abc88cc39948be86ea9ab2bc987c360922c85aca168d",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "8a28510f3f2e17eaa0e6abbf9cfd15c266b2643faf255db3a29b8c42e79d77d0"
+    ],
+    "ms": 280,
+    "said": "[found] Read result, 6164 bytes; id 8a28510f3f2e17eaa0e6abbf9cfd15c266b2643faf255db3a29b8c42e79d77d0; probability 0.64"
+   }
+  },
+  {
+   "trace": "japanese",
+   "question": "value of another result",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "0db53fd7defadca699ed642bbff42df829553e7a340a7199d612a5f1a27b62cc"
+   ],
+   "words": "965659119f3d5c2c8603bf6c4469269a21b60877a41856e3b0b1e27e5647a7fe",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "0db53fd7defadca699ed642bbff42df829553e7a340a7199d612a5f1a27b62cc"
+    ],
+    "ms": 228,
+    "said": "[found] Bash result, 4831 bytes; id 0db53fd7defadca699ed642bbff42df829553e7a340a7199d612a5f1a27b62cc; probability 0.88"
+   }
+  },
+  {
+   "trace": "japanese",
+   "question": "value said not to be it",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "b19f9d795666a6f7963f764f8c4759938beabe076b360ceceb62a79c5ff5e8f5"
+   ],
+   "words": "0db53fd7defadca699ed642bbff42df829553e7a340a7199d612a5f1a27b62cc",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "b19f9d795666a6f7963f764f8c4759938beabe076b360ceceb62a79c5ff5e8f5"
+    ],
+    "ms": 255,
+    "said": "[found] Read result, 6168 bytes; id b19f9d795666a6f7963f764f8c4759938beabe076b360ceceb62a79c5ff5e8f5; probability 0.56"
+   }
+  }
+ ]
+}

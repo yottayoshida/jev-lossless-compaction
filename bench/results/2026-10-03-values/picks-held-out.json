@@ -1,0 +1,372 @@
+{
+ "at": "2026-10-03T06:40:46.563Z",
+ "provider": "cloudflare",
+ "picks": [
+  {
+   "trace": "results",
+   "question": "record id",
+   "by": "value",
+   "options": 15,
+   "right": [
+    "ceb46e2040e4ae89bb471762160ad0b10ba9a6279d04dcd90a088ac3aa83ddf0"
+   ],
+   "words": "db25679aceba547b822c89eefc2aeb8f2bbbeb4185b3c651d9244fd2212d470a",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "ceb46e2040e4ae89bb471762160ad0b10ba9a6279d04dcd90a088ac3aa83ddf0"
+    ],
+    "ms": 336,
+    "said": "[found] Read result, 17937 bytes; id ceb46e2040e4ae89bb471762160ad0b10ba9a6279d04dcd90a088ac3aa83ddf0; probability 0.99; the one result with a line holding \"2-0077\""
+   }
+  },
+  {
+   "trace": "results",
+   "question": "one number",
+   "by": "value",
+   "options": 15,
+   "right": [
+    "ceb46e2040e4ae89bb471762160ad0b10ba9a6279d04dcd90a088ac3aa83ddf0"
+   ],
+   "words": "ceb46e2040e4ae89bb471762160ad0b10ba9a6279d04dcd90a088ac3aa83ddf0",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "ceb46e2040e4ae89bb471762160ad0b10ba9a6279d04dcd90a088ac3aa83ddf0"
+    ],
+    "ms": 271,
+    "said": "[found] Read result, 17937 bytes; id ceb46e2040e4ae89bb471762160ad0b10ba9a6279d04dcd90a088ac3aa83ddf0; probability 0.99; the one result with a line holding \"1672\""
+   }
+  },
+  {
+   "trace": "results",
+   "question": "two lines",
+   "by": "value",
+   "options": 15,
+   "right": [
+    "ceb46e2040e4ae89bb471762160ad0b10ba9a6279d04dcd90a088ac3aa83ddf0"
+   ],
+   "words": "743feea18b5621f139f1fcd383b3991cdbcd8bdf7471116cfd5c7086af6fb95b",
+   "jev": {
+    "kind": "none",
+    "ids": [],
+    "ms": 271,
+    "said": "[not found] None of the moved-out results has a line holding \"395\" and \"78\" as a word of its own, and none seems to be about that from its call and first lines. Not looked for this way: values on different lines, in another letter case, or that are only part of a longer word or number there; the number of a line; and what a kept part of the conversation says. To look further, quote twelve characters or more of a line as written, or read the results with mcp__lossless-compaction__recall. It may also still be in the conversation, or was never moved out."
+   }
+  },
+  {
+   "trace": "results",
+   "question": "head of a value",
+   "by": "value",
+   "options": 15,
+   "right": [
+    "dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c"
+   ],
+   "words": "dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c",
+   "jev": {
+    "kind": "none",
+    "ids": [],
+    "ms": 233,
+    "said": "[not found] None of the moved-out results has a line holding \"56e31\" as a word of its own, and none seems to be about that from its call and first lines. Not looked for this way: values on different lines, in another letter case, or that are only part of a longer word or number there; the number of a line; and what a kept part of the conversation says. To look further, quote twelve characters or more of a line as written, or read the results with mcp__lossless-compaction__recall. It may also still be in the conversation, or was never moved out."
+   }
+  },
+  {
+   "trace": "results",
+   "question": "letter case",
+   "by": "value",
+   "options": 15,
+   "right": [
+    "dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c"
+   ],
+   "words": "dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c",
+   "jev": {
+    "kind": "none",
+    "ids": [],
+    "ms": 281,
+    "said": "[not found] None of the moved-out results has a line holding \"56E31B90\" as a word of its own, and none seems to be about that from its call and first lines. Not looked for this way: values on different lines, in another letter case, or that are only part of a longer word or number there; the number of a line; and what a kept part of the conversation says. To look further, quote twelve characters or more of a line as written, or read the results with mcp__lossless-compaction__recall. It may also still be in the conversation, or was never moved out."
+   }
+  },
+  {
+   "trace": "results",
+   "question": "line number",
+   "by": "value",
+   "options": 15,
+   "right": [
+    "ceb46e2040e4ae89bb471762160ad0b10ba9a6279d04dcd90a088ac3aa83ddf0"
+   ],
+   "words": "743feea18b5621f139f1fcd383b3991cdbcd8bdf7471116cfd5c7086af6fb95b",
+   "jev": {
+    "kind": "listed",
+    "ids": [
+     "743feea18b5621f139f1fcd383b3991cdbcd8bdf7471116cfd5c7086af6fb95b",
+     "dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c"
+    ],
+    "ms": 267,
+    "said": "[not sure] The likeliest results, most likely first:\n- Read called with {\"file_path\":\"<work>/log1.txt\"}; 17931 bytes; probability 0.26; one of its lines holds \"250\"; recall with mcp__lossless-compaction__recall id 743feea18b5621f139f1fcd383b3991cdbcd8bdf7471116cfd5c7086af6fb95b\n- Bash called with {\"command\":\"sh report.sh\"}; 4831 bytes; probability 0.08; recall with mcp__lossless-compaction__recall id dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c\n- or none of them; probability 0.45"
+   }
+  },
+  {
+   "trace": "results",
+   "question": "small number",
+   "by": "value",
+   "options": 15,
+   "right": [
+    "db25679aceba547b822c89eefc2aeb8f2bbbeb4185b3c651d9244fd2212d470a"
+   ],
+   "words": "db25679aceba547b822c89eefc2aeb8f2bbbeb4185b3c651d9244fd2212d470a",
+   "jev": {
+    "kind": "listed",
+    "ids": [
+     "db25679aceba547b822c89eefc2aeb8f2bbbeb4185b3c651d9244fd2212d470a",
+     "743feea18b5621f139f1fcd383b3991cdbcd8bdf7471116cfd5c7086af6fb95b"
+    ],
+    "ms": 231,
+    "said": "[not sure] The likeliest results, most likely first:\n- Read called with {\"file_path\":\"<work>/kept-1.log\"}; 6170 bytes; probability 0.28; recall with mcp__lossless-compaction__recall id db25679aceba547b822c89eefc2aeb8f2bbbeb4185b3c651d9244fd2212d470a\n- Read called with {\"file_path\":\"<work>/log1.txt\"}; 17931 bytes; probability 0.26; recall with mcp__lossless-compaction__recall id 743feea18b5621f139f1fcd383b3991cdbcd8bdf7471116cfd5c7086af6fb95b\n- or none of them; probability 0.23"
+   }
+  },
+  {
+   "trace": "mixed",
+   "question": "record id",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "8c19af263d6c2737294387d53dcaa62c6c6ece50c5b11e9d77d7b1240bfb6f00"
+   ],
+   "words": "8a28510f3f2e17eaa0e6abbf9cfd15c266b2643faf255db3a29b8c42e79d77d0",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "8c19af263d6c2737294387d53dcaa62c6c6ece50c5b11e9d77d7b1240bfb6f00"
+    ],
+    "ms": 247,
+    "said": "[found] Read result, 18214 bytes; id 8c19af263d6c2737294387d53dcaa62c6c6ece50c5b11e9d77d7b1240bfb6f00; probability 1.00; the one result with a line holding \"41-0077\""
+   }
+  },
+  {
+   "trace": "mixed",
+   "question": "one number",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "8c19af263d6c2737294387d53dcaa62c6c6ece50c5b11e9d77d7b1240bfb6f00"
+   ],
+   "words": "8c19af263d6c2737294387d53dcaa62c6c6ece50c5b11e9d77d7b1240bfb6f00",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "8c19af263d6c2737294387d53dcaa62c6c6ece50c5b11e9d77d7b1240bfb6f00"
+    ],
+    "ms": 244,
+    "said": "[found] Read result, 18214 bytes; id 8c19af263d6c2737294387d53dcaa62c6c6ece50c5b11e9d77d7b1240bfb6f00; probability 0.97; the one result with a line holding \"6781\""
+   }
+  },
+  {
+   "trace": "mixed",
+   "question": "two lines",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "8c19af263d6c2737294387d53dcaa62c6c6ece50c5b11e9d77d7b1240bfb6f00"
+   ],
+   "words": "c7402ea8d4c56f1f41e4772813855aedfcd38d4fc39e631d82f867d242124088",
+   "jev": {
+    "kind": "none",
+    "ids": [],
+    "ms": 247,
+    "said": "[not found] None of the moved-out results has a line holding \"434\" and \"78\" as a word of its own, and none seems to be about that from its call and first lines. Not looked for this way: values on different lines, in another letter case, or that are only part of a longer word or number there; the number of a line; and what a kept part of the conversation says. To look further, quote twelve characters or more of a line as written, or read the results with mcp__lossless-compaction__recall. It may also still be in the conversation, or was never moved out."
+   }
+  },
+  {
+   "trace": "mixed",
+   "question": "head of a value",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "74bb139c1ad510d36fd6abc88cc39948be86ea9ab2bc987c360922c85aca168d"
+   ],
+   "words": "74bb139c1ad510d36fd6abc88cc39948be86ea9ab2bc987c360922c85aca168d",
+   "jev": {
+    "kind": "none",
+    "ids": [],
+    "ms": 292,
+    "said": "[not found] None of the moved-out results has a line holding \"56e6d\" as a word of its own, and none seems to be about that from its call and first lines. Not looked for this way: values on different lines, in another letter case, or that are only part of a longer word or number there; the number of a line; and what a kept part of the conversation says. To look further, quote twelve characters or more of a line as written, or read the results with mcp__lossless-compaction__recall. It may also still be in the conversation, or was never moved out."
+   }
+  },
+  {
+   "trace": "mixed",
+   "question": "letter case",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "74bb139c1ad510d36fd6abc88cc39948be86ea9ab2bc987c360922c85aca168d"
+   ],
+   "words": "74bb139c1ad510d36fd6abc88cc39948be86ea9ab2bc987c360922c85aca168d",
+   "jev": {
+    "kind": "none",
+    "ids": [],
+    "ms": 257,
+    "said": "[not found] None of the moved-out results has a line holding \"56E6D0DA\" as a word of its own, and none seems to be about that from its call and first lines. Not looked for this way: values on different lines, in another letter case, or that are only part of a longer word or number there; the number of a line; and what a kept part of the conversation says. To look further, quote twelve characters or more of a line as written, or read the results with mcp__lossless-compaction__recall. It may also still be in the conversation, or was never moved out."
+   }
+  },
+  {
+   "trace": "mixed",
+   "question": "line number",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "8c19af263d6c2737294387d53dcaa62c6c6ece50c5b11e9d77d7b1240bfb6f00"
+   ],
+   "words": "c7402ea8d4c56f1f41e4772813855aedfcd38d4fc39e631d82f867d242124088",
+   "jev": {
+    "kind": "listed",
+    "ids": [
+     "c7402ea8d4c56f1f41e4772813855aedfcd38d4fc39e631d82f867d242124088",
+     "74bb139c1ad510d36fd6abc88cc39948be86ea9ab2bc987c360922c85aca168d"
+    ],
+    "ms": 230,
+    "said": "[not sure] The likeliest results, most likely first:\n- Read called with {\"file_path\":\"<work>/mlog1.txt\"}; 18219 bytes; probability 0.29; one of its lines holds \"250\"; recall with mcp__lossless-compaction__recall id c7402ea8d4c56f1f41e4772813855aedfcd38d4fc39e631d82f867d242124088\n- Bash called with {\"command\":\"sh report.sh\"}; 4830 bytes; probability 0.09; recall with mcp__lossless-compaction__recall id 74bb139c1ad510d36fd6abc88cc39948be86ea9ab2bc987c360922c85aca168d\n- or none of them; probability 0.42"
+   }
+  },
+  {
+   "trace": "mixed",
+   "question": "small number",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "8a28510f3f2e17eaa0e6abbf9cfd15c266b2643faf255db3a29b8c42e79d77d0"
+   ],
+   "words": "8a28510f3f2e17eaa0e6abbf9cfd15c266b2643faf255db3a29b8c42e79d77d0",
+   "jev": {
+    "kind": "listed",
+    "ids": [
+     "8a28510f3f2e17eaa0e6abbf9cfd15c266b2643faf255db3a29b8c42e79d77d0",
+     "c7402ea8d4c56f1f41e4772813855aedfcd38d4fc39e631d82f867d242124088"
+    ],
+    "ms": 224,
+    "said": "[not sure] The likeliest results, most likely first:\n- Read called with {\"file_path\":\"<work>/kept-7.log\"}; 6164 bytes; probability 0.26; recall with mcp__lossless-compaction__recall id 8a28510f3f2e17eaa0e6abbf9cfd15c266b2643faf255db3a29b8c42e79d77d0\n- Read called with {\"file_path\":\"<work>/mlog1.txt\"}; 18219 bytes; probability 0.23; recall with mcp__lossless-compaction__recall id c7402ea8d4c56f1f41e4772813855aedfcd38d4fc39e631d82f867d242124088\n- or none of them; probability 0.24"
+   }
+  },
+  {
+   "trace": "japanese",
+   "question": "record id",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "870ecf2c131d942dee82b8a736b9f28e34b4f065f76d705cc8ad11b210745021"
+   ],
+   "words": "965659119f3d5c2c8603bf6c4469269a21b60877a41856e3b0b1e27e5647a7fe",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "870ecf2c131d942dee82b8a736b9f28e34b4f065f76d705cc8ad11b210745021"
+    ],
+    "ms": 260,
+    "said": "[found] Read result, 18506 bytes; id 870ecf2c131d942dee82b8a736b9f28e34b4f065f76d705cc8ad11b210745021; probability 1.00; the one result with a line holding \"111-0077\""
+   }
+  },
+  {
+   "trace": "japanese",
+   "question": "one number",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "870ecf2c131d942dee82b8a736b9f28e34b4f065f76d705cc8ad11b210745021"
+   ],
+   "words": "870ecf2c131d942dee82b8a736b9f28e34b4f065f76d705cc8ad11b210745021",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "870ecf2c131d942dee82b8a736b9f28e34b4f065f76d705cc8ad11b210745021"
+    ],
+    "ms": 282,
+    "said": "[found] Read result, 18506 bytes; id 870ecf2c131d942dee82b8a736b9f28e34b4f065f76d705cc8ad11b210745021; probability 0.95; the one result with a line holding \"5978\""
+   }
+  },
+  {
+   "trace": "japanese",
+   "question": "two lines",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "870ecf2c131d942dee82b8a736b9f28e34b4f065f76d705cc8ad11b210745021"
+   ],
+   "words": "965659119f3d5c2c8603bf6c4469269a21b60877a41856e3b0b1e27e5647a7fe",
+   "jev": {
+    "kind": "none",
+    "ids": [],
+    "ms": 257,
+    "said": "[not found] None of the moved-out results has a line holding \"504\" and \"78\" as a word of its own, and none seems to be about that from its call and first lines. Not looked for this way: values on different lines, in another letter case, or that are only part of a longer word or number there; the number of a line; and what a kept part of the conversation says. To look further, quote twelve characters or more of a line as written, or read the results with mcp__lossless-compaction__recall. It may also still be in the conversation, or was never moved out."
+   }
+  },
+  {
+   "trace": "japanese",
+   "question": "head of a value",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "0db53fd7defadca699ed642bbff42df829553e7a340a7199d612a5f1a27b62cc"
+   ],
+   "words": "0db53fd7defadca699ed642bbff42df829553e7a340a7199d612a5f1a27b62cc",
+   "jev": {
+    "kind": "none",
+    "ids": [],
+    "ms": 248,
+    "said": "[not found] None of the moved-out results has a line holding \"56e76\" as a word of its own, and none seems to be about that from its call and first lines. Not looked for this way: values on different lines, in another letter case, or that are only part of a longer word or number there; the number of a line; and what a kept part of the conversation says. To look further, quote twelve characters or more of a line as written, or read the results with mcp__lossless-compaction__recall. It may also still be in the conversation, or was never moved out."
+   }
+  },
+  {
+   "trace": "japanese",
+   "question": "letter case",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "0db53fd7defadca699ed642bbff42df829553e7a340a7199d612a5f1a27b62cc"
+   ],
+   "words": "0db53fd7defadca699ed642bbff42df829553e7a340a7199d612a5f1a27b62cc",
+   "jev": {
+    "kind": "none",
+    "ids": [],
+    "ms": 247,
+    "said": "[not found] None of the moved-out results has a line holding \"56E76F11\" as a word of its own, and none seems to be about that from its call and first lines. Not looked for this way: values on different lines, in another letter case, or that are only part of a longer word or number there; the number of a line; and what a kept part of the conversation says. To look further, quote twelve characters or more of a line as written, or read the results with mcp__lossless-compaction__recall. It may also still be in the conversation, or was never moved out."
+   }
+  },
+  {
+   "trace": "japanese",
+   "question": "line number",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "870ecf2c131d942dee82b8a736b9f28e34b4f065f76d705cc8ad11b210745021"
+   ],
+   "words": "965659119f3d5c2c8603bf6c4469269a21b60877a41856e3b0b1e27e5647a7fe",
+   "jev": {
+    "kind": "listed",
+    "ids": [
+     "965659119f3d5c2c8603bf6c4469269a21b60877a41856e3b0b1e27e5647a7fe",
+     "0db53fd7defadca699ed642bbff42df829553e7a340a7199d612a5f1a27b62cc"
+    ],
+    "ms": 220,
+    "said": "[not sure] The likeliest results, most likely first:\n- Read called with {\"file_path\":\"<work>/jlog1.txt\"}; 18510 bytes; probability 0.24; one of its lines holds \"250\"; recall with mcp__lossless-compaction__recall id 965659119f3d5c2c8603bf6c4469269a21b60877a41856e3b0b1e27e5647a7fe\n- Bash called with {\"command\":\"sh report.sh\"}; 4831 bytes; probability 0.11; recall with mcp__lossless-compaction__recall id 0db53fd7defadca699ed642bbff42df829553e7a340a7199d612a5f1a27b62cc\n- or none of them; probability 0.44"
+   }
+  },
+  {
+   "trace": "japanese",
+   "question": "small number",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "b19f9d795666a6f7963f764f8c4759938beabe076b360ceceb62a79c5ff5e8f5"
+   ],
+   "words": "b19f9d795666a6f7963f764f8c4759938beabe076b360ceceb62a79c5ff5e8f5",
+   "jev": {
+    "kind": "listed",
+    "ids": [
+     "b19f9d795666a6f7963f764f8c4759938beabe076b360ceceb62a79c5ff5e8f5",
+     "965659119f3d5c2c8603bf6c4469269a21b60877a41856e3b0b1e27e5647a7fe"
+    ],
+    "ms": 261,
+    "said": "[not sure] The likeliest results, most likely first:\n- Read called with {\"file_path\":\"<work>/kept-8.log\"}; 6168 bytes; probability 0.30; recall with mcp__lossless-compaction__recall id b19f9d795666a6f7963f764f8c4759938beabe076b360ceceb62a79c5ff5e8f5\n- Read called with {\"file_path\":\"<work>/jlog1.txt\"}; 18510 bytes; probability 0.17; recall with mcp__lossless-compaction__recall id 965659119f3d5c2c8603bf6c4469269a21b60877a41856e3b0b1e27e5647a7fe\n- or none of them; probability 0.29"
+   }
+  }
+ ]
+}

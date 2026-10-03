@@ -1,0 +1,379 @@
+{
+ "at": "2026-10-03T06:08:43.994Z",
+ "provider": "cloudflare",
+ "picks": [
+  {
+   "trace": "results",
+   "question": "record id",
+   "by": "value",
+   "options": 15,
+   "right": [
+    "ceb46e2040e4ae89bb471762160ad0b10ba9a6279d04dcd90a088ac3aa83ddf0"
+   ],
+   "words": "db25679aceba547b822c89eefc2aeb8f2bbbeb4185b3c651d9244fd2212d470a",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "ceb46e2040e4ae89bb471762160ad0b10ba9a6279d04dcd90a088ac3aa83ddf0"
+    ],
+    "ms": 339,
+    "said": "[found] Read result, 17937 bytes; id ceb46e2040e4ae89bb471762160ad0b10ba9a6279d04dcd90a088ac3aa83ddf0; probability 1.00; one of its lines holds \"2-0077\""
+   }
+  },
+  {
+   "trace": "results",
+   "question": "one number",
+   "by": "value",
+   "options": 15,
+   "right": [
+    "ceb46e2040e4ae89bb471762160ad0b10ba9a6279d04dcd90a088ac3aa83ddf0"
+   ],
+   "words": "ceb46e2040e4ae89bb471762160ad0b10ba9a6279d04dcd90a088ac3aa83ddf0",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "ceb46e2040e4ae89bb471762160ad0b10ba9a6279d04dcd90a088ac3aa83ddf0"
+    ],
+    "ms": 259,
+    "said": "[found] Read result, 17937 bytes; id ceb46e2040e4ae89bb471762160ad0b10ba9a6279d04dcd90a088ac3aa83ddf0; probability 0.98; one of its lines holds \"1672\""
+   }
+  },
+  {
+   "trace": "results",
+   "question": "two lines",
+   "by": "value",
+   "options": 15,
+   "right": [
+    "ceb46e2040e4ae89bb471762160ad0b10ba9a6279d04dcd90a088ac3aa83ddf0"
+   ],
+   "words": "743feea18b5621f139f1fcd383b3991cdbcd8bdf7471116cfd5c7086af6fb95b",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "743feea18b5621f139f1fcd383b3991cdbcd8bdf7471116cfd5c7086af6fb95b"
+    ],
+    "ms": 269,
+    "said": "[found] Read result, 17931 bytes; id 743feea18b5621f139f1fcd383b3991cdbcd8bdf7471116cfd5c7086af6fb95b; probability 0.55; one of its lines holds \"395\""
+   }
+  },
+  {
+   "trace": "results",
+   "question": "head of a value",
+   "by": "value",
+   "options": 15,
+   "right": [
+    "dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c"
+   ],
+   "words": "dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c",
+   "jev": {
+    "kind": "none",
+    "ids": [],
+    "ms": 266,
+    "said": "[not found] None of the moved-out results has a line holding \"56e31\" as written, and none seems to be about that from its call and first lines. Not looked for this way: values on different lines, in another letter case or given in part, the number of a line, and what a kept part of the conversation says. To look further, read the results with mcp__lossless-compaction__recall. It may also still be in the conversation, or was never moved out."
+   }
+  },
+  {
+   "trace": "results",
+   "question": "letter case",
+   "by": "value",
+   "options": 15,
+   "right": [
+    "dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c"
+   ],
+   "words": "dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c",
+   "jev": {
+    "kind": "none",
+    "ids": [],
+    "ms": 293,
+    "said": "[not found] None of the moved-out results has a line holding \"56E31B90\" as written, and none seems to be about that from its call and first lines. Not looked for this way: values on different lines, in another letter case or given in part, the number of a line, and what a kept part of the conversation says. To look further, read the results with mcp__lossless-compaction__recall. It may also still be in the conversation, or was never moved out."
+   }
+  },
+  {
+   "trace": "results",
+   "question": "line number",
+   "by": "value",
+   "options": 15,
+   "right": [
+    "ceb46e2040e4ae89bb471762160ad0b10ba9a6279d04dcd90a088ac3aa83ddf0"
+   ],
+   "words": "743feea18b5621f139f1fcd383b3991cdbcd8bdf7471116cfd5c7086af6fb95b",
+   "jev": {
+    "kind": "listed",
+    "ids": [
+     "743feea18b5621f139f1fcd383b3991cdbcd8bdf7471116cfd5c7086af6fb95b",
+     "dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c"
+    ],
+    "ms": 239,
+    "said": "[not sure] The likeliest results, most likely first:\n- Read called with {\"file_path\":\"<work>/log1.txt\"}; 17931 bytes; probability 0.43; one of its lines holds \"250\"; recall with mcp__lossless-compaction__recall id 743feea18b5621f139f1fcd383b3991cdbcd8bdf7471116cfd5c7086af6fb95b\n- Bash called with {\"command\":\"sh report.sh\"}; 4831 bytes; probability 0.12; recall with mcp__lossless-compaction__recall id dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c\n- or none of them; probability 0.33"
+   }
+  },
+  {
+   "trace": "results",
+   "question": "small number",
+   "by": "value",
+   "options": 15,
+   "right": [
+    "db25679aceba547b822c89eefc2aeb8f2bbbeb4185b3c651d9244fd2212d470a"
+   ],
+   "words": "db25679aceba547b822c89eefc2aeb8f2bbbeb4185b3c651d9244fd2212d470a",
+   "jev": {
+    "kind": "listed",
+    "ids": [
+     "743feea18b5621f139f1fcd383b3991cdbcd8bdf7471116cfd5c7086af6fb95b",
+     "db25679aceba547b822c89eefc2aeb8f2bbbeb4185b3c651d9244fd2212d470a"
+    ],
+    "ms": 238,
+    "said": "[not sure] The likeliest results, most likely first:\n- Read called with {\"file_path\":\"<work>/log1.txt\"}; 17931 bytes; probability 0.28; recall with mcp__lossless-compaction__recall id 743feea18b5621f139f1fcd383b3991cdbcd8bdf7471116cfd5c7086af6fb95b\n- Read called with {\"file_path\":\"<work>/kept-1.log\"}; 6170 bytes; probability 0.26; recall with mcp__lossless-compaction__recall id db25679aceba547b822c89eefc2aeb8f2bbbeb4185b3c651d9244fd2212d470a\n- or none of them; probability 0.22"
+   }
+  },
+  {
+   "trace": "mixed",
+   "question": "record id",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "8c19af263d6c2737294387d53dcaa62c6c6ece50c5b11e9d77d7b1240bfb6f00"
+   ],
+   "words": "8a28510f3f2e17eaa0e6abbf9cfd15c266b2643faf255db3a29b8c42e79d77d0",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "8c19af263d6c2737294387d53dcaa62c6c6ece50c5b11e9d77d7b1240bfb6f00"
+    ],
+    "ms": 240,
+    "said": "[found] Read result, 18214 bytes; id 8c19af263d6c2737294387d53dcaa62c6c6ece50c5b11e9d77d7b1240bfb6f00; probability 1.00; one of its lines holds \"41-0077\""
+   }
+  },
+  {
+   "trace": "mixed",
+   "question": "one number",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "8c19af263d6c2737294387d53dcaa62c6c6ece50c5b11e9d77d7b1240bfb6f00"
+   ],
+   "words": "8c19af263d6c2737294387d53dcaa62c6c6ece50c5b11e9d77d7b1240bfb6f00",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "8c19af263d6c2737294387d53dcaa62c6c6ece50c5b11e9d77d7b1240bfb6f00"
+    ],
+    "ms": 229,
+    "said": "[found] Read result, 18214 bytes; id 8c19af263d6c2737294387d53dcaa62c6c6ece50c5b11e9d77d7b1240bfb6f00; probability 0.98; one of its lines holds \"6781\""
+   }
+  },
+  {
+   "trace": "mixed",
+   "question": "two lines",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "8c19af263d6c2737294387d53dcaa62c6c6ece50c5b11e9d77d7b1240bfb6f00"
+   ],
+   "words": "c7402ea8d4c56f1f41e4772813855aedfcd38d4fc39e631d82f867d242124088",
+   "jev": {
+    "kind": "listed",
+    "ids": [
+     "c7402ea8d4c56f1f41e4772813855aedfcd38d4fc39e631d82f867d242124088",
+     "c32336c093434b76afefc923beaee04bbefe37674cb61ffa65bb859e7c1c8995"
+    ],
+    "ms": 268,
+    "said": "[not sure] The likeliest results, most likely first:\n- Read called with {\"file_path\":\"<work>/mlog1.txt\"}; 18219 bytes; probability 0.34; one of its lines holds \"434\"; recall with mcp__lossless-compaction__recall id c7402ea8d4c56f1f41e4772813855aedfcd38d4fc39e631d82f867d242124088\n- Read called with {\"file_path\":\"<work>/mlog4.txt\"}; 18222 bytes; probability 0.31; one of its lines holds \"434\"; recall with mcp__lossless-compaction__recall id c32336c093434b76afefc923beaee04bbefe37674cb61ffa65bb859e7c1c8995\n- or none of them; probability 0.19"
+   }
+  },
+  {
+   "trace": "mixed",
+   "question": "head of a value",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "74bb139c1ad510d36fd6abc88cc39948be86ea9ab2bc987c360922c85aca168d"
+   ],
+   "words": "74bb139c1ad510d36fd6abc88cc39948be86ea9ab2bc987c360922c85aca168d",
+   "jev": {
+    "kind": "none",
+    "ids": [],
+    "ms": 258,
+    "said": "[not found] None of the moved-out results has a line holding \"56e6d\" as written, and none seems to be about that from its call and first lines. Not looked for this way: values on different lines, in another letter case or given in part, the number of a line, and what a kept part of the conversation says. To look further, read the results with mcp__lossless-compaction__recall. It may also still be in the conversation, or was never moved out."
+   }
+  },
+  {
+   "trace": "mixed",
+   "question": "letter case",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "74bb139c1ad510d36fd6abc88cc39948be86ea9ab2bc987c360922c85aca168d"
+   ],
+   "words": "74bb139c1ad510d36fd6abc88cc39948be86ea9ab2bc987c360922c85aca168d",
+   "jev": {
+    "kind": "none",
+    "ids": [],
+    "ms": 229,
+    "said": "[not found] None of the moved-out results has a line holding \"56E6D0DA\" as written, and none seems to be about that from its call and first lines. Not looked for this way: values on different lines, in another letter case or given in part, the number of a line, and what a kept part of the conversation says. To look further, read the results with mcp__lossless-compaction__recall. It may also still be in the conversation, or was never moved out."
+   }
+  },
+  {
+   "trace": "mixed",
+   "question": "line number",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "8c19af263d6c2737294387d53dcaa62c6c6ece50c5b11e9d77d7b1240bfb6f00"
+   ],
+   "words": "c7402ea8d4c56f1f41e4772813855aedfcd38d4fc39e631d82f867d242124088",
+   "jev": {
+    "kind": "listed",
+    "ids": [
+     "c7402ea8d4c56f1f41e4772813855aedfcd38d4fc39e631d82f867d242124088",
+     "74bb139c1ad510d36fd6abc88cc39948be86ea9ab2bc987c360922c85aca168d"
+    ],
+    "ms": 327,
+    "said": "[not sure] The likeliest results, most likely first:\n- Read called with {\"file_path\":\"<work>/mlog1.txt\"}; 18219 bytes; probability 0.40; one of its lines holds \"250\"; recall with mcp__lossless-compaction__recall id c7402ea8d4c56f1f41e4772813855aedfcd38d4fc39e631d82f867d242124088\n- Bash called with {\"command\":\"sh report.sh\"}; 4830 bytes; probability 0.17; recall with mcp__lossless-compaction__recall id 74bb139c1ad510d36fd6abc88cc39948be86ea9ab2bc987c360922c85aca168d\n- or none of them; probability 0.30"
+   }
+  },
+  {
+   "trace": "mixed",
+   "question": "small number",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "8a28510f3f2e17eaa0e6abbf9cfd15c266b2643faf255db3a29b8c42e79d77d0"
+   ],
+   "words": "8a28510f3f2e17eaa0e6abbf9cfd15c266b2643faf255db3a29b8c42e79d77d0",
+   "jev": {
+    "kind": "listed",
+    "ids": [
+     "8a28510f3f2e17eaa0e6abbf9cfd15c266b2643faf255db3a29b8c42e79d77d0",
+     "c7402ea8d4c56f1f41e4772813855aedfcd38d4fc39e631d82f867d242124088"
+    ],
+    "ms": 231,
+    "said": "[not sure] The likeliest results, most likely first:\n- Read called with {\"file_path\":\"<work>/kept-7.log\"}; 6164 bytes; probability 0.31; recall with mcp__lossless-compaction__recall id 8a28510f3f2e17eaa0e6abbf9cfd15c266b2643faf255db3a29b8c42e79d77d0\n- Read called with {\"file_path\":\"<work>/mlog1.txt\"}; 18219 bytes; probability 0.24; recall with mcp__lossless-compaction__recall id c7402ea8d4c56f1f41e4772813855aedfcd38d4fc39e631d82f867d242124088\n- or none of them; probability 0.24"
+   }
+  },
+  {
+   "trace": "japanese",
+   "question": "record id",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "870ecf2c131d942dee82b8a736b9f28e34b4f065f76d705cc8ad11b210745021"
+   ],
+   "words": "965659119f3d5c2c8603bf6c4469269a21b60877a41856e3b0b1e27e5647a7fe",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "870ecf2c131d942dee82b8a736b9f28e34b4f065f76d705cc8ad11b210745021"
+    ],
+    "ms": 279,
+    "said": "[found] Read result, 18506 bytes; id 870ecf2c131d942dee82b8a736b9f28e34b4f065f76d705cc8ad11b210745021; probability 1.00; one of its lines holds \"111-0077\""
+   }
+  },
+  {
+   "trace": "japanese",
+   "question": "one number",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "870ecf2c131d942dee82b8a736b9f28e34b4f065f76d705cc8ad11b210745021"
+   ],
+   "words": "870ecf2c131d942dee82b8a736b9f28e34b4f065f76d705cc8ad11b210745021",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "870ecf2c131d942dee82b8a736b9f28e34b4f065f76d705cc8ad11b210745021"
+    ],
+    "ms": 235,
+    "said": "[found] Read result, 18506 bytes; id 870ecf2c131d942dee82b8a736b9f28e34b4f065f76d705cc8ad11b210745021; probability 0.95; one of its lines holds \"5978\""
+   }
+  },
+  {
+   "trace": "japanese",
+   "question": "two lines",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "870ecf2c131d942dee82b8a736b9f28e34b4f065f76d705cc8ad11b210745021"
+   ],
+   "words": "965659119f3d5c2c8603bf6c4469269a21b60877a41856e3b0b1e27e5647a7fe",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "965659119f3d5c2c8603bf6c4469269a21b60877a41856e3b0b1e27e5647a7fe"
+    ],
+    "ms": 247,
+    "said": "[found] Read result, 18510 bytes; id 965659119f3d5c2c8603bf6c4469269a21b60877a41856e3b0b1e27e5647a7fe; probability 0.57; one of its lines holds \"504\""
+   }
+  },
+  {
+   "trace": "japanese",
+   "question": "head of a value",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "0db53fd7defadca699ed642bbff42df829553e7a340a7199d612a5f1a27b62cc"
+   ],
+   "words": "0db53fd7defadca699ed642bbff42df829553e7a340a7199d612a5f1a27b62cc",
+   "jev": {
+    "kind": "none",
+    "ids": [],
+    "ms": 268,
+    "said": "[not found] None of the moved-out results has a line holding \"56e76\" as written, and none seems to be about that from its call and first lines. Not looked for this way: values on different lines, in another letter case or given in part, the number of a line, and what a kept part of the conversation says. To look further, read the results with mcp__lossless-compaction__recall. It may also still be in the conversation, or was never moved out."
+   }
+  },
+  {
+   "trace": "japanese",
+   "question": "letter case",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "0db53fd7defadca699ed642bbff42df829553e7a340a7199d612a5f1a27b62cc"
+   ],
+   "words": "0db53fd7defadca699ed642bbff42df829553e7a340a7199d612a5f1a27b62cc",
+   "jev": {
+    "kind": "none",
+    "ids": [],
+    "ms": 230,
+    "said": "[not found] None of the moved-out results has a line holding \"56E76F11\" as written, and none seems to be about that from its call and first lines. Not looked for this way: values on different lines, in another letter case or given in part, the number of a line, and what a kept part of the conversation says. To look further, read the results with mcp__lossless-compaction__recall. It may also still be in the conversation, or was never moved out."
+   }
+  },
+  {
+   "trace": "japanese",
+   "question": "line number",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "870ecf2c131d942dee82b8a736b9f28e34b4f065f76d705cc8ad11b210745021"
+   ],
+   "words": "965659119f3d5c2c8603bf6c4469269a21b60877a41856e3b0b1e27e5647a7fe",
+   "jev": {
+    "kind": "listed",
+    "ids": [
+     "965659119f3d5c2c8603bf6c4469269a21b60877a41856e3b0b1e27e5647a7fe",
+     "0db53fd7defadca699ed642bbff42df829553e7a340a7199d612a5f1a27b62cc"
+    ],
+    "ms": 253,
+    "said": "[not sure] The likeliest results, most likely first:\n- Read called with {\"file_path\":\"<work>/jlog1.txt\"}; 18510 bytes; probability 0.35; one of its lines holds \"250\"; recall with mcp__lossless-compaction__recall id 965659119f3d5c2c8603bf6c4469269a21b60877a41856e3b0b1e27e5647a7fe\n- Bash called with {\"command\":\"sh report.sh\"}; 4831 bytes; probability 0.16; recall with mcp__lossless-compaction__recall id 0db53fd7defadca699ed642bbff42df829553e7a340a7199d612a5f1a27b62cc\n- or none of them; probability 0.37"
+   }
+  },
+  {
+   "trace": "japanese",
+   "question": "small number",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "b19f9d795666a6f7963f764f8c4759938beabe076b360ceceb62a79c5ff5e8f5"
+   ],
+   "words": "b19f9d795666a6f7963f764f8c4759938beabe076b360ceceb62a79c5ff5e8f5",
+   "jev": {
+    "kind": "listed",
+    "ids": [
+     "b19f9d795666a6f7963f764f8c4759938beabe076b360ceceb62a79c5ff5e8f5",
+     "870ecf2c131d942dee82b8a736b9f28e34b4f065f76d705cc8ad11b210745021"
+    ],
+    "ms": 231,
+    "said": "[not sure] The likeliest results, most likely first:\n- Read called with {\"file_path\":\"<work>/kept-8.log\"}; 6168 bytes; probability 0.29; recall with mcp__lossless-compaction__recall id b19f9d795666a6f7963f764f8c4759938beabe076b360ceceb62a79c5ff5e8f5\n- Read called with {\"file_path\":\"<work>/jlog2.txt\"}; 18506 bytes; probability 0.17; recall with mcp__lossless-compaction__recall id 870ecf2c131d942dee82b8a736b9f28e34b4f065f76d705cc8ad11b210745021\n- or none of them; probability 0.28"
+   }
+  }
+ ]
+}

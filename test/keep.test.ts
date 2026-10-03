@@ -9,7 +9,7 @@ import type { Http, Message } from '../src/types.ts';
 import { MAX_OFFERED } from '../src/find.ts';
 import { OPTIONS_PER_REQUEST } from '../src/ask.ts';
 import { moveOut, partTicketText } from '../src/store.ts';
-import { MemoryFiles, conversation, ok, output, recordingHttp } from './helpers.ts';
+import { MemoryFiles, conversation, ok, output, questionsOf, recordingHttp } from './helpers.ts';
 
 const DIR = '/home/u/.claude/lossless-compaction';
 const TYPESAFE = { kind: 'typesafe', key: 'test-key-for-typesafe', model: 'jev-latest' } as const;
@@ -218,6 +218,25 @@ test('find brings back a result that was inside a summarized conversation, and o
   const answer = await find({ files, dirs: [DIR], messages: now, provider: TYPESAFE, http: refuse, question: 'which result says "ENOSYS on epoll_pwait2"?' });
   assert.match(answer, /^\[found\] Bash result/);
   assert.ok(answer.includes('the refusal was ENOSYS on epoll_pwait2'));
+});
+
+test('a kept part of the conversation is not looked through for a value: what was asked stands in it beside what came back (#55)', async () => {
+  const files = new MemoryFiles();
+  // The person named the serial, and the agent asked find for it: both are in the part, and no result holds it.
+  const talk: Message[] = [
+    { role: 'user', text: 'Find where the serial 4821 came from.', toolUses: [] },
+    ...conversation([{ tool: 'Bash', input: { command: 'ls' }, text: output('listing', 40) }]),
+  ];
+  const now: Message[] = [summary as Message, { role: 'user', text: await kept(files, talk), toolUses: [] }];
+  const { http, sent } = recordingHttp((request) => {
+    const keys = Object.keys((questionsOf(request)['q'] as { criteria?: Record<string, string> }).criteria ?? {});
+    return ok({ answers: { q: { type: 'choice', choice: 'none', probabilities: Object.fromEntries(keys.map((key) => [key, key === 'none' ? 0.9 : 0.1 / (keys.length - 1)])) } } });
+  });
+
+  const answer = await find({ files, dirs: [DIR], messages: now, provider: TYPESAFE, http, question: 'Which result had the serial 4821?' });
+  assert.ok(sent.length >= 1);
+  assert.ok(!JSON.stringify(sent).includes('One of its lines holds'), 'no option is said to hold it');
+  assert.match(answer, /^\[not found\] None of the moved-out results has a line holding "4821" as a word of its own/);
 });
 
 test('find reads at most MAX_PARTS parts', async () => {

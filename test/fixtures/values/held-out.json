@@ -1,0 +1,170 @@
+[
+ {
+  "trace": "results",
+  "kind": "record id",
+  "ask": "Which earlier result had the record 2-0077?",
+  "target": "record 2-0077: station 1672 reported 395 units at step 77",
+  "must": "give",
+  "holders": 1
+ },
+ {
+  "trace": "results",
+  "kind": "one number",
+  "ask": "Which earlier result listed station 1672?",
+  "target": "record 2-0077: station 1672 reported 395 units at step 77",
+  "must": "give",
+  "holders": 1
+ },
+ {
+  "trace": "results",
+  "kind": "two lines",
+  "ask": "Which earlier result had 395 units at step 78?",
+  "target": "record 2-0077: station 1672 reported 395 units at step 77",
+  "must": "not-wrong",
+  "holders": 1
+ },
+ {
+  "trace": "results",
+  "kind": "head of a value",
+  "ask": "Which earlier result held a checksum beginning 56e31?",
+  "target": "batch 41: 4 warnings, checksum 56e31b90",
+  "must": "not-wrong",
+  "holders": 1
+ },
+ {
+  "trace": "results",
+  "kind": "letter case",
+  "ask": "Which earlier result held a line reading \"56E31B90\"?",
+  "target": "batch 41: 4 warnings, checksum 56e31b90",
+  "must": "not-wrong",
+  "holders": 1
+ },
+ {
+  "trace": "results",
+  "kind": "line number",
+  "ask": "Which earlier result had something on line 250?",
+  "target": "record 2-0077: station 1672 reported 395 units at step 77",
+  "must": "not-wrong",
+  "holders": 1
+ },
+ {
+  "trace": "results",
+  "kind": "small number",
+  "ask": "Of the 2 log files looked at near the start, which result was the one that was to be left as it is?",
+  "target": "record 91-0001: station 9867 reported 122 units at step 1",
+  "must": "not-wrong",
+  "holders": 1
+ },
+ {
+  "trace": "mixed",
+  "kind": "record id",
+  "ask": "Which earlier result had the record 41-0077?",
+  "target": "record 41-0077: station 6781 reported 434 units at step 77",
+  "must": "give",
+  "holders": 1
+ },
+ {
+  "trace": "mixed",
+  "kind": "one number",
+  "ask": "Which earlier result listed station 6781?",
+  "target": "record 41-0077: station 6781 reported 434 units at step 77",
+  "must": "give",
+  "holders": 1
+ },
+ {
+  "trace": "mixed",
+  "kind": "two lines",
+  "ask": "Which earlier result had 434 units at step 78?",
+  "target": "record 41-0077: station 6781 reported 434 units at step 77",
+  "must": "not-wrong",
+  "holders": 1
+ },
+ {
+  "trace": "mixed",
+  "kind": "head of a value",
+  "ask": "Which earlier result held a checksum beginning 56e6d?",
+  "target": "batch 41: 0 warnings, checksum 56e6d0da",
+  "must": "not-wrong",
+  "holders": 1
+ },
+ {
+  "trace": "mixed",
+  "kind": "letter case",
+  "ask": "Which earlier result held a line reading \"56E6D0DA\"?",
+  "target": "batch 41: 0 warnings, checksum 56e6d0da",
+  "must": "not-wrong",
+  "holders": 1
+ },
+ {
+  "trace": "mixed",
+  "kind": "line number",
+  "ask": "Which earlier result had something on line 250?",
+  "target": "record 41-0077: station 6781 reported 434 units at step 77",
+  "must": "not-wrong",
+  "holders": 1
+ },
+ {
+  "trace": "mixed",
+  "kind": "small number",
+  "ask": "Of the 2 log files looked at near the start, which result was the one that was to be left as it is?",
+  "target": "record 97-0001: station 680 reported 128 units at step 1",
+  "must": "not-wrong",
+  "holders": 1
+ },
+ {
+  "trace": "japanese",
+  "kind": "record id",
+  "ask": "Which earlier result had the record 111-0077?",
+  "target": "record 111-0077: station 5978 reported 504 units at step 77",
+  "must": "give",
+  "holders": 1
+ },
+ {
+  "trace": "japanese",
+  "kind": "one number",
+  "ask": "Which earlier result listed station 5978?",
+  "target": "record 111-0077: station 5978 reported 504 units at step 77",
+  "must": "give",
+  "holders": 1
+ },
+ {
+  "trace": "japanese",
+  "kind": "two lines",
+  "ask": "Which earlier result had 504 units at step 78?",
+  "target": "record 111-0077: station 5978 reported 504 units at step 77",
+  "must": "not-wrong",
+  "holders": 1
+ },
+ {
+  "trace": "japanese",
+  "kind": "head of a value",
+  "ask": "Which earlier result held a checksum beginning 56e76?",
+  "target": "batch 41: 3 warnings, checksum 56e76f11",
+  "must": "not-wrong",
+  "holders": 1
+ },
+ {
+  "trace": "japanese",
+  "kind": "letter case",
+  "ask": "Which earlier result held a line reading \"56E76F11\"?",
+  "target": "batch 41: 3 warnings, checksum 56e76f11",
+  "must": "not-wrong",
+  "holders": 1
+ },
+ {
+  "trace": "japanese",
+  "kind": "line number",
+  "ask": "Which earlier result had something on line 250?",
+  "target": "record 111-0077: station 5978 reported 504 units at step 77",
+  "must": "not-wrong",
+  "holders": 1
+ },
+ {
+  "trace": "japanese",
+  "kind": "small number",
+  "ask": "Of the 2 log files looked at near the start, which result was the one that was to be left as it is?",
+  "target": "record 98-0001: station 811 reported 129 units at step 1",
+  "must": "not-wrong",
+  "holders": 1
+ }
+]

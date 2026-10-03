@@ -100,7 +100,9 @@ With a key set, each call to `find` sends the provider:
 - for every result moved out of the conversation, the call that made it and
   a 400-character digest of it;
 - for every part of the conversation kept before a summary, the head of what
-  was said in it.
+  was said in it;
+- where one result alone has a line holding a number, a checksum or a code
+  the question names: that it has, in one sentence, and no line of it.
 
 Jev chooses among them, with "none of these" among the choices; a phrase of
 twelve characters or more in double quotes is looked for as written first.
@@ -156,7 +158,10 @@ figure is first and the built-in compaction's second:
   result was and six about a value in it. Asked what a result was about, it
   gave or listed first the right one 16 times of 19; asked by a value
   further down a result, it said 13 times of 14 that none was about that,
-  where one was.
+  where one was. It now looks for a value the question names in the whole of
+  each result and tells Jev of the one result that holds it, and gave the
+  right one 17 times of 17; asked through an agent, Haiku 4.5 found a code in
+  the middle of a document 8 times of 9, where it had found 1.
   With the tool registered and no question naming it, the agent seldom
   called it where each call named its file. Where the calls said nothing of
   what came back, Haiku 4.5 called it for 11 of 21 questions about what a
