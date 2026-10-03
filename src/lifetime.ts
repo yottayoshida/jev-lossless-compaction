@@ -34,12 +34,29 @@ const TRASHED = /^([0-9a-f]{64})\.(?:txt|json)$/;
 export type List = (path: string) => Promise<DirEntry[]>;
 
 /**
+ * What stopped a collection, from a closed list: what is recorded of a stop
+ * (ADR 0016). The words a stop is said in name directories of other
+ * repositories, and are only shown.
+ */
+export const STOP_KINDS = ['unread', 'too-many', 'place', 'part', 'trash', 'move', 'unexpected'] as const;
+export type StopKind = (typeof STOP_KINDS)[number];
+export type Stop = { stop: string; kind: StopKind };
+
+/** The last stop recorded: when, and its kind. */
+export type Stopped = { at: number; kind: StopKind };
+
+/**
  * What is kept between sessions, in the store's own directory, so that every
  * Claude Code configuration that shares a `storeDir` sees the places all of
  * them keep transcripts in: one file per place under `roots/`, written once
- * and never rewritten, and the time of the last collection.
+ * and never rewritten, and of the collections, when the last one ended and
+ * the last one was tried, how many were tried since the last that ended, and
+ * the last stop recorded since then.
  */
-export type GcState = { roots: string[]; firstSeen: number; lastRun: number; tried: number };
+export type GcState = { roots: string[]; firstSeen: number; lastRun: number; tried: number; tries: number; stopped: Stopped | null };
+
+/** What `gc.json` holds. */
+export type GcRecord = Pick<GcState, 'lastRun' | 'tried' | 'tries' | 'stopped'>;
 
 const rootFile = async (dir: string, root: string) => `${dir}/roots/${await idOf(root)}.json`;
 const lastRunFile = (dir: string) => `${dir}/gc.json`;
@@ -58,6 +75,8 @@ export async function stateIn(files: Files, list: List, dirs: readonly string[])
   let firstSeen = 0;
   let lastRun = 0;
   let tried = 0;
+  let tries = 0;
+  let stopped: Stopped | null = null;
   for (const dir of dirs) {
     for (const entry of (await listed(list, `${dir}/roots`)) ?? []) {
       if (entry.kind !== 'file' || entry.isLink || !entry.name.endsWith('.json')) continue;
@@ -66,11 +85,27 @@ export async function stateIn(files: Files, list: List, dirs: readonly string[])
       roots.add(value.root);
       firstSeen = firstSeen === 0 ? value.at : Math.min(firstSeen, value.at);
     }
-    const last = (await readJson(files, lastRunFile(dir))) as { lastRun?: unknown; tried?: unknown } | undefined;
-    if (typeof last?.lastRun === 'number') lastRun = Math.max(lastRun, last.lastRun);
+    const last = (await readJson(files, lastRunFile(dir))) as { lastRun?: unknown; tried?: unknown; tries?: unknown; stopped?: unknown } | undefined;
+    const ended = typeof last?.lastRun === 'number' ? last.lastRun : 0;
+    const count = typeof last?.tries === 'number' && Number.isInteger(last.tries) && last.tries >= 0 ? last.tries : 0;
+    // The tries counted since an end are those of the record of the latest end.
+    if (ended > lastRun) tries = count;
+    else if (ended === lastRun) tries = Math.max(tries, count);
+    lastRun = Math.max(lastRun, ended);
     if (typeof last?.tried === 'number') tried = Math.max(tried, last.tried);
+    const one = stoppedIn(last?.stopped);
+    if (one !== null && (stopped === null || one.at > stopped.at)) stopped = one;
   }
-  return { roots: [...roots], firstSeen, lastRun, tried };
+  // A stop before the last collection that ended is over.
+  if (stopped !== null && stopped.at <= lastRun) stopped = null;
+  return { roots: [...roots], firstSeen, lastRun, tried, tries, stopped };
+}
+
+/** A recorded stop, if it is one: only a kind of the list is read, whatever else the file holds. */
+function stoppedIn(value: unknown): Stopped | null {
+  const one = value as { at?: unknown; kind?: unknown } | null | undefined;
+  if (typeof one?.at !== 'number' || !(STOP_KINDS as readonly unknown[]).includes(one.kind)) return null;
+  return { at: one.at, kind: one.kind as StopKind };
 }
 
 /** Records `root` in `dir` unless it is there; the first record starts the wait before any collection. */
@@ -85,14 +120,29 @@ export async function noteRoot(files: Files, dir: string, root: string, now: num
 /**
  * A collection is noted as tried when it starts, and as run when it ends. One
  * that a short session cut off is tried again a day later, not a week: only
- * a collection that went to the end waits the week out.
+ * a collection that went to the end waits the week out. A try is counted when
+ * it starts, so one cut off counts too; the last stop is carried on, and
+ * `noteStopped` writes over it.
  */
-export async function noteTried(files: Files, dir: string, state: GcState, now: number): Promise<void> {
-  await files.write(lastRunFile(dir), JSON.stringify({ lastRun: state.lastRun, tried: now }));
+export async function noteTried(files: Files, dir: string, state: GcState, now: number): Promise<GcRecord> {
+  const record: GcRecord = { lastRun: state.lastRun, tried: now, tries: state.tries + 1, stopped: state.stopped };
+  await files.write(lastRunFile(dir), JSON.stringify(record));
+  return record;
+}
+
+/**
+ * Records the kind of a stop, never its words, over the record this try
+ * wrote when it started. Another session may have written since — tried
+ * again, or ended — and what it wrote stands: the stop is then not recorded.
+ */
+export async function noteStopped(files: Files, dir: string, record: GcRecord, kind: StopKind, now: number): Promise<void> {
+  const there = (await readJson(files, lastRunFile(dir))) as { lastRun?: unknown; tried?: unknown } | undefined;
+  if (there?.tried !== record.tried || there.lastRun !== record.lastRun) return;
+  await files.write(lastRunFile(dir), JSON.stringify({ ...record, stopped: { at: now, kind } }));
 }
 
 export async function noteRun(files: Files, dir: string, now: number): Promise<void> {
-  await files.write(lastRunFile(dir), JSON.stringify({ lastRun: now, tried: now }));
+  await files.write(lastRunFile(dir), JSON.stringify({ lastRun: now, tried: now, tries: 0, stopped: null }));
 }
 
 /** How long after a collection was tried, without ending, it is tried again. */
@@ -123,7 +173,8 @@ export function ticketIds(messages: readonly Message[]): Set<string> {
   return ids;
 }
 
-async function listed(list: List, path: string): Promise<DirEntry[] | null> {
+/** What `path` lists, or null when it cannot be listed. */
+export async function listed(list: List, path: string): Promise<DirEntry[] | null> {
   try {
     return await list(path);
   } catch {
@@ -172,7 +223,7 @@ export async function liveIds(
   exists: (path: string) => Promise<boolean>,
   roots: readonly string[],
   sentinel: string,
-): Promise<{ ids: Set<string>; roots: string[] } | { stop: string }> {
+): Promise<{ ids: Set<string>; roots: string[] } | Stop> {
   const ids = new Set<string>();
   const kept: string[] = [];
   for (const root of roots) {
@@ -182,22 +233,22 @@ export async function liveIds(
     try {
       there = await files.stat(root);
     } catch {
-      return { stop: `${root} could not be looked at` };
+      return { stop: `${root} could not be looked at`, kind: 'place' };
     }
-    if (there.kind !== 'dir' || there.isLink === true) return { stop: `${root} is not a directory` };
+    if (there.kind !== 'dir' || there.isLink === true) return { stop: `${root} is not a directory`, kind: 'place' };
     const projects = await listed(list, root);
-    if (projects === null) return { stop: `${root} could not be listed` };
+    if (projects === null) return { stop: `${root} could not be listed`, kind: 'place' };
     kept.push(root);
     for (const project of projects) {
       // grep -r does not follow it: what is in it would not be counted. The host lists a link as `other`.
-      if (project.isLink) return { stop: `${root}/${project.name} is a link, which a search does not follow` };
+      if (project.isLink) return { stop: `${root}/${project.name} is a link, which a search does not follow`, kind: 'place' };
       if (project.kind !== 'dir') continue;
       const found = await search(exec, `${root}/${project.name}`, sentinel);
       if ('stop' in found) return found;
       idsIn(found.stdout, ids);
     }
   }
-  if (kept.length === 0) return { stop: 'none of the places transcripts were found in is there' };
+  if (kept.length === 0) return { stop: 'none of the places transcripts were found in is there', kind: 'place' };
   ids.delete(SENTINEL_ID);
   return { ids, roots: kept };
 }
@@ -214,7 +265,7 @@ export async function writeSentinel(files: Files, dir: string): Promise<void> {
   await files.write(sentinelOf(dir), `"${SENTINEL_ID}"\n`);
 }
 
-async function search(exec: Exec, dir: string, sentinel: string): Promise<{ stdout: string } | { stop: string }> {
+async function search(exec: Exec, dir: string, sentinel: string): Promise<{ stdout: string } | Stop> {
   let why = 'no grep could be run';
   for (const grep of GREP) {
     let result;
@@ -226,12 +277,12 @@ async function search(exec: Exec, dir: string, sentinel: string): Promise<{ stdo
       continue;
     }
     // With the sentinel, something always matches: 0 is the only answer; 1 or 2 is a search that did not finish.
-    if (result.exitCode !== 0) return { stop: `grep did not read all of ${dir}` };
-    if (result.truncated) return { stop: `the ids in ${dir} are more than one search can return` };
-    if (!result.stdout.split('\n').includes(SENTINEL_ID)) return { stop: `grep did not read all of ${dir}` };
+    if (result.exitCode !== 0) return { stop: `grep did not read all of ${dir}`, kind: 'unread' };
+    if (result.truncated) return { stop: `the ids in ${dir} are more than one search can return`, kind: 'too-many' };
+    if (!result.stdout.split('\n').includes(SENTINEL_ID)) return { stop: `grep did not read all of ${dir}`, kind: 'unread' };
     return { stdout: result.stdout };
   }
-  return { stop: why };
+  return { stop: why, kind: 'unread' };
 }
 
 /** One result in the trash: the day it was moved there and its id. */
@@ -320,7 +371,7 @@ async function putBack(exec: Exec, dir: string, items: readonly Trashed[]): Prom
   return (await runIn(exec, 'mv', ['-n'], blobs, [`${dir}/blobs/`])) && (await runIn(exec, 'mv', ['-n'], entries, [`${dir}/index/`]));
 }
 
-export type Collected = { trashed: number; restored: number; removed: number } | { stop: string };
+export type Collected = { trashed: number; restored: number; removed: number } | Stop;
 
 const blobNames = async (list: List, dir: string) => new Set(((await listed(list, `${dir}/blobs`)) ?? []).map((entry) => entry.name));
 
@@ -335,10 +386,10 @@ export async function collect(list: List, exec: Exec, dir: string, live: Readonl
   const blobs = await listed(list, `${dir}/blobs`);
   if (blobs === null) return { trashed: 0, restored: 0, removed: 0 };
   const trashed = await trashIn(list, dir);
-  if (trashed === null) return { stop: `the trash of ${dir} could not be listed` };
+  if (trashed === null) return { stop: `the trash of ${dir} could not be listed`, kind: 'trash' };
   const plan = planGc(blobs, trashed, live, now);
   if (plan.toRestore.length > 0) {
-    if (!(await putBack(exec, dir, plan.toRestore))) return { stop: 'what is in use could not be put back' };
+    if (!(await putBack(exec, dir, plan.toRestore))) return { stop: 'what is in use could not be put back', kind: 'move' };
     // What is left of them in the trash had a copy back in place already (`mv -n` kept it): the same text, by its name.
     const back = await blobNames(list, dir);
     const entries = new Set(((await listed(list, `${dir}/index`)) ?? []).map((entry) => entry.name));
@@ -347,21 +398,21 @@ export async function collect(list: List, exec: Exec, dir: string, live: Readonl
       const [blob, entry] = trashedAt(dir, item) as [string, string];
       return [...(back.has(`${item.id}.txt`) ? [blob] : []), ...(entries.has(`${item.id}.json`) ? [entry] : [])];
     });
-    if (!(await runIn(exec, 'rm', ['-f'], doubled))) return { stop: 'the trash could not be emptied' };
+    if (!(await runIn(exec, 'rm', ['-f'], doubled))) return { stop: 'the trash could not be emptied', kind: 'trash' };
   }
   if (plan.toTrash.length > 0) {
     const day = `${dir}/trash/${dayOf(now)}`;
-    if (!(await runIn(exec, 'mkdir', ['-p'], [day])) || (await listed(list, day)) === null) return { stop: 'the trash could not be made' };
+    if (!(await runIn(exec, 'mkdir', ['-p'], [day])) || (await listed(list, day)) === null) return { stop: 'the trash could not be made', kind: 'trash' };
     const indexed = new Set(((await listed(list, `${dir}/index`)) ?? []).map((entry) => entry.name));
     const entries = plan.toTrash.filter((id) => indexed.has(`${id}.json`)).map((id) => entryAt(dir, id));
     // The entry first: a blob without one is not offered, a blob gone with its entry still there is.
-    if (!(await runIn(exec, 'mv', ['-n'], entries, [`${day}/`]))) return { stop: 'results could not be moved to the trash' };
+    if (!(await runIn(exec, 'mv', ['-n'], entries, [`${day}/`]))) return { stop: 'results could not be moved to the trash', kind: 'move' };
     if (!(await runIn(exec, 'mv', ['-n'], plan.toTrash.map((id) => blobAt(dir, id)), [`${day}/`]))) {
-      return { stop: 'results could not be moved to the trash' };
+      return { stop: 'results could not be moved to the trash', kind: 'move' };
     }
   }
   if (plan.toRemove.length > 0 && !(await runIn(exec, 'rm', ['-f'], plan.toRemove.flatMap((item) => trashedAt(dir, item))))) {
-    return { stop: 'the trash could not be emptied' };
+    return { stop: 'the trash could not be emptied', kind: 'trash' };
   }
   const after = await blobNames(list, dir);
   const left = new Set(((await trashIn(list, dir)) ?? []).map((item) => `${item.day}/${item.id}`));

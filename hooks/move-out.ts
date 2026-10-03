@@ -28,7 +28,7 @@ import { IMAGE_TOKENS, blocksOf, mediaIn } from '../src/media.ts';
 import { ownProcessId } from '../src/mark.ts';
 import { closeStore, type Run } from '../src/private.ts';
 import { goalOf, whyNotRebuilt } from '../src/select.ts';
-import { FIND, PLUGIN, RECALL, placesOf, recall, type StoreDirs } from '../src/store.ts';
+import { FIND, PLUGIN, RECALL, STORE_COMMAND, placesOf, recall, type StoreDirs } from '../src/store.ts';
 import { recallDescription } from '../src/tools.ts';
 import { describeTaints, placeTaints, sendTaints, taintsFrom, type RepoSettings, type Seen, type Taint } from '../src/trust.ts';
 import type { DirEntry, Exec, FileStat, Files, HttpResponse, Message } from '../src/types.ts';
@@ -37,6 +37,7 @@ import {
   liveIds,
   noteRoot,
   noteRun,
+  noteStopped,
   noteTried,
   restore,
   rootFor,
@@ -45,8 +46,11 @@ import {
   ticketIds,
   whyNotNow,
   writeSentinel,
+  type GcRecord,
   type List,
+  type StopKind,
 } from '../src/lifetime.ts';
+import { countStore, skipped, storeReport } from '../src/health.ts';
 
 const FALLBACK_WINDOW = 200_000;
 
@@ -305,48 +309,71 @@ async function restoreFor($: WithFiles & WithProcess, store: StoreDirs, ids: Rea
  * those the trash has held a week, still named by none, are removed (ADR
  * 0006). Run after the session has started, without being waited for.
  */
+/** The places results are read from that are there as plain directories, not links: what the clean-up and /lossless-store read. */
+async function plainDirsOf($: WithFiles, store: StoreDirs): Promise<string[]> {
+  const dirs: string[] = [];
+  for (const dir of store.read) {
+    const found = await filesOf($).stat(dir).catch(() => null);
+    if (found && found.kind === 'dir' && found.isLink !== true) dirs.push(dir);
+  }
+  return dirs;
+}
+
 async function collectOnce($: WithUi & WithEnv & WithFiles & WithSettings & WithProcess, options: PluginOptions): Promise<void> {
+  // Known once the try is noted: where, and over what, an unexpected stop is recorded.
+  let tried: { dir: string; record: GcRecord } | null = null;
   try {
     const store = await storeOf($, options);
     if (typeof store === 'string') return;
     const files = filesOf($);
     const list = listOf($);
-    const dirs: string[] = [];
-    for (const dir of store.read) {
-      const found = await files.stat(dir).catch(() => null);
-      if (found && found.kind === 'dir' && found.isLink !== true) dirs.push(dir);
-    }
+    const dirs = await plainDirsOf($, store);
     if (dirs.length === 0) return;
     const now = Date.now();
     const state = await stateIn(files, list, dirs);
     if (whyNotNow(state, now) !== null) return;
     if ((await privateOf($, store)) !== null) return;
-    await noteTried(files, store.write, state, now);
+    const record = await noteTried(files, store.write, state, now);
+    tried = { dir: store.write, record };
     await writeSentinel(files, store.write);
     const live = await liveIds(files, list, execOf($), (path) => $.fs.exists(path), state.roots, sentinelOf(store.write));
     if ('stop' in live) {
       say($, `moved-out results are kept, not cleaned up: ${live.stop}`);
+      await stoppedAs(files, store.write, record, live.kind);
       return;
     }
     // A result kept with a summarized conversation is named in its part, not in a transcript (ADR 0007).
     const named = await namedThroughParts(files, dirs, live.ids);
     if ('stop' in named) {
       say($, `moved-out results are kept, not cleaned up: ${named.stop}`);
+      await stoppedAs(files, store.write, record, named.kind);
       return;
     }
-    let ended = true;
+    // One try, one stop: the first, should more than one place stop.
+    let stopped: StopKind | null = null;
     for (const dir of dirs) {
       const done = await collect(list, execOf($), dir, named, now);
       if ('stop' in done) {
-        ended = false;
+        stopped ??= done.kind;
         say($, `moved-out results in ${dir} are kept, not cleaned up: ${done.stop}`);
       } else if (done.trashed + done.removed + done.restored > 0) {
         say($, `cleaned up ${dir}: ${done.trashed} to the trash, ${done.removed} removed from it, ${done.restored} put back`);
       }
     }
-    if (ended) await noteRun(files, store.write, now);
+    if (stopped === null) await noteRun(files, store.write, now);
+    else await stoppedAs(files, store.write, record, stopped);
   } catch (error) {
     say($, `moved-out results are kept, not cleaned up: ${error instanceof Error ? error.message : String(error)}`);
+    if (tried !== null) await stoppedAs(filesOf($), tried.dir, tried.record, 'unexpected');
+  }
+}
+
+/** Records the kind of a stop; failing to changes nothing else (ADR 0016). */
+async function stoppedAs(files: Files, dir: string, record: GcRecord, kind: StopKind): Promise<void> {
+  try {
+    await noteStopped(files, dir, record, kind, Date.now());
+  } catch {
+    // The stop was said; it is not recorded this time.
   }
 }
 
@@ -514,9 +541,40 @@ export const register: Register = (on, options) => {
       say($, `the find tool could not be registered: ${error instanceof Error ? error.message : String(error)}`);
     }
     await registerTools($, provider);
+    // A command, not a tool: what it says is shown to you, and the agent is not offered it (ADR 0016).
+    try {
+      await $.command.register({
+        name: STORE_COMMAND,
+        description: `Says how much ${PLUGIN} keeps, what is in its trash and how its clean-up went, without reading a result`,
+        immediate: true,
+      });
+    } catch (error) {
+      say($, `the /${STORE_COMMAND} command could not be registered: ${error instanceof Error ? error.message : String(error)}`);
+    }
     // Not waited for: reading every transcript can take a minute, and the session should not.
     void collectOnce($, options);
     return next(e);
+  });
+
+  // Spelled out, not imported: a test holds it to STORE_COMMAND.
+  on('command.run', { command: 'lossless-store' }, async ($) => {
+    try {
+      const store = await storeOf($, options);
+      if (typeof store === 'string') return { text: `no place results are kept in can be read: ${store}` };
+      const now = Date.now();
+      const files = filesOf($);
+      const list = listOf($);
+      // The places the clean-up reads, and its record from the same places.
+      const there = await plainDirsOf($, store);
+      const counted = [];
+      for (const dir of store.read) counted.push(there.includes(dir) ? await countStore(files, list, dir, now) : skipped(dir));
+      const gc = await stateIn(files, list, there);
+      const set = typeof options['storeDir'] === 'string' && options['storeDir'].trim() !== '';
+      return { text: storeReport(counted, gc, now, set) };
+    } catch {
+      // What an error says may name a path: it is not shown.
+      return { text: 'the store could not be counted' };
+    }
   });
 
   // Spelled out, not imported: Claude Code reads the matcher from this file. A test holds it to RECALL_TOOL.

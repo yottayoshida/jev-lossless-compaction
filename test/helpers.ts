@@ -63,7 +63,9 @@ export class MemoryFiles implements Files {
       if (name === undefined || names.has(name)) continue;
       const at = `${path}/${name}`;
       const kind = this.links.has(at) ? 'other' : this.files.has(at) ? 'file' : 'dir';
-      names.set(name, { name, kind, mtimeMs: this.mtimes.get(at) ?? 0, isLink: this.links.has(at) });
+      const text = this.links.has(at) ? undefined : this.files.get(at);
+      // In bytes, as the host gives it.
+      names.set(name, { name, kind, mtimeMs: this.mtimes.get(at) ?? 0, isLink: this.links.has(at), ...(text === undefined ? {} : { size: Buffer.byteLength(text) }) });
     }
     return [...names.values()];
   }

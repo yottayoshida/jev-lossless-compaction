@@ -12,6 +12,7 @@ import {
   liveIds,
   noteRoot,
   noteRun,
+  noteStopped,
   planGc,
   restore,
   RETRY_MS,
@@ -19,6 +20,7 @@ import {
   noteTried,
   rootFor,
   sentinelOf,
+  STOP_KINDS,
   stateIn,
   ticketIds,
   trashIn,
@@ -160,6 +162,13 @@ test('the ids in transcripts are read per project; a place that is gone is dropp
   assert.match(await stopsWith({ dropSentinel: true }), /did not read all/);
   assert.match(await stopsWith({ truncated: true }), /more than one search/);
   assert.match(await stopsWith({ refuse: ['grep'] }), /grep did not run to the end.*cannot start/);
+  // Each with its kind, which is what is recorded (ADR 0016).
+  const kindOf = async (options: Parameters<typeof commands>[1]) =>
+    (JSON.parse(await stopsWith(options)) as { kind?: string }).kind;
+  assert.equal(await kindOf({ grepExit: 2 }), 'unread');
+  assert.equal(await kindOf({ dropSentinel: true }), 'unread');
+  assert.equal(await kindOf({ refuse: ['grep'] }), 'unread');
+  assert.equal(await kindOf({ truncated: true }), 'too-many');
 });
 
 test('a place that is there but cannot be looked at or listed stops it all: its conversations may still be resumed', async () => {
@@ -170,10 +179,10 @@ test('a place that is there but cannot be looked at or listed stops it all: its 
     if (path === ROOT) throw new Error('EACCES');
     return files.list(path);
   };
-  assert.deepEqual(await liveIds(files, refusing, commands(files).exec, existsIn(files), [ROOT], SENTINEL), { stop: `${ROOT} could not be listed` });
+  assert.deepEqual(await liveIds(files, refusing, commands(files).exec, existsIn(files), [ROOT], SENTINEL), { stop: `${ROOT} could not be listed`, kind: 'place' });
   // There, by exists, but stat fails as it would on EACCES or a disk gone away: not taken for gone.
   const blind = Object.assign(Object.create(files) as MemoryFiles, { stat: async () => Promise.reject(new Error('EACCES')) });
-  assert.deepEqual(await liveIds(blind, list(files), commands(files).exec, existsIn(files), [ROOT], SENTINEL), { stop: `${ROOT} could not be looked at` });
+  assert.deepEqual(await liveIds(blind, list(files), commands(files).exec, existsIn(files), [ROOT], SENTINEL), { stop: `${ROOT} could not be looked at`, kind: 'place' });
 });
 
 test('with every recorded place gone, nothing is collected: an empty set would name nothing in use', async () => {
@@ -297,6 +306,10 @@ test('a collection that cannot move, empty or make the trash stops and says so, 
   const [id] = await storeWith(files, [output('stays', 40)], 3 * DAY);
   const refused = await collect(list(files), commands(files, { refuse: ['mv', 'mkdir'] }).exec, DIR, new Set(), NOW);
   assert.ok('stop' in refused);
+  assert.equal(refused.kind, 'trash');
+  const unmoved = await collect(list(files), commands(files, { refuse: ['mv'] }).exec, DIR, new Set(), NOW);
+  assert.ok('stop' in unmoved);
+  assert.equal(unmoved.kind, 'move');
   assert.ok(files.files.has(`${DIR}/blobs/${id}.txt`));
 });
 
@@ -320,7 +333,7 @@ test('nothing is collected until a place is known, for a week after the first wa
   await noteRoot(files, DIR, ROOT, NOW + DAY); // Written once: the first time stands.
   files.dirs.add(`${DIR}/roots`);
   const state = await stateIn(files, list(files), [DIR]);
-  assert.deepEqual(state, { roots: [ROOT], firstSeen: NOW, lastRun: 0, tried: 0 });
+  assert.deepEqual(state, { roots: [ROOT], firstSeen: NOW, lastRun: 0, tried: 0, tries: 0, stopped: null });
   assert.match(whyNotNow(state, NOW + FIRST_WAIT_MS - 1) ?? '', /first week/);
   assert.equal(whyNotNow(state, NOW + FIRST_WAIT_MS), null);
 
@@ -364,4 +377,70 @@ test('the ids of tickets in a conversation, in either place a ticket stands', as
 
 test('what grep prints is read a line at a time, and only 64-hex lines count', () => {
   assert.deepEqual([...idsIn(`${hex('a')}\nnot\n${hex('b')}\n${hex('a')}\n`)].sort(), [hex('a'), hex('b')]);
+});
+
+test('the clean-up counts its tries since it last ended, keeps the kind of its last stop, never its words, and an end clears both (ADR 0016)', async () => {
+  const files = new MemoryFiles();
+  files.dirs.add(`${DIR}/roots`);
+  await noteRoot(files, DIR, ROOT, NOW - FIRST_WAIT_MS);
+  const read = () => stateIn(files, list(files), [DIR]);
+
+  // A try is counted when it starts: one a short session cut off counts too.
+  const first = await noteTried(files, DIR, await read(), NOW);
+  assert.deepEqual({ tries: (await read()).tries, stopped: (await read()).stopped }, { tries: 1, stopped: null });
+  await noteStopped(files, DIR, first, 'unread', NOW + 1000);
+  assert.deepEqual((await read()).stopped, { at: NOW + 1000, kind: 'unread' });
+  // The next try carries the count and the last stop on; cut off, it leaves them as they were.
+  await noteTried(files, DIR, await read(), NOW + DAY);
+  assert.deepEqual({ tries: (await read()).tries, stopped: (await read()).stopped }, { tries: 2, stopped: { at: NOW + 1000, kind: 'unread' } });
+  const third = await noteTried(files, DIR, await read(), NOW + 2 * DAY);
+  await noteStopped(files, DIR, third, 'move', NOW + 2 * DAY + 1000);
+  assert.deepEqual({ tries: (await read()).tries, stopped: (await read()).stopped }, { tries: 3, stopped: { at: NOW + 2 * DAY + 1000, kind: 'move' } });
+  // What is recorded holds a kind, never a path or a message.
+  const written = files.files.get(`${DIR}/gc.json`) ?? '';
+  assert.ok(!written.includes('/') && !/could not|grep/.test(written), written);
+
+  await noteRun(files, DIR, NOW + 3 * DAY);
+  assert.deepEqual({ tries: (await read()).tries, stopped: (await read()).stopped }, { tries: 0, stopped: null });
+});
+
+test('what the record of the clean-up holds is read as a count and a kind of the list, or not at all', async () => {
+  const files = new MemoryFiles();
+  const OLD = '/home/u/.claude/jev-lossless-compaction';
+  const write = (dir: string, value: unknown) => files.write(`${dir}/gc.json`, JSON.stringify(value));
+  // A kind not in the list, words in its place, a count that is not one: none is read.
+  await write(DIR, { lastRun: 0, tried: NOW, tries: -2, stopped: { at: NOW, kind: '/home/u/work could not be listed' } });
+  assert.deepEqual(await stateIn(files, list(files), [DIR]), { roots: [], firstSeen: 0, lastRun: 0, tried: NOW, tries: 0, stopped: null });
+  await write(DIR, { lastRun: 0, tried: NOW, tries: 1.5, stopped: 'unread' });
+  assert.deepEqual((await stateIn(files, list(files), [DIR])).tries, 0);
+  // Two places: the tries of the latest end, which the five of a place that never ended are not, and the latest stop.
+  // A stop before the last end is over.
+  await write(DIR, { lastRun: NOW - DAY, tried: NOW, tries: 2, stopped: { at: NOW, kind: 'trash' } });
+  await write(OLD, { lastRun: 0, tried: NOW - 2 * DAY, tries: 5, stopped: { at: NOW - 2 * DAY, kind: 'unread' } });
+  const both = await stateIn(files, list(files), [DIR, OLD]);
+  assert.deepEqual({ tries: both.tries, stopped: both.stopped }, { tries: 2, stopped: { at: NOW, kind: 'trash' } });
+  await write(DIR, { lastRun: NOW + DAY, tried: NOW + DAY, tries: 0, stopped: null });
+  assert.equal((await stateIn(files, list(files), [DIR, OLD])).stopped, null);
+  // The tries are those of the latest end: one place that ended lately and tried none, one that ended long ago and tried five, is none.
+  assert.equal((await stateIn(files, list(files), [DIR, OLD])).tries, 0);
+  await write(OLD, { lastRun: NOW + DAY, tried: NOW + 2 * DAY, tries: 3, stopped: null });
+  assert.equal((await stateIn(files, list(files), [DIR, OLD])).tries, 3, 'the same end in both: the more');
+  assert.deepEqual([...STOP_KINDS].sort(), ['move', 'part', 'place', 'too-many', 'trash', 'unexpected', 'unread']);
+});
+
+test("a stop is not recorded over what another session wrote since this try started: its end, or its own try, stands", async () => {
+  const files = new MemoryFiles();
+  files.dirs.add(`${DIR}/roots`);
+  await noteRoot(files, DIR, ROOT, NOW - FIRST_WAIT_MS);
+  const read = () => stateIn(files, list(files), [DIR]);
+  // This try starts; another session's ends while it searches; then this one stops.
+  const mine = await noteTried(files, DIR, await read(), NOW);
+  await noteRun(files, DIR, NOW + 60_000);
+  await noteStopped(files, DIR, mine, 'unread', NOW + 120_000);
+  assert.deepEqual(await read(), { roots: [ROOT], firstSeen: NOW - FIRST_WAIT_MS, lastRun: NOW + 60_000, tried: NOW + 60_000, tries: 0, stopped: null });
+  // Another session tried after this one started: its count stands too.
+  const first = await noteTried(files, DIR, await read(), NOW + DAY);
+  await noteTried(files, DIR, await read(), NOW + DAY + 1000);
+  await noteStopped(files, DIR, first, 'move', NOW + DAY + 2000);
+  assert.deepEqual({ tries: (await read()).tries, stopped: (await read()).stopped }, { tries: 2, stopped: null });
 });
