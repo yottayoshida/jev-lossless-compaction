@@ -12,6 +12,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # The Claude Code that checks the hook file. claude-code-latest.yml checks the newest once a week.
+  CLAUDE_CODE_VERSION: 2.1.288
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -28,3 +32,16 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      # Into a directory of its own, not the project: npm may block an install script it was
+      # not told to allow (npm 12 does), so Claude Code's own is run by name; running it twice is harmless.
+      - name: Install Claude Code ${{ env.CLAUDE_CODE_VERSION }}
+        run: |
+          npm install --no-save --no-audit --no-fund --prefix "$RUNNER_TEMP/claude-code" "@anthropic-ai/claude-code@${{ env.CLAUDE_CODE_VERSION }}"
+          (cd "$RUNNER_TEMP/claude-code/node_modules/@anthropic-ai/claude-code" && node install.cjs)
+          echo "CLAUDE=$RUNNER_TEMP/claude-code/node_modules/.bin/claude" >> "$GITHUB_ENV"
+      # What Claude Code requires of the hook file, which no test above can see: the
+      # working tree passes, and copies broken as test/fixtures/validate says fail.
+      - name: Claude Code's check of the hook file
+        run: |
+          "$CLAUDE" --version
+          sh test/validate.sh
