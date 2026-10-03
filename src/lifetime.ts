@@ -389,8 +389,8 @@ export function partIds(messages: readonly Message[]): Set<string> {
  * every id written in the kept parts among `parts`, through the parts of
  * earlier summaries: a part's results are named in the part alone (ADR 0007),
  * so they go to the trash with it and come back with it. `parts` are the ids
- * that may be parts; the others are not read. The trash is listed once, and
- * nothing is read while it is empty. What cannot be put back, or a part that
+ * that may be parts; the others are not read. The trash is listed again only
+ * to put back what it holds, and nothing is read while it is empty. What cannot be put back, or a part that
  * cannot be read, is passed over: it is answered as not stored. Never throws.
  * Resolves with how many were put back.
  */
