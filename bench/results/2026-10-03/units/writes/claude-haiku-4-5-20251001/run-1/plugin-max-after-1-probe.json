@@ -1,0 +1,73 @@
+{
+ "trace": "writes",
+ "version": 1,
+ "base": "b9779aff-7d87-4270-9747-22cdea987440",
+ "plugin": "cd125deb5b55",
+ "pluginCommit": "b2954c657b38",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 1,
+ "arm": "plugin",
+ "first": false,
+ "variant": "max-after-1",
+ "mode": "probe",
+ "at": "2026-10-03T00:57:28.513Z",
+ "claudeCode": "2.1.287",
+ "compaction": {
+  "sessionId": "ec82dcdc-1a10-43b7-975c-d01245024b92",
+  "durationMs": 24015,
+  "wallMs": 25216,
+  "preTokens": 68242,
+  "postTokens": 14807,
+  "thinkingBefore": 1161,
+  "line": {
+   "outcome": "nothing",
+   "moved": 0,
+   "results": 13,
+   "images": 0,
+   "charsBefore": 167678,
+   "charsAfter": 167678,
+   "ms": 1,
+   "estimate": 65686,
+   "window": 167000
+  },
+  "summarized": true,
+  "own": {
+   "inputTokens": 61583,
+   "outputTokens": 2776,
+   "cacheReadInputTokens": 8355,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0.07629849999999999,
+   "thinkingTokens": 533
+  }
+ },
+ "questions": [
+  {
+   "id": "probe",
+   "kind": "continuity",
+   "answer": "ok",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    27246
+   ],
+   "durationMs": 1605,
+   "wallMs": 3237,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 52,
+    "cacheReadInputTokens": 0,
+    "cacheCreationInputTokens": 27236,
+    "costUSD": 0.05474200000000001,
+    "thinkingTokens": 46
+   }
+  }
+ ]
+}
