@@ -914,6 +914,8 @@ projects, 75 of them in one project, and 41 run by hand.
 This count did not tell a session run in a directory made for measuring from
 a working one. Counted again with those set apart:
 [a `/compact` with nothing to move out](#a-compact-with-nothing-to-move-out).
+The same 102 on the current code:
+[the automatic compactions of 2026-10-01, on the current code](#the-automatic-compactions-of-2026-10-01-on-the-current-code).
 
 Each conversation was put together as it stood before the compaction: the
 messages back to the compaction before it, with what that one left in
@@ -1190,3 +1192,67 @@ over, as before.
   [above](#how-often-in-working-sessions): two of thirty by hand, on one
   machine.
 
+## The automatic compactions of 2026-10-01, on the current code
+
+On 2026-10-03, for #41: the 102 automatic compactions of
+[Moving out tool inputs, counted in hand-overs](#moving-out-tool-inputs-counted-in-hand-overs),
+given to `compact()` as it is on `main` at `d764006`. Offline: no model was
+called and nothing was sent.
+
+The 99 whose transcripts are still on the machine were found again by their
+transcript, their trigger and the tokens Claude Code recorded before the
+compaction, and each was put together as it was on 2026-10-01: the same
+messages and the same characters, all 99. The other three, each compacted by
+moving results out on 2026-10-01, are of transcripts no longer there.
+
+The size is counted the way the plugin counts it (ADR 0013), from a
+breakdown made up of what the transcript holds: what is not the
+conversation taken as the session's first request, and what is in use as
+the usage of the last response before the compaction, as #47 replayed a
+session. That counted 98 of the 99; the other was measured at three
+characters a token. On 2026-10-01 the size was the tokens Claude Code
+recorded at the compaction, counted the way 0.5.x did.
+
+|                                                  | 2026-10-01, of 102 | Now, of the same 99 |
+| ------------------------------------------------ | -----------------: | ------------------: |
+| Compacted by moving results out                  |                 85 |                  94 |
+| Handed over: holds a block that is not rebuilt   |                 15 |                   1 |
+| Handed over: nothing could be moved out          |                  2 |                   2 |
+| Handed over: still too full afterwards           |                  0 |                   2 |
+
+- Fourteen of the fifteen handed over for a block that was not rebuilt are
+  compacted now. What stopped each was an image in a tool result, which now
+  moves out with its result (ADR 0012): they moved 580 results out, 253 of
+  them holding images, from 1 to 68 images in a conversation.
+- The one still handed over holds a `fallback` block in a reply, with `from`
+  and `to`: Claude Code's record that a response went on with another model.
+  The plugin knows no such block and hands the conversation over, kept
+  first, as [Limits](limits.md#when-the-built-in-compaction-runs-instead)
+  says of any block of a kind it does not know.
+- The two with nothing to move out are the two of 2026-10-01, of the project
+  used to try the plugin out
+  ([How often, in working sessions](#how-often-in-working-sessions)).
+- The two still too full are of one session on 2026-09-04, with a window of
+  967,000: 31 of 698 and 23 of 612 results moved out, and about 729,378 and
+  777,069 tokens counted afterwards, 75.4 % and 80.4 % against the 75 % that
+  may stay. The count of 2026-10-01 put both under the line. So near it, how
+  the size is counted decides the side they fall on: counted as the
+  measurement for #44 did — what was in use taken as the tokens Claude Code
+  recorded at the compaction, and a density of its own instead of the
+  plugin's count — five of the 99 came out too full; which of the two made
+  the difference was not told apart.
+  Both hold long inputs that nothing moves out: `Write` inputs of 2,000
+  characters or more older than the newest `keepTokens`, 142,190 and 99,878
+  characters, and other long inputs of 226,566 and 321,177. That is near
+  what ADR 0007 set as the reason to look again at moving inputs out: a
+  conversation handed over for being too full that holds long inputs. These
+  two are a replay, not a compaction that said so; #47 is where that is
+  followed.
+- Five of the 99 are of sessions run on 2026-10-01 in a directory made for
+  measuring, each moving one result out; the count of 2026-10-01 did not
+  tell them apart.
+
+What the 99 are: from 2026-09-03 to 10-01, 53 sessions in 5 projects, 72 of
+the 99 in one project. The window is the one the plugin stated in 19, 967,000
+where the session went over 200,000 tokens in 73, and not known in 7, taken
+as 167,000.
