@@ -14,7 +14,10 @@
   least with what you are working on, then the oldest. The newest results
   stay, up to `keepTokens` tokens of them (20,000 by default). A result a
   later call made obsolete can leave even when it is the newest, and a result
-  that holds an image always leaves.
+  that holds an image always leaves. Where moving results out does not make
+  room, the oldest messages are kept whole in the same store and a list of
+  them stands in their place; the first message stays, and still no summary
+  is written ([when it is too full](limits.md#when-the-conversation-is-too-full)).
 - **Nothing is deleted that a recorded transcript still names.** Files are
   plain text under `~/.claude/lossless-compaction/`, in a directory closed to
   mode 700 before anything is written. Once a week the transcripts are read.

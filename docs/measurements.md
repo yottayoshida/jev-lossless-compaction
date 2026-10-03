@@ -1919,3 +1919,223 @@ after it, asked for the answer's third line, the model quoted it: the answer
 is in the conversation. With a place recorded for transcripts that is gone,
 a session's clean-up stopped and `gc.json` held `{"tries":1,"stopped":{"kind":"place"}}`
 and the times, no path.
+
+## The oldest messages kept in place of a summary
+
+On 2026-10-03, for #47 and ADR 0019. Until then a conversation still too
+full once results were moved out, or with none to move out, was kept and
+handed to Claude Code's summary.
+
+### How often the summary ran for the size
+
+Counted from the lines the plugin showed in the transcripts of one machine,
+subagents left out: ten hand-overs for the size from 2026-09-30 to 10-03,
+eight saying "too much is still in use" (three sessions) and two "nothing
+could be moved out" (two sessions made to try the plugin out). Every one of
+them is of a session started before v0.6.0 was tagged, which ran 0.5.x to
+its end: a plugin is loaded when a session starts. No session started since
+has shown either line.
+
+The eight "too much is still in use" were replayed offline on `main` at
+`f470d2c` (`bench/replay.ts`: no model called, nothing sent). All eight come
+out under the line of 75 %, at 41 % to 73 % of the window, with the same
+results moved out: what handed them over was how 0.5.x counted (#37).
+
+What the code at `f470d2c` still handed over for the size is what
+[the 99 automatic compactions](#the-automatic-compactions-of-2026-10-01-on-the-current-code)
+showed, two of 2026-09-04 that stay over the line after results are moved
+out; and a conversation with nothing to move out when the compaction is
+automatic or what is in use is over the line. In the benchmark that is
+`full`, three runs of three.
+
+### Replayed
+
+The two of 2026-09-04, replayed with the change, in a window of 967,000 with
+75 % allowed to stay. (Put together by `bench/replay.ts`, the first comes to
+32 of 707 results moved out and 727,893 tokens, where the section above has
+31 of 698 and 729,378.) The first message stays in each.
+
+| After results are moved out | `targetPercent` | Messages kept in parts | Parts | Handed back |
+| --------------------------: | --------------- | ---------------------: | ----: | ----------: |
+|            727,893 (75.3 %) | 40, the default |           812 of 1,465 |    26 |     381,650 |
+|                             | 1               |                  1,400 |    42 |     119,807 |
+|            777,069 (80.4 %) | 40, the default |           733 of 1,306 |    27 |     381,391 |
+|                             | 1               |                  1,261 |    44 |     123,758 |
+
+With `targetPercent` at 1 the cut cannot reach the target, and stops where
+the newest 20,000 tokens (`keepTokens`) are left. Where the cut falls is
+decided before anything is written, from an estimate of what the list of
+parts will come to; written, the conversation came 3,600 to 6,700 tokens
+under that estimate. The eight compactions above that moving results out is
+enough for are not asked whether to cut.
+
+### With Sonnet 5.5, against what the cut replaces
+
+On 2026-10-03, on the change as it stood after its two reviews. Claude Code
+2.1.288; Sonnet 5.5 built the conversation, answered and graded. `full` is
+said word for word as the benchmark says it: eight documents of about 74,000
+characters pasted into messages and three short results. Sonnet 5.5 counts
+the same text as more tokens than Haiku 4.5 does, 197,401 against 142,930,
+so in the benchmark's window the conversation overflows while it is built.
+It was built and measured with `--autocompact 264000`, which the plugin sees
+as 231,000: the conversation then fills 85 % of the window, as it does for
+Haiku. The benchmark's definition was not changed; a copy of it with that
+window was handed to `build` and `unit`, and the units are not published.
+
+A `/compact` by hand and the nine questions, three runs of each: the change;
+the plugin as it is on `main` at `c014b0d`, which keeps the conversation and
+hands it to Claude Code's summary; and the built-in compaction alone.
+
+|                         |               Cut, the change | Kept, then summarized (`main`) |     The built-in alone |
+| ----------------------- | ----------------------------: | -----------------------------: | ---------------------: |
+| The summary ran         |                        0 of 3 |                         3 of 3 |                 3 of 3 |
+| `/compact` took         |              297, 233, 225 ms |             22.2, 15.6, 26.2 s |     22.2, 20.1, 17.7 s |
+| Kept in parts           | messages 2 to 22 of 30, in 11 |        the conversation, in 17 |                      — |
+| The plugin's estimate   |                        75,804 |                              — |                      — |
+| The next request        |                        75,188 |         11,669, 11,345, 11,570 | 11,754, 11,885, 11,716 |
+| Right, of 9             |                       9, 9, 9 |                        9, 9, 9 |                9, 9, 9 |
+| `recall` calls          |                       6, 6, 6 |                        5, 5, 5 |                0, 0, 0 |
+| The compaction, USD     |                             0 |            0.526, 0.066, 0.073 |    0.524, 0.073, 0.524 |
+| The nine questions, USD |           2.792, 0.357, 0.361 |            0.356, 0.345, 0.359 |    0.358, 0.348, 0.343 |
+
+- No summary ran after the cut, and the compaction sent nothing. It is the
+  cut Haiku's window gives too, messages 2 to 22. The estimate came 0.8 %
+  over what the next request sent.
+- Every question was answered in every run, whichever way the conversation
+  was compacted. What a script printed before it was removed is in a part
+  after the cut: asked for it, the agent called `recall` and gave it, 6
+  times of 6. It did the same where the conversation was kept before a
+  summary. After the built-in compaction alone it read Claude Code's own
+  record of the session, for 9 answers of 27.
+- The cut sends six times as much with each request, 75,188 tokens against
+  about 11,500. In the first run the nine questions each wrote the
+  conversation to the prompt cache anew, and came to 2.79 USD against 0.88
+  for a summary and its nine questions. In the later runs they read it from
+  the cache: 0.36, against 0.41 and 0.43 kept and summarized.
+- Every part the lists name was read back from the store with the id and
+  the size the list gives, 11 of 11 in each run, and each of the eight
+  documents is whole in the parts or in the messages that stayed.
+- Sonnet 5.5 graded in two passes. Of 217 answers mixed in whose grade was
+  known it graded 217 as expected, and the passes graded no answer
+  differently.
+
+With Sonnet 5.5 only this was measured. A second cut, the compactions Claude
+Code starts by itself and `targetPercent` at 1 are with Haiku 4.5, below.
+
+### How far to cut, measured before it was decided
+
+With Haiku 4.5, which is what the benchmark asked then.
+`full` as the benchmark builds it, in a box of its own: Claude Code 2.1.288,
+Haiku 4.5, `--autocompact 200000` (the plugin sees 167,000), 142,930 tokens
+in use, eight documents of about 74,000 characters pasted into messages and
+three short results. A `/compact` by hand, then the nine questions, three
+runs each. Here the first message was cut with the rest, and how far the cut
+went was set directly: as far as `keepTokens` allows, or down to
+`maxAfterPercent` and no further.
+
+|                                          | Summarized by Claude Code | Cut to the newest `keepTokens` | Cut to `maxAfterPercent` |
+| ---------------------------------------- | ------------------------: | -----------------------------: | -----------------------: |
+| `/compact` took                          |        26.0, 26.1, 37.5 s |               289, 302, 364 ms |         146, 141, 141 ms |
+| Messages kept in parts, of 30            |                         — |                24, in 13 parts |           14, in 3 parts |
+| The plugin's estimate                    |                         — |                         41,513 |                  120,966 |
+| The next request                         |    12,604, 12,881, 13,022 |                         39,122 |                  116,655 |
+| Right, of 9                              |                   7, 6, 7 |                        5, 4, 5 |                  4, 4, 4 |
+| A rule stated in the first message, of 2 |                   2, 2, 2 |                        0, 0, 0 |                  0, 0, 0 |
+| Output of a script since removed, of 2   |                   1, 0, 1 |                        1, 0, 1 |                  0, 0, 0 |
+| The compaction, USD                      |       0.193, 0.029, 0.038 |                              0 |                        0 |
+| The nine questions, USD                  |       0.240, 0.176, 0.254 |            0.663, 0.101, 0.084 |      2.051, 0.250, 0.229 |
+
+- The other five questions of a run came out alike in every column: a file
+  unchanged and what a changed file says now were answered, what it said
+  then was not, and both about where the work stands were.
+- Cut to `maxAfterPercent`, three times as much is sent with each request
+  as cut to `keepTokens`, and a third of the room is left before the next
+  compaction. No more was answered for it: with most of the conversation
+  still there, the agent did not look at the list, and never called
+  `recall`. Cut to `keepTokens`, it called `recall` for two of the six
+  questions about the script's output, and was right.
+- In the first run of each column the nine questions each wrote the
+  conversation to the prompt cache anew, and in the later runs read it:
+  what a run costs is the size of what is sent, and whether it is cached.
+- A rule stated in the first message was answered none of twelve times once
+  that message was cut, where the summary writes such a rule out.
+
+Decided from this (ADR 0019): a cut goes down to the size results are moved
+out to reach, `targetPercent`, and the first message stays.
+
+### As decided, with Haiku 4.5
+
+The same conversation in the same box, the code as decided and before its
+reviews, which changed the first line of the list and two cases this
+conversation does not reach; the built-in arm is the column above.
+
+|                                          | `targetPercent` 40, the default |    `targetPercent` 1 |
+| ---------------------------------------- | ------------------------------: | -------------------: |
+| `/compact` took                          |                260, 235, 248 ms |     265, 339, 268 ms |
+| Kept in parts, of 30 messages            |             2 to 22, in 11 parts | 2 to 24, in 13 parts |
+| The plugin's estimate                    |                          57,466 |               41,570 |
+| The next request                         |                          54,705 |               39,187 |
+| The estimate is off by                   |                          +5.0 % |               +6.1 % |
+| Right, of 9                              |                         6, 6, 6 |              6, 7, 6 |
+| A rule stated in the first message, of 2 |                         2, 2, 2 |              2, 2, 2 |
+| Output of a script since removed, of 2   |                         0, 0, 0 |              0, 1, 0 |
+| The nine questions, USD                  |             0.935, 0.106, 0.134 |  0.648, 0.084, 0.100 |
+
+No summary ran, and the compaction sent nothing. With the first message in
+front, the rule stated in it was answered every time. What a script printed
+before it was removed is in a part: the agent said the conversation had been
+compacted and that it did not have the output, and called `recall` for one
+of the twelve questions. After the summary the agent found it twice in six,
+by searching Claude Code's own record of the session. No answer after a cut
+was counted wrong, the agent saying where it did not know; three after the
+summary were.
+
+Against what the cut replaces, Haiku 4.5 answers less. Kept and then
+summarized, as the plugin did until then, the same conversation had 8 of 9
+answered in each of three runs, and the script's output 6 times of 6 through
+`recall` (`bench/results/2026-10-03/`): after a summary Haiku fetches what
+was kept, and after a cut it mostly does not. Sonnet 5.5 fetches it either
+way (above).
+
+Every part the lists name was read back from the store with the id and the
+size the list gives: 11 of 11 in each run at 40, 13 of 13 at 1. Each of the
+eight documents is whole either in the parts, in the order it was pasted, or
+in the messages that stayed.
+
+Cut once more, the line set at 20 % so that the 39,187 are over it: 72 ms,
+messages 2 to 4 of 10 kept in 3 parts. The first message stayed again. The
+hook was handed the list of the first cut as a message of its own, not
+joined to what the person said next, and it stands in the first new part as
+it was written. Right after a compaction Claude Code gives no breakdown to
+count from, and the line names no size.
+
+Compactions Claude Code started by itself, with the default settings: ten
+more documents pasted one after another into `full`.
+
+| Document |              Sent | Compaction                                                                          |
+| -------: | ----------------: | ----------------------------------------------------------------------------------- |
+|        1 |           159,328 | none                                                                                |
+|        2 |                 — | automatic at 177,871: 291 ms, messages 2 to 26 of 33 in 15 parts, 55,331 estimated |
+|   3 to 8 | 70,609 to 149,499 | none                                                                                |
+|        9 |                 — | automatic at 168,081: 275 ms, messages 2 to 18 of 23 in 15 parts, 56,627 estimated |
+|       10 |            70,459 | none                                                                                |
+
+The third request less the document it added is about 54,800, against the
+55,331 estimated. No compaction follows another at once, and the next comes
+after seven documents of about 16,000 tokens. (Cut to `maxAfterPercent`,
+before the decision, it came after three.)
+
+A conversation that fits once it is rebuilt, with nothing to move out:
+`thinking` as the benchmark builds it, 36,459 tokens in use of which 13,070
+are thinking, with the line set at 18 % so that what is in use is over it.
+It took 33 ms and nothing was cut:
+
+```text
+lossless-compaction: no summary, nothing to cut: moved 0 of 3 tool results out (30863 -> 30863 chars, about 22887 of 167000 tokens in use) in 1 ms
+```
+
+The next request sent 20,523, 11.5 % under the estimate.
+
+Not measured: a cut in a window of 1,000,000 in Claude Code, where the two
+replays above are all there is; Opus 5.5 after a cut; and, with Sonnet 5.5,
+anything but the one `/compact` by hand above.

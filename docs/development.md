@@ -55,13 +55,25 @@ tools, and a `/compact` is held by `hooks/notice.sh`.
 `npm run check:host` loads the working tree into the Claude Code you have and
 checks, without a person watching, that `recall` is registered, that a
 `/compact` of a made-up conversation moves results out and `recall` returns
-one of them as it was, and that with the plugin enabled and not running the
+one of them as it was, that the same conversation with next to nothing
+allowed to stay is cut with no summary and what was cut is in the store as it
+was said (ADR 0019), and that with the plugin enabled and not running the
 first message is told and a `/compact` is held; it prints the version it ran
 on. Run it with every new Claude Code and before a release. It signs in as you
 do and spends a few cents of Haiku. `node bench/host.ts --plugin-dir <copy>`
 runs the checks of the running plugin on another copy (the copy that is not
 running is always made from the working tree); given the copy
 `test/fixtures/validate/` breaks, they fail.
+
+`node bench/replay.ts <record.jsonl> <line>` gives one compaction of a
+recorded session to the code as it is in the working tree, offline: the
+conversation as it stood before the compaction reported at that line of
+Claude Code's record, what `compact()` makes of it and, where that is still
+too full, where the cut in place of a summary falls. It prints sizes and
+counts, nothing the conversation said; the store is held in memory, no model
+is called and nothing is sent. What is not the conversation is taken as the
+session's first request, so a size it prints is the plugin's count with that
+for a breakdown, not Claude Code's own.
 
 "Not running" is made the way it was met in #51: a copy of the working tree
 whose hook file Claude Code does not load (`pass-to-import.patch` applied),

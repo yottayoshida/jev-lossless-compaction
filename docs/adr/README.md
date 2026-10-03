@@ -40,3 +40,6 @@ Why the plugin is built the way it is, one record a decision.
 - [0018](0018-a-changed-file-shown-again-gives-way-to-a-line.md): why a
   changed file Claude Code shows again after a summary gives way to a line
   with the id of its reading.
+- [0019](0019-a-conversation-too-full-is-cut-not-summarized.md): why a
+  conversation too full is cut, its oldest messages kept, and not
+  summarized.
