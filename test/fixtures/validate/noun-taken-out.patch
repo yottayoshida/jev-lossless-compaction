@@ -1,0 +1,13 @@
+diff --git a/hooks/move-out.ts b/hooks/move-out.ts
+index aa85fa8..2f2d6ae 100644
+--- a/hooks/move-out.ts
++++ b/hooks/move-out.ts
+@@ -552,6 +552,8 @@ export async function registerTools($: WithTools & WithUi, provider: Provider |
+ 
+ export const register: Register = (on, options) => {
+   on('session.start', async ($, e, next) => {
++    const env = $.env;
++    await env.get('HOME');
+     await markRunning($);
+     let provider: Awaited<ReturnType<typeof providerOf>> | undefined;
+     try {

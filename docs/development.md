@@ -15,13 +15,27 @@ Claude Code's events to `src/`.
 
 ## Checks that need Claude Code
 
-These are not run in CI.
-
 ```sh
-export CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1
-npm run validate          # the manifest, and which host calls the hook makes
+export CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1   # for typecheck:hooks and claude --plugin-dir; validate needs it not
+npm run validate          # Claude Code's own check of the manifest and the hook file
 npm run typecheck:hooks   # hooks/ against Claude Code's own type declarations
 ```
+
+A change that passes `$` to a function imported from another file, or takes a
+noun of `$` out to call it, fails CI: CI runs `claude plugin validate --strict`
+with the Claude Code version `.github/workflows/ci.yml` names, and checks on
+every run that a copy of the hook file broken that way fails it.
+`npm run validate` runs the same (`test/validate.sh`) with the `claude` on
+your `PATH`, or the command in `CLAUDE`: the working tree must pass, and each
+patch under `test/fixtures/validate/` applied to a copy must fail, where a
+copy with none applied passes. It needs no sign-in and no setting. Once a week `.github/workflows/claude-code-latest.yml` runs it
+with the newest Claude Code; when that turns red, raise
+`CLAUDE_CODE_VERSION` in `ci.yml`. GitHub stops a schedule in a repository
+with no activity for 60 days. A patch that no longer applies to the hook file
+fails the check: make it again.
+
+What `validate` does not see is held by `npm test` (the tool name a
+`tool.call` hook matches, below). `typecheck:hooks` is not run in CI.
 
 To try a change, load the working tree as a plugin for one session:
 
@@ -33,7 +47,7 @@ claude --plugin-dir .
 is not in the repository. Claude Code writes it, from the version you have,
 the first time it loads the plugin as above.
 
-Run `npm run validate` after every change to `src/` or `hooks/`. When the hook
+Run `npm run validate` after a change to `src/` or `hooks/` as well, before CI does. When the hook
 file or anything it imports does not parse, Claude Code still lists the plugin
 as installed but loads no hook from it: the `recall` tool is missing from the
 tools, and a `/compact` is held by `hooks/notice.sh`.
