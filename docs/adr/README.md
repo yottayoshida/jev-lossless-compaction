@@ -37,3 +37,6 @@ Why the plugin is built the way it is, one record a decision.
   `/lossless-store`, and still not bounded.
 - [0017](0017-recall-and-find-are-listed-in-front-of-the-agent.md): why
   `recall` and `find` stand in the list of tools the agent is given.
+- [0018](0018-a-changed-file-shown-again-gives-way-to-a-line.md): why a
+  changed file Claude Code shows again after a summary gives way to a line
+  with the id of its reading.

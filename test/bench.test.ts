@@ -2259,9 +2259,13 @@ test('the units in the repository measured the tools listed in front of the agen
 });
 
 const SHOWN_AT = fileURLToPath(new URL('../bench/results/2026-10-03-shown-again', import.meta.url));
+/** The plugin's code the units of `narrowed` were measured with: `1d8dec8` with the `prompt.attachment` hook. */
+const NARROWED_CODE = '3757bbe9a7c2';
 
-test('the units in the repository measured a note in place of a file shown again after a summary: every figure docs/measurements.md gives of it (#54)', () => {
-  const measurements = readFileSync(new URL('../docs/measurements.md', import.meta.url), 'utf8').replace(/\s+/g, ' ');
+test('the units in the repository measured a note in place of a file shown again after a summary: every figure the documents give of it (#54)', () => {
+  // Each document with its white space folded, so that a phrase is found where a line breaks in the middle of it.
+  const text = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\s+/g, ' ');
+  const [measurements, limits, changelog, adr] = [text('../docs/measurements.md'), text('../docs/limits.md'), text('../CHANGELOG.md'), text('../docs/adr/0018-a-changed-file-shown-again-gives-way-to-a-line.md')];
   const has = (phrase: string, what: string) => assert.ok(measurements.includes(phrase), `${what}: ${phrase}`);
   type Asked = Unit['questions'][number];
   const of = (dir: string) => {
@@ -2272,13 +2276,14 @@ test('the units in the repository measured a note in place of a file shown again
     assert.equal(new Set(units.map((unit) => unit.plugin)).size, 1, dir);
     return units;
   };
-  const all = { baseline: of('baseline'), note: of('note'), merged: of('merged') };
+  const all = { baseline: of('baseline'), note: of('note'), merged: of('merged'), narrowed: of('narrowed') };
   type Dir = keyof typeof all;
-  const dirs = ['baseline', 'note', 'merged'] as const;
-  // `merged` is the code that is merged: the tools listed, and no note.
+  const dirs = ['baseline', 'note', 'merged', 'narrowed'] as const;
+  // `merged` is the code the change that listed the tools merged, with no note; `narrowed`, the code the change that built the note merged.
   assert.equal(all.merged[0]?.plugin, MERGED_CODE);
+  assert.equal(all.narrowed[0]?.plugin, NARROWED_CODE);
   const traces = ['writes', 'prose', 'short', 'thinking'];
-  // All three were asked of the same building of each conversation.
+  // All four were asked of the same building of each conversation.
   for (const trace of traces) {
     assert.equal(new Set(Object.values(all).flatMap((units) => units.filter((unit) => unit.trace === trace).map((unit) => unit.base))).size, 1, trace);
   }
@@ -2328,14 +2333,63 @@ test('the units in the repository measured a note in place of a file shown again
   };
   assert.equal(missedIn('baseline'), 9 - shownRight('baseline'));
 
-  // What docs/limits.md says is not fetched is of the code that is merged; the note was measured on the baseline.
-  const limits = readFileSync(new URL('../docs/limits.md', import.meta.url), 'utf8').replace(/\s+/g, ' ');
-  assert.ok(limits.includes(`Haiku was right ${shownRight('merged')} times of 9. The other ${missedIn('merged')} times it called nothing and gave another text`), 'limits');
-  assert.ok(limits.includes(`brought ${shownRight('note')} of 9 on the plugin as it was before the tools were listed, which was right ${shownRight('baseline')} times of 9 without it`), 'limits');
-  const changelog = readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8').replace(/\s+/g, ' ');
+  // The note as it is built, narrowed, against the code as merged: by the rule set again before it was measured,
+  // 11 of 12 or more for the reading, and the two other questions about files at 12.
+  const narrowedPart = measurements.slice(measurements.indexOf('### The note, narrowed'));
+  assert.ok(narrowedPart.length < measurements.length, 'the section is there');
+  for (const [label, ids] of rows) {
+    assert.ok(narrowedPart.includes(`| ${label} | ${right(asked('merged', ids))} | ${right(asked('narrowed', ids))} |`), `narrowed, ${label}`);
+  }
+  const built = { then: asked('narrowed', ['then']), now: asked('narrowed', ['now']), unchanged: asked('narrowed', ['unchanged']) };
+  assert.ok(right(built.then) >= 11 && right(built.now) === 12 && right(built.unchanged) === 12);
+  has(`since 4 more than the ${then.merged} of 12 of the code as merged cannot be reached`, 'the rule, set again');
+  // Where the note stands the agent recalls the reading, and reads the file for what it says now: which is how it is told the note stood there.
+  assert.ok(built.then.every((one) => one.retrieval.recalls === 1 && one.retrieval.reads === 0));
+  assert.ok(built.now.every((one) => one.retrieval.reads === 1));
+  has(
+    `Each of the ${built.then.length} readings came after one \`recall\` and no reading of the file, and each of the ${built.now.length} answers on what the file says now after one reading of it`,
+    'narrowed, what was called',
+  );
+  assert.deepEqual(
+    [asked('narrowed', ['then'], ['short'], /sonnet/).map((one) => one.retrieval.recalls), asked('narrowed', ['now'], ['short'], /sonnet/).map((one) => one.retrieval.reads)],
+    [[1], [1]],
+  );
+  has('Sonnet 5.5 on `short`, one run: right on all three, with one `recall` for the reading and one reading of the file for what it says now.', 'narrowed, Sonnet');
+  // What was missed beside it has nothing of the note in it: the script's output, in the conversation where no file is shown again.
+  const outputMissed = (dir: Dir) =>
+    all[dir].filter((unit) => /haiku/.test(unit.model)).flatMap((unit) => unit.questions.filter((one) => one.id.startsWith('gone-') && one.verdict !== 'correct').map(() => unit.trace));
+  assert.deepEqual([outputMissed('narrowed'), outputMissed('merged')], [['writes', 'writes'], ['writes']]);
+  has("The script's output was missed twice, both times in `writes`, where no file is shown again and no note stood; the code as merged missed it once there the same way", 'narrowed, the output');
+
+  // What docs/limits.md, CHANGELOG.md and the record of the decision say of it.
   assert.ok(
-    changelog.includes(`from ${then.baseline} right of 12 to ${then.note} with Haiku 4.5, on the plugin before the tools were listed; as merged, without the note, it is ${then.merged} of 12`),
-    'CHANGELOG',
+    limits.includes(
+      `answered right ${shownRight('narrowed')} times of 9 in the [three conversations sent to the summary](measurements.md#the-note-narrowed) where the file is shown again, each after one \`recall\`, ` +
+        `where it was right ${shownRight('merged')} times of 9 with the file shown as it is now (${right(built.then)} of 12 against ${then.merged} with a fourth, where the file is not shown again); ` +
+        `asked what the file says now, it read the file again and was right ${right(built.now)} times of 12`,
+    ),
+    'limits, the note',
+  );
+  // Handed over with an @, nothing stands in the file's place: what is fetched then is what the code without the note fetched.
+  assert.ok(limits.includes(`Haiku fetched that reading ${shownRight('merged')} times of 9, and the other ${missedIn('merged')} times called nothing and gave another text`), 'limits, handed over');
+  assert.ok(
+    changelog.includes(
+      `answered right ${then.merged} times of 12 in four conversations sent to the summary, and ${right(built.then)} of 12 with the note, each after one \`recall\` ` +
+        `(${shownRight('merged')} of 9 and ${shownRight('narrowed')} of 9 in the three where the file is shown again and the note stands); ` +
+        `asked what the file says now, it read the file again, ${right(built.now)} of 12`,
+    ),
+    'CHANGELOG, the note',
+  );
+  assert.ok(changelog.includes(`the note brought ${then.baseline} right of 12 to ${then.note}`), 'CHANGELOG, as first measured');
+  for (const [label, n] of [['The line after the summary alone, the tools behind the search', then.baseline], ['and the two tools listed (0017)', then.merged], ["and a line in the file's place", right(built.then)]] as const) {
+    assert.ok(adr.includes(`| ${label} | ${n} of 12 |`), `ADR 0018, ${label}`);
+  }
+  assert.ok(adr.includes(`it is ${then.merged} of 12, and ${shownRight('merged')} of 9 in the three where the file is shown again`), 'ADR 0018');
+  assert.ok(adr.includes(`once in each of ${built.now.length} answers, all right`), 'ADR 0018, read again');
+  // Where the line stood, and where no file is shown again and none did.
+  assert.ok(
+    adr.includes(`The 12 are ${shownRight('narrowed')} in the three conversations where the file is shown again and the line stood, and ${right(asked('narrowed', ['then'], ['writes']))} in the one where it is not`),
+    'ADR 0018, where the line stood',
   );
 
   // Sonnet 5.5, `short` once: no worse.

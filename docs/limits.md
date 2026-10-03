@@ -228,16 +228,58 @@ Claude Code 2.1.287 gives a `Read` result, a number and a tab before each
 line: without them nothing is named, and a form that kept them and cut the
 text short would name files that did not change.
 
-Whether the agent then fetches the reading is its own. In
-[the benchmark](measurements.md#a-file-shown-again-after-a-summary), asked
-what a file said when it was read, the question saying that the file has
-been regenerated since: Haiku 4.5 answered right six times of twelve in the four conversations
-where the file is shown again (three of three in one of them, none of
-three in another), where without the line it answered with the file as it
-is now twelve times of twelve; Sonnet 5.5 answered right with the line and without it, in one run on two conversations. An id is 64 characters, and an agent copying
-one gets it wrong now and then; `recall` refuses it. Measured with
-`claude -p` and a manual `/compact`; a compaction Claude Code starts on its
-own was not.
+Where Claude Code then shows such a file again, a line of the plugin's
+stands in its place (ADR 0018):
+
+```text
+[lossless-compaction] Not shown again here: /work/app/config.json changed on disk since the conversation read it. What the Read returned then comes back with mcp__lossless-compaction__recall id …; the file as it is now, by reading it again.
+```
+
+The other files shown again are left as they are. So is the changed file
+once a file of its name has been handed over with an `@`, in anything typed
+that stands behind the plugin's message (`@config.json`,
+`@app/config.json`): it is then shown as you asked for it, where Claude Code
+shows it again as well. How Claude Code reads an `@` is its own, so the
+plugin errs on the side of showing: the name anywhere in what follows the
+`@` counts, and another file whose name holds it (`@old-config.json`) shows
+this one too. An `@` in a command's arguments is read the same way, which
+was not tried in a session; nor was an `@` typed while the agent was at
+work. Handed over in another letter case (`@Config.json`), the file handed
+over is shown, and the one shown again still gives way to the line. What stands
+behind the plugin's message is what was typed since the summary and the last
+messages Claude Code kept from before it, so a file handed over just before
+the summary may be shown as well. When Claude Code asks again of a file, as
+it does when a session is resumed, the answer is the same while the
+conversation is, and a file handed over since is shown as it is where the
+line stood.
+
+A file Claude Code shows is told by its first line, the call that would have
+read it, and matched to what the plugin named by its path as written: framed
+otherwise, or shown by another spelling of the path, nothing is put in its
+place. Nor is anything in a subagent's conversation. For each file Claude
+Code attaches, the plugin reads the conversation; its own part of that took
+1.8 ms on a conversation of 4096 messages. `prompt.attachment` is an event
+of function hooks like `tool.describe` ([`find`](#find)): a Claude Code that
+does not know it loads no hook of the plugin at all. `claude plugin
+validate` takes it on Claude Code 2.1.285 to 2.1.288.
+
+With that line in the file's place, asked what a file said when it was read,
+the question saying that the file has been regenerated since, Haiku 4.5
+answered right 9 times of 9 in the
+[three conversations sent to the summary](measurements.md#the-note-narrowed)
+where the file is shown again, each after one `recall`, where it was right 6
+times of 9 with the file shown as it is now (12 of 12 against 9 with a
+fourth, where the file is not shown again); asked what the file says now, it
+read the file again and was right 12 times of 12. With the line after the summary alone,
+and before the two tools were listed, it answered right six times of twelve
+in the four conversations where the file is shown again (three of three in
+one of them, none of three in another), where without the line it answered
+with the file as it is now twelve times of twelve; Sonnet 5.5 answered right
+with the line and without it, in one run on two conversations
+([the benchmark](measurements.md#a-file-shown-again-after-a-summary)). An id
+is 64 characters, and an agent copying one gets it wrong now and then;
+`recall` refuses it. Measured with `claude -p` and a manual `/compact`; a
+compaction Claude Code starts on its own was not.
 
 Every summary keeps the whole conversation, so the directory grows faster
 than moving out alone makes it grow.
@@ -751,19 +793,19 @@ less often, in made-up conversations asked right after the compaction
   asked about. Of thirteen results whose calls say nothing of what is in
   them, all moved out, Haiku was right on 3 questions of 21 and called
   `recall` for 4. With a key it was right on 19 of 21.
-- **A file shown again after a summary.** Asked what a file said when it
-  was read, the file having changed since, in three conversations sent to
-  the summary that had the file shown again (`prose`, `short` and
-  `thinking`), Haiku was right 6 times of 9. The other 3 times it called
-  nothing and gave another text, with the plugin's line naming the file as
-  changed in the conversation. A note in the file's place, with the id of
-  its reading, brought 9 of 9 on the plugin as it was before the tools were
-  listed, which was right 4 times of 9 without it. It is not built: a file
-  shown again after a summary and a file you hand over later reach the
-  plugin alike, and the note would stand in place of both (#54).
+- **A changed file you hand over after a summary.** Once you hand a file
+  over with an `@`, it is shown as it is, where Claude Code shows it again as
+  well, and no line stands in its place. The plugin's message after the
+  summary still names the file and the id of its reading. With nothing in
+  the file's place, in three conversations where the file is shown again
+  (`prose`, `short` and `thinking`), Haiku fetched that reading 6 times of 9,
+  and the other 3 times called nothing and gave another text. That was
+  measured with no `@`, on the plugin before a line stood in the file's
+  place; with the file handed over it was tried in one session, where the
+  reading was fetched.
 - **An id copied wrong.** An id is 64 characters. Haiku gave `recall` one it
-  refused in 13 of 925 calls, over every plugin measured for this, built or
-  not; in 8 of the 9 questions where that happened a later call went
+  refused in 15 of 990 calls, over every plugin measured for this, built or
+  not; in 8 of the 10 questions where that happened a later call went
   through.
 
 ## What it was measured with
