@@ -15,6 +15,23 @@ Each result that left has a ticket in its place:
 [moved out] Read result, 83261 bytes; recall with mcp__lossless-compaction__recall id ed8701f23087852c07ee8eb0b91b9335cc94cc8b21e42826c6b684299e8008e3
 ```
 
+Where moving results out is not enough, or there is nothing to move out and
+the conversation is too full to go on with, the oldest messages are kept
+whole instead and no summary runs. From a session of text pasted into
+messages:
+
+```text
+lossless-compaction: no summary, messages 2-22 of 30 kept in 11 parts: moved 0 of 3 tool results out (609241 -> 224393 chars, about 75804 of 231000 tokens in use) in 237 ms
+```
+
+The first message stays, and one message lists the parts where the others
+stood ([what stays, and how far a cut goes](limits.md#when-the-conversation-is-too-full)):
+
+```text
+[lossless-compaction] Earlier messages of this conversation are kept as they were said, with no summary in their place, in 11 parts; recall a part by its id.
+[moved out] conversation, part 1 of 11, messages 2-12, 1438 bytes; recall with mcp__lossless-compaction__recall id aeda8ee2358743538f517ef841ea5aa71780a5d523b81441ca65097beab4b2e7
+```
+
 In a session where the plugin is enabled and is not running, a line says so
 at the first message you send, naming the setting to add
 ([what else it does, and what it does not reach](limits.md#function-hooks)).
@@ -46,8 +63,8 @@ With a key set, each call to `find` sends the provider:
 - the agent's question;
 - for every result moved out of the conversation, the call that made it and
   a 400-character digest of it;
-- for every part of the conversation kept before a summary, the head of what
-  was said in it;
+- for every part of the conversation that was kept, before a summary or in
+  place of one, the head of what was said in it;
 - where one result alone has a line holding a number, a checksum or a code
   the question names: that it has, in one sentence, and no line of it.
 

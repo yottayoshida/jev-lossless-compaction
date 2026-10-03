@@ -7,14 +7,21 @@ What the plugin does not do, and what a repository or a version can change.
 - **A `/compact` with nothing to move out and room left does nothing** but
   say so: Claude Code shows it as not compacted, and `/compact` with
   instructions summarizes (ADR 0015).
-- **Claude Code's own summary still runs** when moving results out is not
-  enough; when nothing can be moved out and the compaction is automatic,
-  `/compact` is given instructions, or more than `maxAfterPercent` is in use,
-  the last being one of the six kinds of conversation
-  [measured](comparison.md); when the
+- **A conversation too full is cut, not summarized.** When moving results
+  out is not enough, or nothing can be moved out and the compaction is
+  automatic or more than `maxAfterPercent` is in use, the oldest messages
+  are kept in parts, a list of them stands in their place, and the first
+  message stays. More is sent with each request than after a summary, and
+  the agent knows what was cut by the list alone (ADR 0019).
+- **Claude Code's own summary still runs** when `/compact` is given
+  instructions and moving results out did not make room; when no cut
+  between messages brings the conversation under `maxAfterPercent`, as with
+  one very long message said last; when the plugin cannot count the
+  conversation and its messages come to less than `keepTokens`; when the
   conversation holds
   an image or a document outside a tool result, a block of a kind the plugin
-  does not know, or 4096 messages or more; and in a subagent.
+  does not know, or 4096 messages or more; when a part cannot be written;
+  and in a subagent.
 - **What a summary replaces is kept first**, on the main conversation, and
   `recall` returns it unchanged by the ids left right after the summary. Not
   kept: images, documents, thinking, and messages older than the 4096 Claude
@@ -34,9 +41,10 @@ Each of these in full, and the rest, below.
 
 Claude Code's built-in compaction runs instead when the conversation holds an
 image or a document outside a tool result, or any block of a kind the plugin
-does not know, has 4096 messages or more, belongs to a subagent, has nothing
-that can be moved out, or is still too full afterwards and a summary could
-change that. An image in a tool result is moved out with the result: a line
+does not know, has 4096 messages or more, or belongs to a subagent; when
+`/compact` was given instructions and nothing could be moved out, or too
+much is still in use afterwards; and when a conversation that is too full
+cannot be cut ([below](#when-the-conversation-is-too-full)). An image in a tool result is moved out with the result: a line
 stands in its place, and the conversation is compacted by the plugin (see
 [images](#images)).
 
@@ -68,9 +76,11 @@ Not compacted · lossless-compaction: nothing to move out, 28425 of 167000 token
   conversation is the summary, which a summary would not make smaller; where
   else Claude Code gives no figure was not measured.
 - `/compact` with instructions is summarized as before, the conversation
-  kept first. So is an automatic compaction, which runs because the
-  conversation is full, and a `/compact` with `maxAfterPercent` set under
-  what is in use.
+  kept first. An automatic compaction, which runs because the conversation
+  is full, and a `/compact` with `maxAfterPercent` set under what is in use
+  are not left undone: one that fits once its messages are rebuilt is
+  handed back so, and of one that does not the oldest messages are kept in
+  place of a summary ([below](#when-the-conversation-is-too-full)).
 - The other cases above are not this one: a conversation handed over before
   anything could be moved (no place to keep results in, an image pasted into
   a message, 4096 messages or more) is summarized with room or without.
@@ -102,12 +112,16 @@ mostly tool results, pasted English prose with logs, and Japanese with logs.
 On Opus 5.5: Japanese with logs, made up, and five long working sessions
 with 172 to 235 thinking blocks.
 
-Where nothing could be moved, the conversation goes to the summary or is
-left as it is, and nothing the plugin would have rebuilt is sent, so there is
-no afterwards to measure. Set against what was in use before less its thinking, the size came
+Where nothing could be moved and the `/compact` is left undone, or the
+conversation goes to the summary, nothing the plugin would have rebuilt is
+sent, so there is no afterwards to measure. Set against what was in use before less its thinking, the size came
 up to 7 % under in the five such conversations of the benchmark (files
 written, pasted prose, many short results, a full window, a third
-thinking), where 0.6.0 ran from 49 % over to 22 % under.
+thinking), where 0.6.0 ran from 49 % over to 22 % under. Where the oldest
+messages were kept in place of a summary, the size the plugin gave came
+0.8 % over what the next request sent with Sonnet 5.5, and 5 % and 6 % over
+with Haiku 4.5, on one conversation of pasted text; and 12 % over on one
+handed back as rebuilt, a third of it thinking, with Haiku 4.5.
 
 Which way it is off, where that is known:
 
@@ -144,6 +158,80 @@ tools. It is not relied on either when the conversation cannot be read as
 it was sent, when the thinking comes out at more than nine tenths of the
 `Messages` row, or when the row comes to fewer than 0.05 or more than 3
 tokens a weighted character.
+
+## When the conversation is too full
+
+Where results were moved out and more than `maxAfterPercent` of the size at
+which Claude Code compacts on its own is still in use, or nothing could be
+moved out and the `/compact` is not left undone, the oldest messages are
+kept in place of a summary (ADR 0019), unless `/compact` was given
+instructions. They are written in parts, as a conversation is before a
+summary ([below](#what-a-summary-replaces)), and one message lists the parts
+where they stood:
+
+```text
+[lossless-compaction] Earlier messages of this conversation are kept as they were said, with no summary in their place, in 11 parts; recall a part by its id.
+[moved out] conversation, part 1 of 11, messages 2-12, 1438 bytes; recall with mcp__lossless-compaction__recall id …
+```
+
+- The first message stays in front of the list: what was asked for, and any
+  rule given with it. Where the conversation does not fit with it there, it
+  is cut with the rest.
+- A cut ends where you start to speak, or right after the results of a call
+  came back: a call and its result are never parted.
+- It goes down to the size results are moved out to reach: `targetPercent`
+  of the size at which Claude Code compacts on its own, and never more than
+  half of what was in use. The newest messages stay while they add up to
+  `keepTokens`, counted here as the plugin counts a size (above) and not at
+  three characters a token. With `targetPercent` set low, that is all that
+  stays behind the first message. Fewer stay only where leaving that many
+  would keep the conversation over `maxAfterPercent` and a cut further on
+  brings it under: a summary would leave none of them as they were said.
+- No summary is written, by Claude Code or by the plugin. What the agent
+  has of the messages that were cut is the list: parts by their numbers,
+  with no word of what each held. With a key, `find` reads them; without
+  one, `recall` takes an id from the list. A rule or a decision stated later
+  than the first message is in a part, and an agent that does not fetch it
+  does not have it. Asked for what was cut, Sonnet 5.5 called `recall` and
+  gave it each time; Haiku 4.5 mostly said that it did not have it.
+- More is sent with each request than after a summary, and the next
+  compaction comes sooner: with Sonnet 5.5, 75,188 tokens a request where a
+  summary left about 11,500, on a conversation that filled 85 % of the
+  window.
+- The files changed on disk are not named, as they are
+  [after a summary](#what-a-summary-replaces): Claude Code shows no file
+  again where no summary ran. One case apart: where a summary earlier in
+  the conversation named some and its message is among those cut, the list
+  names again those that still differ, set against the disk as at a
+  summary, so that the line standing for a changed file shown again still
+  does.
+
+Claude Code's summary still runs for the size, the conversation kept first,
+where no cut helps: what is behind the last place a cut could end is over
+`maxAfterPercent` by itself (one very long message said last, say), there is
+no such place, or a part cannot be written. Where the plugin cannot count
+what would stay (the cases at the end of
+[the section above](#when-the-built-in-compaction-runs-instead)), a
+conversation with nothing to move out is cut down to the same size even
+when what is in use looks under the line: the compaction was asked for, by
+Claude Code where the conversation is full, and the plugin cannot say that
+it fits as it is. The newest `keepTokens` always stay there, since nothing
+the plugin counted says the conversation is over the line: one whose
+messages behind the first come to less than `keepTokens` is not cut, and
+the summary runs. What fills such a conversation is not what was said in
+it, which is all a cut could take away.
+A conversation over the line for what is not the conversation, the
+system prompt and the tools' definitions, is handed back all the same, since
+a summary would not change that: cut as far as it goes, or as it is where
+results were moved out.
+
+```text
+lossless-compaction: no summary, messages 2-19 of 20 kept in 1 part: moved 0 of 7 tool results out (67214 -> 453 chars, about 6599 of 167000 tokens in use) in 79 ms; still over what may stay in use, which a summary would not change
+```
+
+Measured on Claude Code 2.1.288: with Sonnet 5.5 at a `/compact` by hand,
+and with Haiku 4.5 at one too and at compactions Claude Code started
+([measurements](measurements.md#the-oldest-messages-kept-in-place-of-a-summary)).
 
 ## What a summary replaces
 
@@ -302,6 +390,11 @@ together add up to at most `keepTokens` tokens (three characters to a token,
 20,000 by default); every older one is a candidate to leave, whatever message
 it is in. A result a later call made obsolete is a candidate even when it is
 the newest.
+
+`keepTokens` has a second meaning where the oldest messages are kept in
+place of a summary ([above](#when-the-conversation-is-too-full)): the least
+of the conversation left behind the first message, every message counted and
+not results alone, unless fewer have to stay for the conversation to fit.
 
 ## Images
 

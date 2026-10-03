@@ -39,7 +39,8 @@ left undone where there is nothing to move out and room left (ADR 0015), on
 those same conversations, beside the built-in arm of
 `results/2026-10-02-v0.6.1/` as it was measured there; and probes of the
 four conversations it leaves undone with `maxAfterPercent` at 1, where each
-is handed to the summary.
+was handed to the summary, as the plugin did then: since ADR 0019 the oldest
+messages of such a conversation are kept in place of a summary.
 
 ## What is fixed before anything is compared
 
@@ -132,8 +133,17 @@ compacted and Claude Code writes no boundary: the unit is read from what
 Claude Code said of the skip, its questions are asked of the conversation as
 it was, its time is the session's, and its tokens before and after are both
 what was in use. The tables show such units in a row of their own, which is
-there only where there is one. To measure what follows a hand-over all the
-same, `--max-after 1` puts the line under any conversation.
+there only where there is one. `--max-after 1` puts the line under any
+conversation: up to 0.6.1 that measured what follows a hand-over, and since
+ADR 0019 it measures a cut.
+
+Where the plugin keeps the oldest messages in place of a summary (ADR 0019),
+the unit's line reads `cut`, with which messages were kept and in how many
+parts, and the summary did not run; `rebuilt` where the conversation fitted
+once its messages were rebuilt and nothing was cut. `--target` sets the
+share a compaction aims at (`targetPercent`), which is also how far a cut
+goes. `bench/replay.ts` gives one compaction of a recorded session to the
+same code offline (`docs/development.md`).
 
 A probe is a unit of the plugin's arm that asks one thing which needs
 nothing of the conversation ("Reply with the single word: ok"). What its

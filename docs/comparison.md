@@ -27,17 +27,31 @@ figure is first and the built-in compaction's second:
   tool results are what fills the conversation. **In four it did nothing**:
   there was nothing to move out and room to go on, so the `/compact` was not
   carried out and the conversation stayed as it was. The one filling most of
-  the window it kept and handed over to Claude Code's summary.
+  the window it kept and handed over to Claude Code's summary. That is how
+  it was when the table was measured: such a conversation is now cut, and no
+  summary runs (below).
 - **What a file said before it changed was answered** 15 times of 18,
   against none after the built-in compaction: in the four left as they were
   it was still in the conversation, and all 12 were answered with no tool.
   A script's output that no file held any more: 33 of 36 against 12.
-- **Where the plugin hands over**, as an automatic compaction of those four
-  does, the conversation is kept first: measured on 0.6.1, which handed over
-  all five, a script's output that no file held any more was still answered
-  26 times of 30 through `recall`, against 10 of 30 after the built-in
-  compaction alone, and the summary took longer with the plugin in 14 of 15
-  pairs of runs, by a median 7.7 s.
+- **Where the plugin hands over, the conversation is kept first**: measured
+  on 0.6.1, which handed over all five, a script's output that no file held
+  any more was still answered 26 times of 30 through `recall`, against 10
+  of 30 after the built-in compaction alone, and the summary took longer
+  with the plugin in 14 of 15 pairs of runs, by a median 7.7 s. It no longer
+  hands over for a conversation's size, as an automatic compaction of those
+  four did then.
+- **A conversation too full is cut, not summarized** (ADR 0019). Measured
+  with Sonnet 5.5, three runs, on the conversation that fills most of the
+  window, against the plugin as it was: `/compact` took 0.2 to 0.3 s where
+  keeping and summarizing took 16 to 26 s, and no summary ran. All nine
+  questions were answered in every run either way, the agent calling
+  `recall` for what was cut. Each request afterwards carried 75,188 tokens
+  against about 11,500: the nine questions cost 2.79 USD with the prompt
+  cache cold and 0.36 with it warm, against 0.88 and 0.41 to 0.43 for the
+  summary and its questions. Haiku 4.5 did not fetch what was cut, and
+  answered six of nine where it had answered eight
+  ([measurements](measurements.md#with-sonnet-55-against-what-the-cut-replaces)).
 - **Left as it was, a conversation is sent whole and read from the prompt
   cache.** Every later request carries 29,343 to 69,039 tokens where a
   summary left 12,522 to 26,318, but the conversation is what was sent just

@@ -8,9 +8,9 @@ Claude Code's `/compact` asks a model for a summary: tens of seconds, a
 request the size of the conversation, and the summary in place of what was
 said. This plugin moves old tool results out instead, leaving a one-line
 ticket for each. That takes a fraction of a second and calls no model, and
-what you and the agent said stays word for word. The price is a larger
-conversation afterwards. It works where tool results fill the conversation:
-files read, logs, command output ([limits](docs/limits.md)).
+what you and the agent said stays word for word. Where that is not enough,
+the oldest messages are stored too and listed in their place. The price is
+a larger conversation afterwards ([limits](docs/limits.md)).
 
 ## Demo
 
