@@ -1,5 +1,15 @@
 # Against the built-in compaction
 
+What follows was measured with Haiku 4.5, but for the one point on Opus 5.5.
+Where Sonnet 5.5 and Opus 5.5 were asked after a compaction the plugin made
+by itself, they answered no worse after the built-in one: after a summary
+both read Claude Code's own record of the session and answer from it, which
+Haiku did less often and to less effect
+([Sonnet](measurements.md#sonnet-55-one-run),
+[Opus](measurements.md#with-opus-55-and-in-a-window-of-1000000)). What
+differed for them is the compaction itself and the size of what is sent
+afterwards, which the README gives.
+
 Six made-up conversations, each given `/compact` by hand once with the plugin
 and once without, three times with Haiku 4.5. In every cell the plugin's
 figure is first and the built-in compaction's second:
@@ -62,6 +72,8 @@ figure is first and the built-in compaction's second:
   where each call named its file, and for 20 of 21 about what a result was
   about where the calls said nothing of what came back, finding the code 9
   times of 9. Each call sends the provider what [Usage](usage.md) lists.
+  Asked about a result that was moved out, Haiku 4.5 with a key set called
+  `find` for 48 of 54 questions.
 
 The protocol, every table and what they do not show:
 [measurements.md](measurements.md#the-benchmark).

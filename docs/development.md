@@ -89,3 +89,42 @@ screen, and is not in what the model is sent.
 - Every host call is written out as `$.noun.verb(...)`.
 - The tool name a `tool.call` hook matches is written as a literal. A test
   holds it equal to the name the tickets carry.
+
+## The README
+
+The README is where a reader decides whether to install the plugin, and it
+grows. `test/readme.test.ts` holds it to a page: 120 lines, 850 words, 7
+headings under the title and 1 table, the words counted as `wc -w` counts
+them. What does not fit goes to `docs/`, and a link stays. It is written in
+Markdown alone, with no HTML and no heading made by underlining, so that
+nothing in it is left out of the count.
+
+The same test checks what a machine can: that the README's links reach a
+file, and a heading where they name one; that links to its headings from
+other documents do; and that the names it gives are the ones the code has
+(the plugin and marketplace to install, the setting that turns function hooks
+on, the tools, the mark of the plugin's lines). The figures it gives are held
+to the published units in `test/bench.test.ts`.
+
+What a machine cannot check is read at each release. The line below names
+the version the README was last read against. The test fails unless
+`package.json`, `.claude-plugin/plugin.json` and
+`.claude-plugin/marketplace.json` all name that version, so a version is not
+raised without coming here. The test cannot tell that the README was read,
+only that this line was set.
+
+README read against version: `0.6.1`
+
+To read it, for the release being made:
+
+1. Go through that release's entries in the CHANGELOG. Does one make a
+   sentence of the README false, or call for one that is not there?
+2. Do the quick start as written, in a new session. `npm run check:host`
+   shows the plugin working in the Claude Code you have; it does not run the
+   two commands that install it.
+3. For each figure, find the measurement it is from and the model it was
+   taken with. The README gives figures of the models people work with, which
+   were Sonnet 5.5 and Opus 5.5 when this was written, and says so where a
+   figure is of a smaller one. A figure of code that has changed since is
+   measured again or taken out.
+4. Then set the line above to the new version.
