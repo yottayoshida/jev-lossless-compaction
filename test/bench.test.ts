@@ -1125,6 +1125,31 @@ test('the units in the repository measured with the line after a summary: the re
 
 const AGAIN = fileURLToPath(new URL('../bench/results/2026-10-02-v0.6.1', import.meta.url));
 
+/** A row of the published tables of a trace and model, as the documents quote it: the plugin's cell, then the built-in compaction's. */
+const rowOf = (tables: string, trace: string, label: string, model = 'claude-haiku-4-5-20251001'): string[] => {
+  const section = tables.split('\n### ').find((part) => part.startsWith(`${trace}, ${model}\n`)) ?? '';
+  const line = section.split('\n').find((one) => one.startsWith(`| ${label} |`)) ?? '';
+  return line.split('|').slice(2, 4).map((cell) => cell.trim());
+};
+
+/** Right answers of those asked, over the runs of some traces, in one arm: 0 the plugin's, 1 the built-in compaction's. */
+const rightOf = (tables: string, traces: readonly string[], label: string, arm: 0 | 1): [number, number] => {
+  let [got, asked] = [0, 0];
+  for (const trace of traces) {
+    for (const one of (rowOf(tables, trace, label)[arm] ?? '').matchAll(/(\d+)\/(\d+)/g)) {
+      got += Number(one[1]);
+      asked += Number(one[2]);
+    }
+  }
+  return [got, asked];
+};
+
+const KIND_ROWS = ['Exact, source gone', 'Exact, file unchanged', 'Exact, file changed: what it said then', 'Exact, file changed: what it says now', 'Where the work stands', 'A rule stated early'];
+
+/** Every kind of question together, over some traces, in one arm. */
+const everyOf = (tables: string, traces: readonly string[], arm: 0 | 1): [number, number] =>
+  KIND_ROWS.map((kind) => rightOf(tables, traces, kind, arm)).reduce<[number, number]>(([got, asked], [g, a]) => [got + g, asked + a], [0, 0]);
+
 test('the benchmark run again on 0.6.1: of conversations built again, every answer graded, the tables made from them, and what the documents say of them', () => {
   assert.ok(existsSync(AGAIN));
   const all = unitsUnder(AGAIN);
@@ -1154,21 +1179,8 @@ test('the benchmark run again on 0.6.1: of conversations built again, every answ
   assert.equal(grades.controls.toldPairsSame, grades.controls.toldPairs);
 
   // What docs/measurements.md and the README say of them, read off the tables: the plugin's cell, then the built-in compaction's.
-  const row = (trace: string, label: string): string[] => {
-    const section = tables.split('\n### ').find((part) => part.startsWith(`${trace}, claude-haiku-4-5-20251001\n`)) ?? '';
-    const line = section.split('\n').find((one) => one.startsWith(`| ${label} |`)) ?? '';
-    return line.split('|').slice(2, 4).map((cell) => cell.trim());
-  };
-  const right = (traces: readonly string[], label: string, arm: 0 | 1): [number, number] => {
-    let [got, asked] = [0, 0];
-    for (const trace of traces) {
-      for (const one of (row(trace, label)[arm] ?? '').matchAll(/(\d+)\/(\d+)/g)) {
-        got += Number(one[1]);
-        asked += Number(one[2]);
-      }
-    }
-    return [got, asked];
-  };
+  const row = (trace: string, label: string) => rowOf(tables, trace, label);
+  const right = (traces: readonly string[], label: string, arm: 0 | 1) => rightOf(tables, traces, label, arm);
   assert.deepEqual(row('results', 'Built-in summary ran'), ['0 of 3', '3 of 3']);
   assert.deepEqual(row('results', 'Tokens sent on the next request'), ['43995, 43995, 43995', '8246, 8313, 8353']);
   assert.deepEqual(row('results', 'Exact, source gone'), ['2/2, 2/2, 2/2', '1/2, 1/2, 0/2']);
@@ -1178,9 +1190,7 @@ test('the benchmark run again on 0.6.1: of conversations built again, every answ
   const six = TRACES.map((trace) => trace.name);
   assert.deepEqual([right(six, 'Exact, file changed: what it said then', 0), right(six, 'Exact, file changed: what it said then', 1)], [[5, 18], [0, 18]]);
   // Every kind of question together: 143 and 118 of 162, where the first run had 139 and 114.
-  const kinds = ['Exact, source gone', 'Exact, file unchanged', 'Exact, file changed: what it said then', 'Exact, file changed: what it says now', 'Where the work stands', 'A rule stated early'];
-  const every = (arm: 0 | 1) => kinds.map((kind) => right(six, kind, arm)).reduce<[number, number]>(([got, asked], [g, a]) => [got + g, asked + a], [0, 0]);
-  assert.deepEqual([every(0), every(1)], [[143, 162], [118, 162]]);
+  assert.deepEqual([everyOf(tables, six, 0), everyOf(tables, six, 1)], [[143, 162], [118, 162]]);
 
   // Where the conversation was handed over, the summary in the plugin's arm against the built-in one's, pair by pair: this run, and the first.
   const pairsOf = (of: readonly Unit[]) =>
@@ -1212,5 +1222,80 @@ test('the benchmark run again on 0.6.1: of conversations built again, every answ
 
   // Nothing of the machine: no home directory in either form a path of it takes, no key.
   const text = JSON.stringify(all) + JSON.stringify(grades) + tables + bases.join('');
+  assert.ok(!/[\/-]Users[\/-]|[\/-]home[\/-][a-z]|cctmp|CLOUDFLARE_API_TOKEN|TYPESAFE_API_KEY/.test(text));
+});
+
+const LEFT = fileURLToPath(new URL('../bench/results/2026-10-03', import.meta.url));
+
+test('the benchmark with a /compact left undone (ADR 0015): the plugin measured again on the conversations of the run on 0.6.1, beside its built-in arm', () => {
+  assert.ok(existsSync(LEFT));
+  const all = unitsUnder(LEFT);
+  const { units, older } = currentOf(all);
+  assert.equal(older, 0);
+  const grades = JSON.parse(readFileSync(`${LEFT}/grades.json`, 'utf8')) as Grades;
+  const tables = readFileSync(`${LEFT}/report.md`, 'utf8');
+  // The tables are these units and grades and nothing else: made again, they are the file.
+  assert.equal(whole(units, grades, older, null), tables);
+
+  // The conversations are those of the run on 0.6.1, and its built-in arm is here unchanged: the plugin's arm alone was measured again, on another state of its code.
+  const again = currentOf(unitsUnder(AGAIN)).units;
+  const builtOn = new Map(again.map((unit) => [unit.trace, unit.base]));
+  for (const unit of units) assert.equal(unit.base, builtOn.get(unit.trace), `${unit.trace} ${unit.model} run ${unit.run} ${unit.arm}`);
+  const counterpart = (unit: Unit) => again.find((one) => one.trace === unit.trace && one.model === unit.model && one.run === unit.run && one.arm === unit.arm && one.mode === unit.mode);
+  for (const unit of units.filter((one) => one.arm === 'builtin')) assert.deepEqual(unit, counterpart(unit), `${unit.trace} ${unit.model} run ${unit.run}`);
+  const plugin = units.filter((unit) => unit.arm === 'plugin');
+  assert.equal(new Set(plugin.map((unit) => unit.plugin)).size, 1);
+  assert.notEqual(plugin[0]?.plugin, again.find((unit) => unit.arm === 'plugin')?.plugin);
+
+  // What was run: the six traces three times on Haiku; on Sonnet `results` and `writes`, `prose` being left out (its question about what a file
+  // said before it changed was refused twice by Sonnet's safeguards); and, with the line at 1 %, a probe of each of the four left undone, three times.
+  const asked = units.filter((unit) => unit.mode === 'ask' && unit.variant === 'default');
+  const count = (model: RegExp, arm: string) => asked.filter((unit) => model.test(unit.model) && unit.arm === arm).length;
+  assert.deepEqual([count(/haiku/, 'plugin'), count(/haiku/, 'builtin'), count(/sonnet/, 'plugin'), count(/sonnet/, 'builtin')], [18, 18, 2, 3]);
+  assert.deepEqual(asked.filter((unit) => /sonnet/.test(unit.model) && unit.arm === 'plugin').map((unit) => unit.trace).sort(), ['results', 'writes']);
+  assert.ok(asked.every((unit) => unit.questions.length === 9));
+  const four = ['writes', 'prose', 'short', 'thinking'];
+  const probes = units.filter((unit) => unit.mode === 'probe');
+  assert.deepEqual(probes.map((unit) => `${unit.trace} ${unit.run}`).sort(), four.flatMap((trace) => [1, 2, 3].map((run) => `${trace} ${run}`)).sort());
+  assert.ok(probes.every((unit) => unit.variant === 'max-after-1' && unit.arm === 'plugin' && unit.compaction.summarized && unit.compaction.line?.outcome === 'nothing'));
+  assert.equal(units.length, asked.length + probes.length);
+  // Every answer has a verdict, and the grader was right on every answer whose grade was known.
+  assert.equal(outcomesOf(asked, grades).ungraded, 0);
+  assert.equal(grades.controls.asExpected, grades.controls.count);
+  assert.equal(grades.controls.toldPairsSame, grades.controls.toldPairs);
+
+  // The four with nothing to move out and room left are left as they were every time; `results` is compacted and `full` summarized as before.
+  for (const unit of asked.filter((one) => one.arm === 'plugin')) assert.equal(unit.compaction.undone === true, four.includes(unit.trace), `${unit.trace} ${unit.model} run ${unit.run}`);
+
+  // What docs/measurements.md and the README say of them, read off the tables.
+  for (const trace of four) {
+    assert.deepEqual(rowOf(tables, trace, 'Built-in summary ran'), ['0 of 3', '3 of 3'], trace);
+    assert.deepEqual(rowOf(tables, trace, 'Left as it was, nothing compacted'), ['3 of 3', '0 of 3'], trace);
+    assert.ok((rowOf(tables, trace, 'Compaction, ms')[0] ?? '').split(', ').every((ms) => Number(ms) < 100), trace);
+  }
+  assert.deepEqual(rowOf(tables, 'full', 'Built-in summary ran'), ['3 of 3', '3 of 3']);
+  assert.deepEqual(rowOf(tables, 'results', 'Built-in summary ran'), ['0 of 3', '3 of 3']);
+  const sixTraces = ['results', 'writes', 'prose', 'short', 'full', 'thinking'];
+  const middle = (cell: string) => cell.split(', ').map(Number).sort((a, b) => a - b)[1];
+  const nextRequest = (arm: 0 | 1) => sixTraces.map((trace) => middle(rowOf(tables, trace, 'Tokens sent on the next request')[arm] ?? ''));
+  assert.deepEqual(nextRequest(0), [43995, 69039, 59893, 29343, 14671, 33098]);
+  assert.deepEqual(nextRequest(1), [8313, 26034, 12573, 13157, 12557, 12781]);
+  // The script's output that no file holds any more, right of six, per trace: the README's table.
+  assert.deepEqual(sixTraces.map((trace) => rightOf(tables, [trace], 'Exact, source gone', 0)[0]), [6, 5, 4, 6, 6, 6]);
+  assert.deepEqual(sixTraces.map((trace) => rightOf(tables, [trace], 'Exact, source gone', 1)[0]), [2, 1, 4, 1, 3, 1]);
+  // Every kind of question, Haiku over the six: the plugin's arm, then the built-in one's.
+  const kinds = KIND_ROWS.map((kind) => [rightOf(tables, sixTraces, kind, 0), rightOf(tables, sixTraces, kind, 1)]);
+  assert.deepEqual(kinds, [[[33, 36], [12, 36]], [[18, 18], [18, 18]], [[15, 18], [0, 18]], [[18, 18], [18, 18]], [[34, 36], [34, 36]], [[34, 36], [36, 36]]]);
+  assert.deepEqual([everyOf(tables, sixTraces, 0), everyOf(tables, sixTraces, 1)], [[152, 162], [118, 162]]);
+  // What a file said before it changed, in the four left as they were: 12 of 12, with no tool, from the conversation that was still there.
+  const then = asked.filter((unit) => unit.arm === 'plugin' && /haiku/.test(unit.model) && four.includes(unit.trace)).map((unit) => unit.questions.find((one) => one.id === 'then'));
+  assert.equal(then.filter((one) => one?.verdict === 'correct' && one.calls.length === 0).length, 12);
+  // The nine questions' cost, sending the whole conversation each time: the first run wrote it to the cache, the two after it read it.
+  assert.deepEqual(rowOf(tables, 'writes', 'All questions: cost, USD'), ['1.1160, 0.0802, 0.0809', '0.4245, 0.4375, 0.5103']);
+  assert.deepEqual(rowOf(tables, 'writes', 'Tokens sent on the next request', 'claude-sonnet-5-5'), ['86799', '28400']);
+  assert.deepEqual(rowOf(tables, 'writes', 'All questions: cost, USD', 'claude-sonnet-5-5'), ['2.8051', '0.9990']);
+
+  // Nothing of the machine: no home directory in either form a path of it takes, no key.
+  const text = JSON.stringify(all) + JSON.stringify(grades) + tables;
   assert.ok(!/[\/-]Users[\/-]|[\/-]home[\/-][a-z]|cctmp|CLOUDFLARE_API_TOKEN|TYPESAFE_API_KEY/.test(text));
 });
