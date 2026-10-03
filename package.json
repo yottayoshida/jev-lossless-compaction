@@ -14,6 +14,7 @@
     "test": "node --test \"test/**/*.test.ts\"",
     "test:hooks": "claude plugin test hooks",
     "bench": "node bench/main.ts",
+    "check:host": "node bench/host.ts",
     "validate": "sh test/validate.sh"
   },
   "devDependencies": {

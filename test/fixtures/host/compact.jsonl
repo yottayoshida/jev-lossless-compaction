@@ -1,0 +1,4 @@
+{"type": "system", "subtype": "ui_log", "text": "lossless-compaction: moved 4 of 6 tool results out (131652 -> 44994 chars, about 22705 of 167000 tokens in use) in 38 ms"}
+{"type": "system", "subtype": "hook_response", "hook_event": "SessionStart", "exit_code": 0, "stdout": ""}
+{"type": "system", "subtype": "init", "session_id": "00000000-0000-0000-0000-000000000000", "claude_code_version": "2.1.288", "tools": ["Read", "ToolSearch", "mcp__lossless-compaction__recall"], "plugins": [{"name": "lossless-compaction", "path": "<path>"}]}
+{"type": "result", "result": ""}
