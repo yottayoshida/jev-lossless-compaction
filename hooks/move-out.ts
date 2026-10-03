@@ -22,6 +22,7 @@ import {
   type Host,
   type Outcome,
 } from '../src/compact.ts';
+import { shownAgainNote } from '../src/changed.ts';
 import { find } from '../src/find.ts';
 import { keepThenSummarize, messagesFromApi, namedThroughParts } from '../src/keep.ts';
 import { IMAGE_TOKENS, blocksOf, mediaIn } from '../src/media.ts';
@@ -617,6 +618,21 @@ export const register: Register = (on, options) => {
   // result is not there (#54). Spelled out, not imported: tests hold them to the tools' names.
   on('tool.describe', { tool: 'mcp__lossless-compaction__recall' }, async ($, e, next) => ({ ...(await next(e)), isDeferred: false }));
   on('tool.describe', { tool: 'mcp__lossless-compaction__find' }, async ($, e, next) => ({ ...(await next(e)), isDeferred: false }));
+
+  // A file Claude Code shows again after a summary, which the plugin's line there names as changed
+  // since it was read: a line with the id of that reading stands in its place, unless the person
+  // handed the file over (#54, src/changed.ts decides). A subagent's conversation has no such line.
+  on('prompt.attachment', { type: 'file' }, async ($, e, next) => {
+    const shown = await next(e);
+    if (e.agentId !== undefined || shown.text === null) return shown;
+    try {
+      const note = shownAgainNote((await $.session.messages()) as readonly Message[], shown.text);
+      return note === null ? shown : { text: note };
+    } catch {
+      // The conversation could not be read: the file is shown as Claude Code shows it.
+      return shown;
+    }
+  });
 
   // Spelled out, not imported: a test holds it to FIND_TOOL.
   on('tool.call', { tool: 'mcp__lossless-compaction__find' }, async ($, e) => {

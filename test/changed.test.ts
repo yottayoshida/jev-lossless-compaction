@@ -2,7 +2,20 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-import { COMPARED, MAX_FILE_BYTES, MAX_PATH_CHARS, NAMED, changedLine, changedLines, readChangedLine, readingsIn, sameText, unnumbered } from '../src/changed.ts';
+import {
+  COMPARED,
+  MAX_FILE_BYTES,
+  MAX_PATH_CHARS,
+  NAMED,
+  changedLine,
+  changedLines,
+  readChangedLine,
+  readingsIn,
+  sameText,
+  shownAgainLine,
+  shownAgainNote,
+  unnumbered,
+} from '../src/changed.ts';
 import { KEPT, keepConversation, keepThenSummarize } from '../src/keep.ts';
 import { RECALL_TOOL, idOf, moveOut, readPartTicket, recall } from '../src/store.ts';
 import type { Message } from '../src/types.ts';
@@ -337,5 +350,98 @@ test('a conversation that cannot be read for its readings names nothing and thro
   assert.deepEqual(await changedLines(files, DIR, [DIR], [...read(a, log(1)), broken]), []);
   // The control: without the broken message the file is named.
   assert.equal((await changedLines(files, DIR, [DIR], read(a, log(1)))).length, 1);
+});
+
+/** A file as Claude Code shows it to the model: the call that would have read it, then its text as it is on disk. */
+const shownAs = (path: string) => `Called the Read tool with the following input: ${JSON.stringify({ file_path: path })}\nResult of calling the Read tool:\n1\tas it is now`;
+const say = (role: 'user' | 'assistant', text: string): Message => ({ role, text, toolUses: [] });
+const READING = 'c'.repeat(64);
+/**
+ * A conversation as it stands after a summary: the summary, the plugin's message naming `path` as changed, and behind
+ * it what Claude Code keeps from before the summary, an answer and the command that compacted.
+ */
+const afterSummary = (path: string): Message[] => [
+  say('user', 'This session is being continued from a previous conversation that ran out of context.'),
+  say('user', `${KEPT}, in 1 part; recall a part by its id.\n${changedLine(path, READING)}`),
+  say('assistant', 'Noted.'),
+  say('user', '<command-name>/compact</command-name>'),
+  say('user', '<local-command-stdout>Compacted</local-command-stdout>'),
+];
+
+test('a file shown again after a summary that the plugin named as changed has a line with the id of its reading in its place (#54)', () => {
+  const path = `${WORK}/src/changing.log`;
+  const line = shownAgainLine(path, READING);
+  assert.ok(line.includes(path) && line.includes(`${RECALL_TOOL} id ${READING}`) && !line.includes('as it is now\n'));
+  const asked = [...afterSummary(path), say('user', 'changing.log has been regenerated since you read it. What did line 44 say when it was read?')];
+  assert.equal(shownAgainNote(asked, shownAs(path)), line);
+  // With nothing said since, as after a compaction Claude Code started on its own: the answer kept from before the
+  // summary stands behind the plugin's message, and does not make the file one that came later.
+  assert.equal(shownAgainNote(afterSummary(path), shownAs(path)), line);
+
+  // Left as it is shown: a file the plugin did not name, a message of the plugin's that names none, and no such message.
+  assert.equal(shownAgainNote(asked, shownAs(`${WORK}/src/kept.log`)), null);
+  assert.equal(shownAgainNote([say('user', 'summary'), say('user', `${KEPT}, in 1 part; recall a part by its id.`), say('user', 'and now?')], shownAs(path)), null);
+  assert.equal(shownAgainNote([say('user', 'and now?')], shownAs(path)), null);
+  // The plugin's message after the last summary is the one read: an older one that named the file, with a later one that names none, names nothing.
+  const sinceUnchanged = [afterSummary(path)[1]!, say('user', 'a later summary'), say('user', `${KEPT}, in 1 part; recall a part by its id.`), say('user', 'and now?')];
+  assert.equal(shownAgainNote(sinceUnchanged, shownAs(path)), null);
+  // The same words in a message that holds results, or said by the agent, are not the plugin's message.
+  const inResult: Message = { role: 'user', text: afterSummary(path)[1]!.text, toolUses: [], toolResults: [{ tool_use_id: 'toolu_r', text: 'x', isError: false }] };
+  assert.equal(shownAgainNote([inResult, say('user', 'and now?')], shownAs(path)), null);
+  assert.equal(shownAgainNote([say('assistant', afterSummary(path)[1]!.text), say('user', 'and now?')], shownAs(path)), null);
+  // What is not a file as Claude Code shows it, or names no path, is left alone and throws nothing.
+  for (const shown of ['', 'something else', 'Called the Read tool with the following input: {', 'Called the Read tool with the following input: null', 'Called the Read tool with the following input: {"file_path":7}']) {
+    assert.equal(shownAgainNote(asked, shown), null, shown);
+  }
+});
+
+test('a file handed over with an @ behind the plugin\'s message is shown as it was asked for, whatever the plugin named (#54)', () => {
+  const path = `${WORK}/src/changing.log`;
+  const line = shownAgainLine(path, READING);
+  const typed = (text: string) => shownAgainNote([...afterSummary(path), say('user', text)], shownAs(path));
+  // By the whole path, by its last parts, in double quotes, with a range of lines, from another directory,
+  // and with a mark of the sentence or words right after it, as in a language written without spaces.
+  for (const said of [
+    `@${path} what does it say now?`,
+    'look at @src/changing.log, please',
+    '@changing.log',
+    '@./src/changing.log#L3-9',
+    `see @"${path}"`,
+    '(@changing.log)',
+    '@../work/src/changing.log',
+    '@changing.logを見て',
+    '「@changing.log」、お願い',
+  ]) {
+    assert.equal(typed(said), null, said);
+  }
+  // As a command's argument: typed as it is, and as Claude Code records a command, its arguments in a tag of their own.
+  assert.equal(typed('/review @changing.log'), null);
+  assert.equal(typed('<command-name>/review</command-name>\n<command-message>review</command-message>\n<command-args>@changing.log</command-args>'), null);
+  // What begins with a path is no command, and is read like anything else.
+  assert.equal(typed('/tmp/a.log and @changing.log: which is newer?'), null);
+  // A name with a space in it, in quotes or with the space after a backslash.
+  const spaced = `${WORK}/my notes.log`;
+  for (const said of ['@"my notes.log"', 'see @my\\ notes.log now']) {
+    assert.equal(shownAgainNote([...afterSummary(spaced), say('user', said)], shownAs(spaced)), null, said);
+  }
+  // On the side of showing: the name anywhere in what follows the @ counts, in another file's name as well.
+  assert.equal(typed('@unchanging.log'), null);
+  // In an earlier turn, answered since: Claude Code asks of each file again when a session is resumed.
+  const earlier = [...afterSummary(path), say('user', '@changing.log'), say('assistant', 'read'), say('user', 'and what did it say when it was first read?')];
+  assert.equal(shownAgainNote(earlier, shownAs(path)), null);
+  // And in what Claude Code kept from before the summary, which stands behind the plugin's message as well.
+  const [summary, plugins, ...kept] = afterSummary(path);
+  assert.equal(shownAgainNote([summary!, plugins!, say('user', 'read @changing.log'), ...kept, say('user', 'and then?')], shownAs(path)), null);
+
+  // Not handed over: another file with this one only named beside it, a name the file's only ends in, an @ that names
+  // no file, an @ the host put into the turn, and one the agent wrote.
+  for (const said of ['@other.log and what did changing.log say?', '@hanging.log', 'mail me @ noon about changing.log', '<system-reminder>\nsee @changing.log\n</system-reminder>what did it say?']) {
+    assert.equal(typed(said), line, said);
+  }
+  assert.equal(shownAgainNote([...afterSummary(path), say('assistant', 'I will look at @changing.log'), say('user', 'and then?')], shownAs(path)), line);
+  const inResult: Message = { role: 'user', text: '@changing.log', toolUses: [], toolResults: [{ tool_use_id: 'toolu_r', text: 'x', isError: false }] };
+  assert.equal(shownAgainNote([...afterSummary(path), inResult, say('user', 'and then?')], shownAs(path)), line);
+  // Nor what was typed before the summary and stands behind the plugin's message no more.
+  assert.equal(shownAgainNote([say('user', '@changing.log'), ...afterSummary(path), say('user', 'and then?')], shownAs(path)), line);
 });
 

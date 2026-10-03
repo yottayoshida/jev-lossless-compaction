@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import type { Provider } from '../src/ask.ts';
+import { changedLine, shownAgainLine } from '../src/changed.ts';
+import { KEPT } from '../src/keep.ts';
 import { FIND_IN_RECALL, recallDescription } from '../src/tools.ts';
 import { FIND_TOOL, RECALL_TOOL, STORE_COMMAND } from '../src/store.ts';
 import { KEY_VARIABLES, PLACE_VARIABLES, ROUTE_VARIABLES } from '../src/trust.ts';
@@ -15,6 +17,18 @@ const compaction = readFileSync(new URL('../src/compact.ts', import.meta.url), '
  * same tool names, and by the name alone one would stand in for the other that is gone.
  */
 const hookOn = (event: 'tool.call' | 'tool.describe', tool: string) => `on('${event}', { tool: '${tool}' }`;
+
+/** The hooks the hook file registers for `event`, each with the matcher it gave: registered for real, so that what a hook answers is seen and not only how it is spelled. */
+async function registered<Handler>(event: string): Promise<{ matcher: unknown; handler: Handler }[]> {
+  const { register } = (await import(new URL('../hooks/move-out.ts', import.meta.url).href)) as {
+    register: (on: (name: string, ...rest: unknown[]) => void, options: Record<string, unknown>) => void;
+  };
+  const found: { matcher: unknown; handler: Handler }[] = [];
+  register((name, ...rest) => {
+    if (name === event) found.push({ matcher: rest[0], handler: rest[1] as Handler });
+  }, {});
+  return found;
+}
 
 test('the tool.call matchers are spelled out in the hook and name the tools the store names', () => {
   assert.ok(hooks.includes(hookOn('tool.call', RECALL_TOOL)), 'recall matcher');
@@ -29,13 +43,7 @@ test('recall and find are listed in front of the agent, not behind ToolSearch, w
   // And registered: what each answers for a tool Claude Code keeps behind its tool search.
   type Described = { description: string; isDeferred?: boolean };
   type Describe = ($: unknown, e: { tool: string; description: string; isDeferred?: true }, next: (e: { description: string }) => Promise<Described>) => Promise<Described>;
-  const { register } = (await import(new URL('../hooks/move-out.ts', import.meta.url).href)) as {
-    register: (on: (event: string, ...rest: unknown[]) => void, options: Record<string, unknown>) => void;
-  };
-  const describes: { matcher: unknown; handler: Describe }[] = [];
-  register((event, ...rest) => {
-    if (event === 'tool.describe') describes.push({ matcher: rest[0], handler: rest[1] as Describe });
-  }, {});
+  const describes = await registered<Describe>('tool.describe');
   assert.deepEqual(describes.map((one) => one.matcher), [{ tool: RECALL_TOOL }, { tool: FIND_TOOL }]);
   for (const { matcher, handler } of describes) {
     const { tool } = matcher as { tool: string };
@@ -43,6 +51,49 @@ test('recall and find are listed in front of the agent, not behind ToolSearch, w
     const answered = await handler({}, { tool, description: 'as it was', isDeferred: true }, async (e) => ({ description: `${e.description}, computed`, isDeferred: true }));
     assert.deepEqual(answered, { description: 'as it was, computed', isDeferred: false }, tool);
   }
+});
+
+test('a file shown again that the plugin named as changed is answered with the line in its place: on the main conversation, of what the hooks after it show, and left as shown when the conversation cannot be read (#54)', async () => {
+  // Spelled out in the file: one hook, on what Claude Code attaches as a file.
+  assert.equal(hooks.split("on('prompt.attachment'").length - 1, 1);
+  type Shown = { text: string | null };
+  type Attach = ($: unknown, e: { type: string; text: string; agentId?: string }, next: (e: unknown) => Promise<Shown>) => Promise<Shown>;
+  const attaches = await registered<Attach>('prompt.attachment');
+  assert.deepEqual(attaches.map((one) => one.matcher), [{ type: 'file' }]);
+  const attach = attaches[0]!.handler;
+
+  const [path, reading] = ['/work/changing.log', 'c'.repeat(64)];
+  const shown = `Called the Read tool with the following input: ${JSON.stringify({ file_path: path })}\nResult of calling the Read tool:\n1\tas it is now`;
+  const conversation = [
+    { role: 'user', text: 'This session is being continued from a previous conversation.', toolUses: [] },
+    { role: 'user', text: `${KEPT}, in 1 part; recall a part by its id.\n${changedLine(path, reading)}`, toolUses: [] },
+  ];
+  let read = 0;
+  const host = (messages: () => Promise<unknown> = async () => conversation) => ({
+    session: {
+      messages: () => {
+        read += 1;
+        return messages();
+      },
+    },
+  });
+  const e = { type: 'file', text: 'what Claude Code made of it' };
+  const next = async () => ({ text: shown });
+
+  // What is judged and handed on is what the hooks after this one show, not what the event came with.
+  assert.deepEqual(await attach(host(), e, next), { text: shownAgainLine(path, reading) });
+  assert.deepEqual(await attach(host(), e, async () => ({ text: shown.replace('changing', 'kept') })), { text: shown.replace('changing', 'kept') });
+  // Left out by a hook after this one: it stays out, and the conversation is not read for it. Nor for a subagent's.
+  read = 0;
+  assert.deepEqual(await attach(host(), e, async () => ({ text: null })), { text: null });
+  assert.deepEqual(await attach(host(), { ...e, agentId: 'agent-1' }, next), { text: shown });
+  assert.equal(read, 0);
+  // The conversation cannot be read: the file is shown as Claude Code shows it, and nothing is thrown.
+  const failing = async () => {
+    throw new Error('no session');
+  };
+  assert.deepEqual(await attach(host(failing), e, next), { text: shown });
+  assert.equal(read, 1);
 });
 
 test('every tool and the compaction read where results are through placesOf, so the old place is read too', () => {
