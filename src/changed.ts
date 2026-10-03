@@ -179,3 +179,82 @@ export async function changedLines(files: Files, dir: string, read: readonly str
   if (more > 0) lines.push(`${more} more of the files read in the conversation ${more === 1 ? 'has' : 'have'} changed on disk as well.`);
   return lines;
 }
+
+// How Claude Code frames a file it shows the model, before the file's text: the call that would have read it.
+const SHOWN = 'Called the Read tool with the following input: ';
+// What the host put into a turn that nobody typed. A command's own tags are not among them: its arguments are what the person typed after it.
+const NOT_TYPED = /<(system-reminder|task-notification|local-command-[a-z]+)>[\s\S]*?<\/\1>/g;
+// What follows an `@`: in double quotes, or up to the next space, a space after a backslash being part of it.
+const MENTION = /@(?:"([^"]+)"|((?:\\ |\S)+))/g;
+
+/**
+ * True when `typed` hands a file of `path`'s name over with an `@`. How Claude
+ * Code reads an `@` is its own, so this errs on the side of showing: the name
+ * anywhere in what follows the `@` counts. `@log.txt`, `@src/log.txt#L3-9`,
+ * `@../x/log.txt` and `@log.txtを見て` all hand `log.txt` over, and so does
+ * `@catalog.txt`.
+ */
+function mentions(typed: string, path: string): boolean {
+  const name = path.slice(Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) + 1);
+  if (name === '') return false;
+  for (const match of typed.matchAll(MENTION)) {
+    if ((match[1] ?? match[2] ?? '').replaceAll('\\ ', ' ').includes(name)) return true;
+  }
+  return false;
+}
+
+/** What stands in place of a changed file as Claude Code shows it again: that it changed, the id its reading comes back by, and how it is read as it is now. */
+export function shownAgainLine(path: string, id: string): string {
+  return (
+    `[${PLUGIN}] Not shown again here: ${path} changed on disk since the conversation read it. ` +
+    `What the Read returned then comes back with ${RECALL_TOOL} id ${id}; the file as it is now, by reading it again.`
+  );
+}
+
+/**
+ * What stands in place of a file Claude Code shows the model, or null to
+ * leave it as shown. After a summary Claude Code shows the files read last
+ * again, as they are on disk then and in the words of a `Read` result, and an
+ * agent takes a file that changed for what it read (ADR 0014). So where the
+ * plugin's own message after the last summary names the file as changed, a
+ * line with the id of its reading stands in its place.
+ *
+ * Not once a file of that name has been handed over with an `@`, in anything
+ * typed that stands behind the plugin's message, a command's arguments
+ * included: a file shown again and a file handed over reach the plugin
+ * alike, and the one handed over is shown as it was asked for. What stands
+ * behind that message is what was typed since the summary and the last
+ * messages Claude Code kept from before it, so whether the summary was just
+ * now is not told. The answer rests on the conversation alone: asked again
+ * of the same file, as when a session is resumed, it is the same while the
+ * conversation is, and a file handed over since is then shown as it is.
+ */
+export function shownAgainNote(messages: readonly Message[], shown: string): string | null {
+  const first = shown.split('\n', 1)[0] ?? '';
+  if (!first.startsWith(SHOWN)) return null;
+  let path: unknown;
+  try {
+    path = (JSON.parse(first.slice(SHOWN.length)) as { file_path?: unknown } | null)?.file_path;
+  } catch {
+    return null;
+  }
+  if (typeof path !== 'string') return null;
+  let handedOver = false;
+  for (let at = messages.length - 1; at >= 0; at--) {
+    const message = messages[at]!;
+    // What the agent said, and a message that holds results, is neither the plugin's message nor typed by the person.
+    if (message.role !== 'user' || (message.toolResults?.length ?? 0) > 0) continue;
+    const said = message.text.replace(HOST_TEXT, '').trim();
+    if (said.startsWith(`[${PLUGIN}] `)) {
+      // The plugin's message after the last summary: what it names, and no older one.
+      if (handedOver) return null;
+      const reading = said
+        .split('\n')
+        .map(readChangedLine)
+        .find((one) => one !== null && one.path === path);
+      return reading ? shownAgainLine(reading.path, reading.id) : null;
+    }
+    handedOver ||= mentions(message.text.replace(NOT_TYPED, ''), path);
+  }
+  return null;
+}
