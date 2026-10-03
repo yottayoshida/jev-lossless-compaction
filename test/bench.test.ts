@@ -1305,6 +1305,17 @@ test('the benchmark with a /compact left undone (ADR 0015): the plugin measured 
   assert.deepEqual(rowOf(tables, 'writes', 'All questions: cost, USD'), ['1.1160, 0.0802, 0.0809', '0.4245, 0.4375, 0.5103']);
   assert.deepEqual(rowOf(tables, 'writes', 'Tokens sent on the next request', 'claude-sonnet-5-5'), ['86799', '28400']);
   assert.deepEqual(rowOf(tables, 'writes', 'All questions: cost, USD', 'claude-sonnet-5-5'), ['2.8051', '0.9990']);
+  // What the compaction and the nine questions cost on the four, as the README gives it: left as they were with the cache warm (runs 2 and 3,
+  // which read what run 1 wrote) and cold (run 1), against a summary and its nine; and the files read again a unit.
+  const haikuOn = (arm: string, runs: readonly number[]) => asked.filter((unit) => /haiku/.test(unit.model) && unit.arm === arm && four.includes(unit.trace) && runs.includes(unit.run));
+  const costOf = (unit: Unit) => unit.compaction.own.costUSD + unit.questions.reduce((sum, one) => sum + one.own.costUSD, 0);
+  const spanOf = (values: readonly number[], digits: number) => [Math.min(...values), Math.max(...values)].map((value) => Number(value.toFixed(digits)));
+  assert.deepEqual(spanOf(haikuOn('plugin', [2, 3]).map(costOf), 2), [0.04, 0.08]);
+  assert.deepEqual(spanOf(haikuOn('plugin', [1]).map(costOf), 2), [0.4, 1.12]);
+  assert.deepEqual(spanOf(haikuOn('builtin', [1, 2, 3]).map(costOf), 2), [0.18, 0.61]);
+  const readsOf = (unit: Unit) => unit.questions.reduce((sum, one) => sum + one.retrieval.reads, 0);
+  assert.deepEqual(spanOf(haikuOn('builtin', [1, 2, 3]).map(readsOf), 0), [1, 22]);
+  assert.ok(haikuOn('plugin', [1, 2, 3]).every((unit) => readsOf(unit) === 1));
 
   // Nothing of the machine: no home directory in either form a path of it takes, no key.
   const text = JSON.stringify(all) + JSON.stringify(grades) + tables;

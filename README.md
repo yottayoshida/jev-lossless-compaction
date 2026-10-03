@@ -137,14 +137,20 @@ figure is first and the built-in compaction's second:
   26 times of 30 through `recall`, against 10 of 30 after the built-in
   compaction alone, and the summary took longer with the plugin in 14 of 15
   pairs of runs, by a median 7.7 s.
-- **What goes the other way.** Where nothing was compacted, every later
-  request carries the whole conversation: 29,343 to 69,039 tokens against
-  12,522 to 26,318 after a summary, and what the questions cost turns on the
-  prompt cache. Where the plugin compacted by itself the next request was
-  43,995 tokens against 8,313. A rule stated in the first message was
-  answered 34 times of 36 against 36: in the conversation that is a third
-  thinking, left as it was, the agent twice asked back about the format
-  instead of stating it.
+- **Left as it was, a conversation is sent whole and read from the prompt
+  cache.** Every later request carries 29,343 to 69,039 tokens where a
+  summary left 12,522 to 26,318, but the conversation is what was sent just
+  before: with the cache still warm the nine questions cost 0.04 to 0.08 USD,
+  against 0.18 to 0.61 for a summary and its nine questions, which start a
+  new cache and read files again. With the cache cold they cost 0.40 to
+  1.12. On one machine, 40 of 42 `/compact`s by hand came within the hour
+  Claude Code keeps it.
+- **What goes the other way.** Where the plugin compacted by itself the next
+  request was 43,995 tokens against 8,313. A rule stated in the first
+  message was answered 34 times of 36 against 36: in the conversation that
+  is a third thinking, left as it was, the agent twice asked back about the
+  format, as it did three times of six asked of that conversation never
+  compacted. The summary had written the rule out.
 - **`find` was compared apart**, on seven distinct questions about what a
   result was and six about a value in it. Asked what a result was about, it
   gave or listed first the right one 16 times of 19; asked by a value
