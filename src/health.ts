@@ -5,7 +5,7 @@
 // which hold a size and a tool's name and nothing of a result, and from the
 // clean-up's own record. No stored result is opened.
 
-import { listed, whyNotNow, FIRST_WAIT_MS, type GcState, type List, type StopKind } from './lifetime.ts';
+import { listed, whyNotNow, FIRST_WAIT_MS, GC_EVERY_MS, type GcState, type List, type StopKind } from './lifetime.ts';
 import { PART, PLUGIN, isOwnTool } from './store.ts';
 import type { DirEntry, Files } from './types.ts';
 
@@ -147,4 +147,39 @@ export function storeReport(counted: readonly Counted[], gc: GcState, now: numbe
   }
   lines.push('', 'Results are plain text on this machine (docs/limits.md, "The files").');
   return lines.join('\n');
+}
+
+/** How long without a clean-up that ended before a session says so: two of its weeks, so that one missed is not said (ADR 0016). */
+export const LATE_MS = 2 * GC_EVERY_MS;
+
+/**
+ * Since when no clean-up has ended, when that is `LATE_MS` or more: the last
+ * that ended, or, if none ever has, the first place transcripts are kept in
+ * that was recorded, or, if none is on record, the oldest result kept. Null
+ * when it is less, and when that time is ahead of `now` (a clock that ran
+ * ahead), which holds the clean-up back as well until it is reached.
+ */
+export function lateSince(gc: GcState, oldestResult: number | null, now: number): number | null {
+  const since = gc.lastRun > 0 ? gc.lastRun : gc.roots.length > 0 ? gc.firstSeen : oldestResult;
+  return since !== null && since > 0 && now - since >= LATE_MS ? since : null;
+}
+
+/** The line a session starts with when no clean-up has ended since `since`. How to record a place is not promised: it takes more than one thing. */
+export function lateLine(since: number, now: number, noPlace: boolean): string {
+  return (
+    `moved-out results have not been cleaned up since ${dayText(since)} UTC (${Math.floor((now - since) / DAY)} days)` +
+    (noPlace ? ', and no place transcripts are kept in is on record' : '') +
+    '; /lossless-store says how the clean-up went'
+  );
+}
+
+/** The time of the oldest result in `dirs`, or null when there is none: what a store with no place recorded is late since. */
+export async function oldestResult(list: List, dirs: readonly string[]): Promise<number | null> {
+  let oldest: number | null = null;
+  for (const dir of dirs) {
+    for (const entry of filesIn(await listed(list, `${dir}/blobs`))) {
+      if (entry.name.endsWith('.txt') && (oldest === null || entry.mtimeMs < oldest)) oldest = entry.mtimeMs;
+    }
+  }
+  return oldest;
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { STOP_SAID, countStore, sizeText, storeReport } from '../src/health.ts';
+import { LATE_MS, STOP_SAID, countStore, lateLine, lateSince, oldestResult, sizeText, storeReport } from '../src/health.ts';
 import { FIRST_WAIT_MS, STOP_KINDS, noteRoot, noteStopped, noteTried, stateIn } from '../src/lifetime.ts';
 import { PART } from '../src/store.ts';
 import { MemoryFiles } from './helpers.ts';
@@ -154,4 +154,47 @@ test('every kind of stop has words, none of which name a path', () => {
   assert.equal(sizeText(512), '512 B');
   assert.equal(sizeText(2048), '2.0 KB');
   assert.equal(sizeText(5 * 1024 * 1024), '5.0 MB');
+});
+
+test('a clean-up is late 14 days after the last that ended, or the first place recorded, or the oldest result, and not a millisecond before (ADR 0016)', () => {
+  assert.equal(LATE_MS, 14 * DAY);
+  const gc = (lastRun: number, roots: string[], firstSeen: number) => ({ roots, firstSeen, lastRun, tried: 0, tries: 0, stopped: null });
+  // The last that ended.
+  assert.equal(lateSince(gc(NOW - 14 * DAY, [ROOT], NOW - 90 * DAY), null, NOW), NOW - 14 * DAY);
+  assert.equal(lateSince(gc(NOW - 14 * DAY + 1, [ROOT], NOW - 90 * DAY), null, NOW), null);
+  assert.equal(lateSince(gc(NOW - DAY, [ROOT], NOW - 90 * DAY), null, NOW), null, 'ended yesterday');
+  // None ended: the first place recorded; in its first week, never late.
+  assert.equal(lateSince(gc(0, [ROOT], NOW - 14 * DAY), null, NOW), NOW - 14 * DAY);
+  assert.equal(lateSince(gc(0, [ROOT], NOW - 14 * DAY + 1), null, NOW), null);
+  assert.equal(lateSince(gc(0, [ROOT], NOW - 3 * DAY), NOW - 90 * DAY, NOW), null, 'the oldest result does not count where a place is recorded');
+  // No place ever: the oldest result; none, never late.
+  assert.equal(lateSince(gc(0, [], 0), NOW - 14 * DAY, NOW), NOW - 14 * DAY);
+  assert.equal(lateSince(gc(0, [], 0), NOW - 14 * DAY + 1, NOW), null);
+  assert.equal(lateSince(gc(0, [], 0), null, NOW), null);
+  // One that ended, and no place now: since it ended.
+  assert.equal(lateSince(gc(NOW - 20 * DAY, [], 0), NOW - 90 * DAY, NOW), NOW - 20 * DAY);
+  // A time ahead of now, from a clock that ran ahead: not late, as the clean-up waits for it too.
+  assert.equal(lateSince(gc(NOW + DAY, [ROOT], NOW - 90 * DAY), null, NOW), null);
+});
+
+test('the late line says since when and how many days, and that no place is recorded only when none is; how to record one is not promised', () => {
+  assert.equal(
+    lateLine(NOW - 20 * DAY, NOW, false),
+    'moved-out results have not been cleaned up since 2026-09-30 UTC (20 days); /lossless-store says how the clean-up went',
+  );
+  assert.equal(
+    lateLine(NOW - 20 * DAY - 1000, NOW, true),
+    'moved-out results have not been cleaned up since 2026-09-30 UTC (20 days), and no place transcripts are kept in is on record; /lossless-store says how the clean-up went',
+  );
+});
+
+test('the oldest result is the oldest blob of every place, by its time; none, null', async () => {
+  const files = new Guarded();
+  await storeIn(files, DIR);
+  await storeIn(files, OLD);
+  files.mtimes.set(`${OLD}/blobs/${hex('b')}.txt`, NOW - 30 * DAY);
+  assert.equal(await oldestResult(list(files), [DIR, OLD]), NOW - 30 * DAY);
+  const empty = new Guarded();
+  empty.dirs.add(`${DIR}/blobs`);
+  assert.equal(await oldestResult(list(empty), [DIR, '/nowhere']), null);
 });

@@ -251,3 +251,24 @@ test('a clean-up that stops records the kind, never its words: from where it sto
   assert.equal(collecting.split('stoppedAs(').length - 1, 5, 'four places it stops and the declaration');
   assert.ok(!/noteStopped\([^)]*\.stop\b/.test(collecting));
 });
+
+test('a session says the clean-up is late right after its record is read, whether it then tries or not, once a process (ADR 0016)', () => {
+  const collecting = hooks.slice(hooks.indexOf('async function collectOnce('), hooks.indexOf('function numberIn('));
+  const read = collecting.indexOf('const state = await stateIn(files, list, dirs);');
+  const late = collecting.indexOf('const since = lateSince(state, oldest, now);');
+  const decided = collecting.indexOf('if (whyNotNow(state, now) !== null) return;');
+  assert.ok(read > 0 && read < late && late < decided, 'after the record is read, before it is decided whether to try');
+  // The oldest result only where no clean-up ended and no place is recorded.
+  assert.ok(collecting.includes('const oldest = state.lastRun === 0 && state.roots.length === 0 ? await oldestResult(list, dirs) : null;'));
+  assert.ok(collecting.includes('say($, lateLine(since, now, state.roots.length === 0));'));
+  // Once a process.
+  assert.ok(hooks.includes('let toldLate = false;'));
+  // Claimed before the first await, so that a second session.start right after does not say it again.
+  const claimed = collecting.indexOf('const tell = !toldLate;\n  toldLate = true;');
+  assert.ok(claimed > 0 && claimed < collecting.indexOf('await '), 'before anything is awaited');
+  assert.ok(collecting.includes('if (tell) {'));
+  // Given back unless it was said: a later session.start in the same process, past the 14 days, says it.
+  assert.ok(collecting.includes('say($, lateLine(since, now, state.roots.length === 0));\n        said = true;'));
+  assert.ok(collecting.includes('} finally {\n    if (tell && !said) toldLate = false;\n  }'));
+  assert.equal(hooks.split('lateLine(').length - 1, 1, 'said in one place');
+});
