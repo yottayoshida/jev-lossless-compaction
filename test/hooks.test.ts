@@ -10,9 +10,39 @@ import { KEY_VARIABLES, PLACE_VARIABLES, ROUTE_VARIABLES } from '../src/trust.ts
 const hooks = readFileSync(new URL('../hooks/move-out.ts', import.meta.url), 'utf8');
 const compaction = readFileSync(new URL('../src/compact.ts', import.meta.url), 'utf8');
 
+/**
+ * How the hook file spells a hook on one tool. With the event: two events match the
+ * same tool names, and by the name alone one would stand in for the other that is gone.
+ */
+const hookOn = (event: 'tool.call' | 'tool.describe', tool: string) => `on('${event}', { tool: '${tool}' }`;
+
 test('the tool.call matchers are spelled out in the hook and name the tools the store names', () => {
-  assert.ok(hooks.includes(`{ tool: '${RECALL_TOOL}' }`), 'recall matcher');
-  assert.ok(hooks.includes(`{ tool: '${FIND_TOOL}' }`), 'find matcher');
+  assert.ok(hooks.includes(hookOn('tool.call', RECALL_TOOL)), 'recall matcher');
+  assert.ok(hooks.includes(hookOn('tool.call', FIND_TOOL)), 'find matcher');
+});
+
+test('recall and find are listed in front of the agent, not behind ToolSearch, with the description they had (#54)', async () => {
+  // Spelled out in the file, where Claude Code reads a matcher from: those two, and no other tool is moved.
+  for (const tool of [RECALL_TOOL, FIND_TOOL]) assert.ok(hooks.includes(hookOn('tool.describe', tool)), tool);
+  assert.equal(hooks.split("on('tool.describe'").length - 1, 2);
+
+  // And registered: what each answers for a tool Claude Code keeps behind its tool search.
+  type Described = { description: string; isDeferred?: boolean };
+  type Describe = ($: unknown, e: { tool: string; description: string; isDeferred?: true }, next: (e: { description: string }) => Promise<Described>) => Promise<Described>;
+  const { register } = (await import(new URL('../hooks/move-out.ts', import.meta.url).href)) as {
+    register: (on: (event: string, ...rest: unknown[]) => void, options: Record<string, unknown>) => void;
+  };
+  const describes: { matcher: unknown; handler: Describe }[] = [];
+  register((event, ...rest) => {
+    if (event === 'tool.describe') describes.push({ matcher: rest[0], handler: rest[1] as Describe });
+  }, {});
+  assert.deepEqual(describes.map((one) => one.matcher), [{ tool: RECALL_TOOL }, { tool: FIND_TOOL }]);
+  for (const { matcher, handler } of describes) {
+    const { tool } = matcher as { tool: string };
+    // The description is what the hooks after this one make of it, handed on as it is; only where the tool waits changes.
+    const answered = await handler({}, { tool, description: 'as it was', isDeferred: true }, async (e) => ({ description: `${e.description}, computed`, isDeferred: true }));
+    assert.deepEqual(answered, { description: 'as it was, computed', isDeferred: false }, tool);
+  }
 });
 
 test('every tool and the compaction read where results are through placesOf, so the old place is read too', () => {
@@ -25,7 +55,7 @@ test('every tool and the compaction read where results are through placesOf, so 
 });
 
 test("the find hook hands find the host's clock, answers a broken provider setting itself, and catches what the host throws", () => {
-  const handler = hooks.slice(hooks.indexOf(`{ tool: '${FIND_TOOL}' }`));
+  const handler = hooks.slice(hooks.indexOf(hookOn('tool.call', FIND_TOOL)));
   assert.ok(handler.includes('wait: (ms, signal) => $.clock.sleep(ms, { signal })'), 'clock');
   assert.ok(handler.includes('find cannot ask Jev: ${provider.error}'), 'provider error');
   assert.ok(handler.includes('} catch (error) {'), 'catch');
@@ -72,9 +102,9 @@ test('a compaction makes the place private before anything is written, and gives
 test('the clean-up runs after the session starts, unwaited, and recall, find and the compaction put back from the trash first', () => {
   const start = hooks.slice(hooks.indexOf("on('session.start'"), hooks.indexOf("on('tool.call'"));
   assert.ok(start.includes('void collectOnce($, options);'), 'not waited for');
-  const recallHook = hooks.slice(hooks.indexOf(`{ tool: '${RECALL_TOOL}' }`), hooks.indexOf(`{ tool: '${FIND_TOOL}' }`));
+  const recallHook = hooks.slice(hooks.indexOf(hookOn('tool.call', RECALL_TOOL)), hooks.indexOf(hookOn('tool.call', FIND_TOOL)));
   assert.ok(recallHook.includes('restoreFor($, store, new Set([id]))'), 'recall');
-  const findHook = hooks.slice(hooks.indexOf(`{ tool: '${FIND_TOOL}' }`), hooks.indexOf("on('session.compact'"));
+  const findHook = hooks.slice(hooks.indexOf(hookOn('tool.call', FIND_TOOL)), hooks.indexOf("on('session.compact'"));
   assert.ok(findHook.indexOf('restoreFor($, store, ticketIds(messages))') < findHook.indexOf('await find('), 'find, first');
   const attempt = hooks.slice(hooks.indexOf('async function attempt('), hooks.indexOf('export const register'));
   assert.ok(attempt.indexOf('restoreFor($, store, ticketIds(messages))') < attempt.indexOf('await compact('), 'the compaction, first');
@@ -160,7 +190,7 @@ test('a result that holds an image is told from the blocks, handed to the compac
   assert.ok(hooks.includes('media: media.results,'), 'handed to the compaction');
   assert.ok(hooks.includes(': Math.ceil(charsOf(messages) / CHARS_PER_TOKEN) + media.images * IMAGE_TOKENS;'), 'a size made up from characters counts the images too, since the compaction takes them off');
   assert.ok(hooks.includes('whyNotRebuilt(messages, api) ?? (media.why === null ? null :'), 'what cannot be carried stops the rebuild');
-  const handler = hooks.slice(hooks.indexOf(`{ tool: '${RECALL_TOOL}' }`), hooks.indexOf(`{ tool: '${FIND_TOOL}' }`));
+  const handler = hooks.slice(hooks.indexOf(hookOn('tool.call', RECALL_TOOL)), hooks.indexOf(hookOn('tool.call', FIND_TOOL)));
   assert.ok(handler.includes('return { result: found.parts === undefined ? found.text : blocksOf(found.parts) };'), 'text as before, and what holds an image as its blocks (src/media.ts decides their form)');
 });
 
@@ -221,7 +251,7 @@ test('/lossless-store is a command, not a tool: registered at the start, answere
   assert.ok(start.includes('immediate: true'), 'answers mid-turn too');
   // The tools the agent is offered are the two they were.
   assert.equal(hooks.split('$.tool.register(').length - 1, 2);
-  const handler = hooks.slice(hooks.indexOf("on('command.run'"), hooks.indexOf(`{ tool: '${RECALL_TOOL}' }`));
+  const handler = hooks.slice(hooks.indexOf("on('command.run'"), hooks.indexOf(hookOn('tool.call', RECALL_TOOL)));
   assert.ok(handler.includes('const store = await storeOf($, options);'), 'the place as the repository cannot decide it');
   assert.ok(handler.includes('for (const dir of store.read)'), 'every place read');
   // A place is counted as the clean-up takes it: a plain directory, not a link.

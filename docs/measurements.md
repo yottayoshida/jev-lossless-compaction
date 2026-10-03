@@ -745,6 +745,213 @@ Not measured: Sonnet with an agent in between, and Opus but once
 ([with Opus 5.5](#with-opus-55-and-in-a-window-of-1000000)); a working session; values as people ask for
 them, which may come in another letter case or in part.
 
+## The tools in front of the agent
+
+On 2026-10-03, Claude Code 2.1.288, for #54: what makes Haiku 4.5 fetch a
+result that was moved out, where it had answered that it saw none. Each of
+three steps was to be measured before it was built, by a rule set before
+measuring, and built only if it reached the rule. `opaque`, `results` and
+`full` were built again from the same traces, and every plugin below was
+asked the questions `find` is for on those same buildings, one after
+another: main at `44f410f` (the baseline) and checkouts of it with one
+change each. Three runs of each with Haiku 4.5, with a key (`find`
+registered) and without. An answer is right when it holds the line asked
+for, which the program decides; of the questions `find` is for, no model
+graded any. `44f410f` is from before
+[`find` looked for a value](#find-asked-for-a-value) (#55); what is merged
+has both, and was measured afterwards ([below](#as-it-is-merged)).
+
+### Answers with no call
+
+In [`opaque`](#find-where-the-calls-say-nothing) the baseline called neither
+`recall` nor `find` for 9 of the 21 questions by meaning with a key, and for
+13 of 21 without. Where Claude Code loads tools on demand, `recall` and `find` wait
+behind its tool search, and their descriptions are read only once one is
+loaded. Two changes were set against that:
+
+- **Listed.** A `tool.describe` hook answers `isDeferred: false` for
+  `recall` and for `find`: both stand in the list of tools the agent is
+  given, with their descriptions as they were.
+- **A line.** The tools are left where they wait, and a message is put last
+  in a conversation the plugin compacted: how many results were moved out,
+  that what they held is not in the conversation, and that `recall` brings
+  one back by its id, or `find`, with a key, by what it was about.
+
+The rule: a change is built if, of the 21 questions by meaning with a key,
+the agent calls `recall` or `find` for at least 7 more than the baseline
+and is right on at least 7 more, and the right answers in `results` and in
+`full` fall by no more than 2. Two sums of 21 answers, each right about
+half the time, lie about 3.2 apart at one standard deviation; the calls and
+the right answers move together, so the second condition adds little to
+the first. If both changes reach it, the smaller one is built.
+
+| Plugin   | Key | Calls `recall` or `find`, by meaning | Right, by meaning | Right, by a code |
+| -------- | --- | -----------------------------------: | ----------------: | ---------------: |
+| Baseline | no  |                              8 of 21 |           4 of 21 |           3 of 9 |
+| Baseline | yes |                             12 of 21 |          11 of 21 |           1 of 9 |
+| Listed   | no  |                              4 of 21 |           3 of 21 |           3 of 9 |
+| Listed   | yes |                             19 of 21 |          19 of 21 |           0 of 9 |
+| A line   | no  |                              3 of 21 |           3 of 21 |           2 of 9 |
+| A line   | yes |                             18 of 21 |          17 of 21 |           0 of 9 |
+
+Right answers in the two other conversations, of 24 in `results` and of 15
+in `full`:
+
+| Plugin   | `results`, no key | `results`, key | `full`, no key | `full`, key |
+| -------- | ----------------: | -------------: | -------------: | ----------: |
+| Baseline |                15 |             19 |             12 |          12 |
+| Listed   |                20 |             24 |             10 |          13 |
+| A line   |                15 |             18 |             11 |          10 |
+
+Listed reached the rule, with 7 more questions that had a call and 8 more
+right, and is what was built. A line fell one short of it on both, 6 and 6.
+
+- With a key, every question counted as having a call had one to `find`,
+  and with the tools listed each of those 19 was answered right.
+- With the tools listed the agent searched for no tool: none of the 138
+  questions had a call to Claude Code's tool search, where 85 of the
+  baseline's 138 had one.
+- With no key there is no `find`, and listing `recall` did not make the
+  agent fetch more: by meaning it called for 4 questions where the baseline
+  called for 8, and was right on 3 where the baseline was on 4, which is no
+  further apart than one set of three runs lies from the next. Its answers
+  with no call say that the result would be recalled given its id: nothing
+  in front of the agent says which of thirteen tickets is the one asked
+  about.
+- Asked with a key for a code further down a document, the agent with the
+  tools listed calls `find` for 9 of 9 and is right on 0, where the baseline
+  called it for 7 and was right on 1: in this code, from before #55, `find`
+  answers that no result is about it.
+- A question's first request was no larger with the tools listed: a median
+  32,768 tokens against 32,801, in `opaque` with a key. The 30 questions
+  there took 197 seconds and 0.95 USD, where the baseline took 520 and
+  1.48; `recall` was called 7 times in them, where the baseline called it
+  32 times.
+- With a key, calling `find` more often is sending more often: each call
+  sends the provider the question and, of every result moved out, its call
+  and a digest of it. Over the three conversations `find` was called in 51
+  of 69 questions with the tools listed, where the baseline called it in
+  27, and in 18 of 24 in `results`, where every call names the file it
+  read and the baseline called it in 5.
+
+Sonnet 5.5 on `opaque`, one run of the baseline and one with the tools
+listed, came out the same either way: with a key it called `find` for 6 of
+the 7 questions by meaning and was right on 6, and on 1 of the 3 codes; with
+no key, right on 5 and on 1. It searched for a tool in each of the
+baseline's 20 questions and in none with the tools listed.
+
+### As it is merged
+
+While this was measured `find` came to look for a value in the whole of
+each result ([above](#find-asked-for-a-value), #55), so the code that is
+merged was measured once more: main at `d43ffeb` with the two hooks, on the
+same buildings, with a key, three runs with Haiku 4.5.
+
+| Asked                | Calls `find` |    Right |
+| -------------------- | -----------: | -------: |
+| `opaque`, by meaning |     20 of 21 | 19 of 21 |
+| `opaque`, by a code  |       9 of 9 |   9 of 9 |
+| `results`            |     19 of 24 | 23 of 24 |
+| `full`               |      7 of 15 | 12 of 15 |
+
+None of the 69 questions had a call to the tool search, and 55 had one to
+`find` (56 calls, where the baseline made 33), 19 of the 24 in `results`.
+The codes, 0 of 9
+right with the tools listed and `find` as it was, are 9 of 9 with the tools
+listed and `find` as it now is. Sonnet 5.5, one run: `find` for 6 of the 7
+questions by meaning and 6 right, and 3 of the 3 codes. With no key there is
+no `find` and #55 changes nothing, so that arm was not measured again.
+
+### A note in place of a file shown again
+
+Since ADR 0015 a `/compact` typed by hand leaves four of the benchmark's
+conversations as they were, and a question about a file that changed is
+answered from the reading still in the conversation. The summary still runs
+on a compaction Claude Code starts and on a conversation that is too full.
+So `writes`, `prose`, `short` and `thinking` were built again and sent to
+the summary with `maxAfterPercent` at 1, three runs with Haiku 4.5, and
+asked the benchmark's questions: by the baseline (`44f410f`), and by a
+checkout of it with a `prompt.attachment` hook on attachments of the kind
+`file`. Where the plugin's line after the summary names a file as changed,
+the hook puts a note in place of that file as Claude Code shows it again:
+that it changed on disk since the conversation read it, the id its reading
+comes back by, and that the file as it is now is read by reading it again.
+
+The rule: built if what the file said when it was read is right at least 4
+more times of 12 than the baseline and at least 10 times, what it says now
+and an unchanged file come out no worse, and Sonnet 5.5 is no worse on one
+run of `short`.
+
+| Asked                                             | Baseline | With the note | As merged |
+| ------------------------------------------------- | -------: | ------------: | --------: |
+| What the file said when it was read, of 12        |        7 |            12 |         9 |
+| What it says now, of 12                           |       12 |            12 |        12 |
+| A file that is unchanged, of 12                   |       12 |            12 |        12 |
+| The script's output no file holds any more, of 24 |       24 |            23 |        23 |
+
+"As merged" is main at `d43ffeb` with the tools listed and no note, measured
+on the same buildings afterwards; the note was not measured on it.
+
+The note reached the rule. In `writes`, where the changed file is not shown
+again, all three were right 3 times of 3; in the other three the baseline was
+right 4 times of 9 and the code as merged 6 times of 9, each miss an answer
+with no call that gave another text, and with the note each of the 12 answers
+came after one `recall` and no reading of the file. That a miss gave another
+text, and did not say it could not tell, is the grading model's reading of
+it; right or not is the program's. By the sessions' records, which are
+not published, the note stood in the changed file's place once in each of
+the 81 sessions that asked a question of those three conversations, and in
+place of no other file. Sonnet 5.5 on `short`, one run: right on all three
+with the note, without it and as merged, with one `recall` for the reading
+each time.
+
+It is not built. A file Claude Code shows again after a summary and a file
+the person hands over later reach the hook alike, as an attachment of the
+kind `file` whose origin is the engine. And the conversation does not say
+whether the summary was just now: Claude Code keeps the last messages from
+before a summary behind the plugin's line, so an answer after that line may
+be older than it. A first form of the hook took such an answer for a later
+turn, and put the note in place of nothing in 12 units. As measured, the
+note stands in place of a changed file whenever it is attached, until the
+next summary. Whether that is wanted, or how the two are told apart, is
+open on #54.
+
+### An id copied wrong
+
+Over every unit above `recall` was called 925 times. By the sessions'
+records, which are not published, it refused the id 13 times, in 9
+questions, all with Haiku 4.5: 10 times for an id that is not 64 hexadecimal
+characters (twice the result's size in bytes was given in its place) and 3
+times for 64 characters nothing is stored under. The rule: `recall` takes an
+id it can match to one ticket of the conversation by its first 16 characters
+or more, if 3 calls or more are refused and more than half of them match so.
+8 of the 13 do; 3 go wrong at the thirteenth character, and 2 are no id.
+That reaches the rule, by three calls of one question, where the agent gave
+the first half of an id three times before the whole of it. It is not in
+this change, and is left for one of its own (#54).
+
+What it would bring in these units is small. In 8 of the 9 questions a later
+`recall` went through, and the ninth was answered right from results still
+in the conversation. 7 of the 9 were answered right, and in the 2 that were
+not a `recall` had gone through: no answer was lost to a refused id here.
+
+### Where the units are, and what this does not show
+
+The units are in `bench/results/2026-10-03-listed/` (`baseline`, `listed`,
+`line`, `merged`) and `bench/results/2026-10-03-shown-again/` (`baseline`,
+`note`, `merged`), and a test holds the tables and the figures above to
+them. How often `recall` refused an id and what became of those questions,
+and how often the note stood in a file's place, are of the sessions'
+records.
+`listed`, `line` and `note` were measured on checkouts of `44f410f` made for
+measuring, whose commits are in no branch; the code of `merged` is the code
+this change merged. On it `npm run check:host` passed on Claude Code
+2.1.288, and `claude plugin validate` took the hooks on 2.1.285 to 2.1.288.
+
+Not measured: Opus; a working session; a compaction Claude Code starts on
+its own; a question asked many turns after the compaction, where each of
+these was asked right after it; a Claude Code older than 2.1.285.
+
 ## The README's demo, after the rename
 
 A fresh conversation under 0.4.0, on a machine holding

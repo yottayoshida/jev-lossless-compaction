@@ -17,7 +17,8 @@ conversation still goes to Claude Code's summary, the plugin keeping it first
 
 Each figure is from one recorded session
 ([how each was taken](docs/measurements.md)), and shows the plugin where it
-does best.
+does best. Asked about a result that was moved out, Haiku 4.5 with a key set
+called `find` for 48 of 54 questions.
 
 ## Quick start
 

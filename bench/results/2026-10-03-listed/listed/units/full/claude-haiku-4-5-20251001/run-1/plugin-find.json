@@ -1,0 +1,195 @@
+{
+ "trace": "full",
+ "version": 1,
+ "base": "2a9d69b0-ba12-4811-993e-dcb63f5cd6a7",
+ "plugin": "d2a561d53d84",
+ "pluginCommit": "7977b38b25ae",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 1,
+ "arm": "plugin",
+ "first": true,
+ "variant": "default",
+ "mode": "find",
+ "at": "2026-10-03T05:27:45.012Z",
+ "claudeCode": "2.1.288",
+ "compaction": {
+  "sessionId": "619b7b96-4c8d-4a85-b9b8-47002266743d",
+  "durationMs": 23200,
+  "wallMs": 24513,
+  "preTokens": 143016,
+  "postTokens": 5432,
+  "thinkingBefore": 881,
+  "line": {
+   "outcome": "nothing",
+   "moved": 0,
+   "results": 3,
+   "images": 0,
+   "charsBefore": 609213,
+   "charsAfter": 609213,
+   "ms": 5,
+   "estimate": 141122,
+   "window": 167000
+  },
+  "summarized": true,
+  "own": {
+   "inputTokens": 1534,
+   "outputTokens": 1900,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 143355,
+   "costUSD": 0.19022775000000003,
+   "thinkingTokens": 611
+  }
+ },
+ "questions": [
+  {
+   "id": "find-report",
+   "kind": "exact-gone",
+   "answer": "I don't see a line containing \"d894a92d\" in the earlier results provided to me. The summary contains recall IDs for the moved-out conversation parts, but none of them include that string. Could you clarify which result you're referring to, or would you like me to recall a specific part of the earlier conversation?",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 4,
+   "requests": [
+    14250
+   ],
+   "durationMs": 20345,
+   "wallMs": 21630,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 1168,
+    "cacheReadInputTokens": 5562,
+    "cacheCreationInputTokens": 8678,
+    "costUSD": 0.023762199999999956,
+    "thinkingTokens": 1092
+   }
+  },
+  {
+   "id": "find-kept",
+   "kind": "exact-gone",
+   "answer": "record 95-0017: station 7446 reported 622 units at step 17",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14252
+   ],
+   "durationMs": 3029,
+   "wallMs": 4585,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 228,
+    "cacheReadInputTokens": 5562,
+    "cacheCreationInputTokens": 8680,
+    "costUSD": 0.019066200000000033,
+    "thinkingTokens": 202
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-script",
+   "kind": "exact-gone",
+   "answer": "\"batch 01: 0 warnings, checksum 9e3a90c4\"",
+   "calls": [
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 3,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14253,
+    23044,
+    24007,
+    26346
+   ],
+   "durationMs": 12004,
+   "wallMs": 13248,
+   "own": {
+    "inputTokens": 34,
+    "outputTokens": 794,
+    "cacheReadInputTokens": 66840,
+    "cacheCreationInputTokens": 20776,
+    "costUSD": 0.05223999999999995,
+    "thinkingTokens": 471
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-stays",
+   "kind": "exact-gone",
+   "answer": "`record 95-0001: station 418 reported 126 units at step 1`",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14262
+   ],
+   "durationMs": 2903,
+   "wallMs": 4407,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 266,
+    "cacheReadInputTokens": 5562,
+    "cacheCreationInputTokens": 8690,
+    "costUSD": 0.019276199999999966,
+    "thinkingTokens": 238
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-changes",
+   "kind": "exact-gone",
+   "answer": "changing-5.log was the file that changed on disk. Its first line:\n\n```\nrecord 85-0001: station 9081 reported 473 units at step 1\n```",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    14262
+   ],
+   "durationMs": 4027,
+   "wallMs": 5499,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 354,
+    "cacheReadInputTokens": 5562,
+    "cacheCreationInputTokens": 8690,
+    "costUSD": 0.01971619999999996,
+    "thinkingTokens": 306
+   }
+  }
+ ]
+}

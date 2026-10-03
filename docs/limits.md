@@ -681,16 +681,25 @@ of it longer than the agent's reading tool takes (Claude Code's `Read` cuts
 lines over 2,000 characters) may reach the agent cut. A request to Jev is
 given up after twenty seconds.
 
-When Claude Code loads tools on demand, the agent has to load `recall` or
-`find` by name before calling it, and sees a tool's description only once it
-has. It loads `recall`, which the tickets name; with a key set, `recall`'s
-description says that `find` finds a result from what it was about. Where
-the calls that made the results say nothing of what is in them, Haiku 4.5
-with a key set calls `find`, without being told to, for about half the
-questions about what a result was about: 11 of 21, in a made-up conversation of
-thirteen such results, all moved out (Sonnet 5.5, one run: 6 of 7). Where the calls
-name what they read, it calls `find` seldom and `recall` by the ticket's
-id.
+`recall` and `find` stand in the list of tools the agent is given, with
+their descriptions: a `tool.describe` hook keeps the two from waiting behind
+Claude Code's tool search, where an agent reads a tool's description only
+once it has loaded the tool, and Haiku 4.5 often answered that a moved-out
+result was not there. `claude plugin validate` takes the hook on Claude Code
+2.1.285 to 2.1.288; an earlier one was not tried, and one that does not know
+the event would load no hook of the plugin at all, and the line at the first
+message would name the setting for function hooks, not the version (ADR
+0010, ADR 0014, ADR 0017). Where the calls that made the results say nothing of what
+is in them, Haiku 4.5 with a key set calls `find`, without being told to,
+for most questions about what a result was about: 20 of 21, in a made-up
+conversation of thirteen such results, all moved out. With the two behind
+the search it called it for 12 of 21, and for 19 with them listed and `find`
+as it was before it looked for a value (Sonnet 5.5, one run: 6 of 7, listed
+or not). Where the calls name what they read, it calls `find` for most as
+well, 19 of 24 questions, where it called it for 5 with the two behind the
+search. So with a key set more is sent to the provider than before: each
+call sends what [Usage lists](usage.md).
+[What an agent still does not fetch](#what-an-agent-does-not-fetch) is below.
 
 With a key set, a question that names a value — a number, a checksum, a
 code, with three digits or more in one of them — has its values looked for
@@ -727,6 +736,34 @@ through. A run with one digit ("the 2 logs", `log7.txt`) is no value, a
 number written with commas between its digits ("9,821.50") gives none, and a
 question whose values all have fewer than three digits ("step 17") has none
 looked for. Without a key there is no `find`, and so none of this.
+
+## What an agent does not fetch
+
+What the plugin keeps comes back only when the agent asks for it. In what
+was measured Sonnet 5.5 called `find` for 6 of 7 results asked for by what
+they were about, and fetched the reading of a changed file. Haiku 4.5 asks
+less often, in made-up conversations asked right after the compaction
+([the figures](measurements.md#the-tools-in-front-of-the-agent)):
+
+- **With no key, a result asked for by what it was about.** There is no
+  `find`, and nothing in the conversation says which ticket is the one
+  asked about. Of thirteen results whose calls say nothing of what is in
+  them, all moved out, Haiku was right on 3 questions of 21 and called
+  `recall` for 4. With a key it was right on 19 of 21.
+- **A file shown again after a summary.** Asked what a file said when it
+  was read, the file having changed since, in three conversations sent to
+  the summary that had the file shown again (`prose`, `short` and
+  `thinking`), Haiku was right 6 times of 9. The other 3 times it called
+  nothing and gave another text, with the plugin's line naming the file as
+  changed in the conversation. A note in the file's place, with the id of
+  its reading, brought 9 of 9 on the plugin as it was before the tools were
+  listed, which was right 4 times of 9 without it. It is not built: a file
+  shown again after a summary and a file you hand over later reach the
+  plugin alike, and the note would stand in place of both (#54).
+- **An id copied wrong.** An id is 64 characters. Haiku gave `recall` one it
+  refused in 13 of 925 calls, over every plugin measured for this, built or
+  not; in 8 of the 9 questions where that happened a later call went
+  through.
 
 ## What it was measured with
 

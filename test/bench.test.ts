@@ -1486,11 +1486,10 @@ const FOUND_AT = fileURLToPath(new URL('../bench/results/2026-10-03-find', impor
 /** The plugin's code the published units of the plugin as it now is were measured with (`checkoutOf`): this change on `e792fad`, before #48. */
 const MEASURED_CODE = '3b4bdf93e529';
 
-test('the units in the repository measured where the calls say nothing: every figure docs/measurements.md, docs/limits.md, docs/comparison.md and CHANGELOG.md give (#38)', () => {
+// docs/limits.md, docs/comparison.md and README.md give the figures of the plugin as it now is: the test of #54 below holds those.
+test('the units in the repository measured where the calls say nothing: every figure docs/measurements.md and CHANGELOG.md give of it (#38)', () => {
   const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
   const measurements = read('../docs/measurements.md');
-  const limits = read('../docs/limits.md');
-  const comparison = read('../docs/comparison.md');
   const changelog = read('../CHANGELOG.md');
   const has = (text: string, phrase: string, what: string) => assert.ok(text.replace(/\s+/g, ' ').includes(phrase), `${what}: ${phrase}`);
   const of = (dir: string) => {
@@ -1546,9 +1545,11 @@ test('the units in the repository measured where the calls say nothing: every fi
   has(measurements, `with that, ${now.find.calls} of 21 (${and(now.find.perRun)}), and ${now.find.code} of 9 codes`, 'measurements');
   const noKey = [before.default.code, named.default.code, now.default.code];
   has(measurements, `its codes went from ${Math.min(...noKey)} to ${Math.max(...noKey)} of 9`, 'measurements');
-  has(limits, `about what a result was about: ${now.find.calls} of 21, in a made-up conversation of thirteen such results`, 'limits');
-  has(comparison, `Haiku 4.5 called it for ${now.find.calls} of 21 questions`, 'comparison');
-  has(changelog, `for ${before.find.calls} of 21 questions about what a result was about before this change, and for ${now.find.calls} of 21 now`, 'CHANGELOG');
+  // "with it", not "now": the same release lists the two tools in front of the agent (#54), and the figure is from before that.
+  has(changelog, `for ${before.find.calls} of 21 questions about what a result was about before this change, and for ${now.find.calls} of 21 with it`, 'CHANGELOG');
+  // Over the text with its white space folded, as `has` reads it: a line wrapped in the middle of the phrase would pass this otherwise.
+  assert.ok(!changelog.replace(/\s+/g, ' ').includes("it still answers by the ticket's id"), 'said of the plugin before the tools were listed, in the past');
+  has(changelog, "it still answered by the ticket's id", 'CHANGELOG');
   has(changelog, `0 of 9 right, against ${before.find.code} of 9 before this change; with this answer, ${now.find.code} of 9 (with no key, ${Math.min(...noKey)} to ${Math.max(...noKey)} of 9 in the same runs)`, 'CHANGELOG');
   assert.equal(named.find.code, 0);
 
@@ -1556,7 +1557,6 @@ test('the units in the repository measured where the calls say nothing: every fi
   const units = of('named-and-none');
   const sonnet = counts(units, 'opaque', /sonnet/, 'find');
   const sonnetNoKey = counts(units, 'opaque', /sonnet/, 'default');
-  has(limits, `(Sonnet 5.5, one run: ${sonnet.calls} of 7)`, 'limits');
   has(changelog, `(Sonnet 5.5, one run: ${sonnet.calls} of 7)`, 'CHANGELOG');
   has(measurements, `with a key it called \`find\` for ${sonnet.calls} of the 7 questions by meaning and was right on ${sonnet.meaning}, and on ${sonnet.code} of the 3 codes; with no key, right on ${sonnetNoKey.meaning} and on ${sonnetNoKey.code}.`, 'measurements');
 
@@ -2001,4 +2001,324 @@ test('the units in the repository measured with Opus 5.5, three conversations an
     'CHANGELOG',
   );
   has(changelog, `as it did in ${fell.length} of the ${count(pair, (unit) => unit.questions)} questions asked of \`opaque\``, 'CHANGELOG');
+});
+
+const LISTED_AT = fileURLToPath(new URL('../bench/results/2026-10-03-listed', import.meta.url));
+/** The plugin's code the units of `listed` were measured with: a checkout of `44f410f` with the two `tool.describe` hooks. */
+const LISTED_CODE = 'd2a561d53d84';
+/** And the units of `merged`: `d43ffeb`, which has #55, with the two hooks. */
+const MERGED_CODE = '64c6e33e3f11';
+
+test('the units in the repository measured the tools listed in front of the agent: every figure docs/measurements.md, docs/limits.md, docs/comparison.md, README.md and CHANGELOG.md give of it (#54)', () => {
+  const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\s+/g, ' ');
+  const measurements = read('../docs/measurements.md');
+  const limits = read('../docs/limits.md');
+  const comparison = read('../docs/comparison.md');
+  const readme = read('../README.md');
+  const has = (text: string, phrase: string, what: string) => assert.ok(text.includes(phrase), `${what}: ${phrase}`);
+  type Asked = Unit['questions'][number];
+  type Key = 'default' | 'find';
+  const of = (dir: string) => {
+    const { units, older } = currentOf(unitsUnder(`${LISTED_AT}/${dir}`));
+    assert.equal(older, 0, dir);
+    assert.ok(units.every((unit) => unit.arm === 'plugin' && unit.mode === 'find'), dir);
+    assert.equal(new Set(units.map((unit) => unit.plugin)).size, 1, dir);
+    return units;
+  };
+  const all = { baseline: of('baseline'), listed: of('listed'), line: of('line'), merged: of('merged') };
+  type Dir = keyof typeof all;
+  assert.equal(all.listed[0]?.plugin, LISTED_CODE);
+  assert.equal(all.merged[0]?.plugin, MERGED_CODE);
+  // With a key only: with none there is no find, and #55 changes nothing.
+  assert.ok(all.merged.every((unit) => unit.variant === 'find'));
+  // All four were asked of the same building of each conversation: what differs between them is the plugin.
+  for (const trace of ['opaque', 'results', 'full']) {
+    assert.equal(new Set(Object.values(all).flatMap((units) => units.filter((unit) => unit.trace === trace).map((unit) => unit.base))).size, 1, trace);
+  }
+  const asked = (dir: Dir, trace: string, key: Key, prefix = 'find-', model = /haiku/): Asked[] => {
+    const these = all[dir].filter((unit) => unit.trace === trace && unit.variant === key && model.test(unit.model));
+    assert.deepEqual(these.map((unit) => unit.run).sort(), model.source === 'haiku' ? [1, 2, 3] : [1], `${dir} ${trace} ${key}`);
+    return these.flatMap((unit) => unit.questions).filter((one) => one.id.startsWith(prefix));
+  };
+  const fetched = (one: Asked) => one.retrieval.finds > 0 || one.retrieval.recalls > 0;
+  const found = (one: Asked) => one.retrieval.finds > 0;
+  const searched = (one: Asked) => one.retrieval.searches > 0;
+  const count = (list: readonly Asked[], which: (one: Asked) => boolean) => list.filter(which).length;
+  const right = (list: readonly Asked[]) => count(list, (one) => one.verdict === 'correct');
+  const sum = (list: readonly number[]) => list.reduce((total, one) => total + one, 0);
+  const meaning = (dir: Dir, key: Key = 'find') => asked(dir, 'opaque', key, 'find-doc-');
+  const codes = (dir: Dir, key: Key = 'find') => asked(dir, 'opaque', key, 'find-code-');
+  const keys = [['default', 'no'], ['find', 'yes']] as const;
+  const others = (dir: Dir) => (['results', 'full'] as const).flatMap((trace) => keys.map(([key]) => right(asked(dir, trace, key))));
+
+  // The two tables.
+  for (const [dir, label] of [['baseline', 'Baseline'], ['listed', 'Listed'], ['line', 'A line']] as const) {
+    for (const [key, word] of keys) {
+      assert.equal(meaning(dir, key).length, 21, `${dir} ${key}`);
+      assert.equal(codes(dir, key).length, 9, `${dir} ${key}`);
+      has(measurements, `| ${label} | ${word} | ${count(meaning(dir, key), fetched)} of 21 | ${right(meaning(dir, key))} of 21 | ${right(codes(dir, key))} of 9 |`, `${dir} ${key}`);
+      assert.equal(asked(dir, 'results', key).length, 24, `${dir} ${key}`);
+      assert.equal(asked(dir, 'full', key).length, 15, `${dir} ${key}`);
+    }
+    has(measurements, `| ${label} | ${others(dir).join(' | ')} |`, `${dir}, results and full`);
+  }
+
+  // The rule set before measuring: 7 more questions with a call and 7 more right, by meaning with a key, and no more than 2 lost elsewhere.
+  const against = (dir: Dir) => {
+    const calls = count(meaning(dir), fetched) - count(meaning('baseline'), fetched);
+    const more = right(meaning(dir)) - right(meaning('baseline'));
+    const lost = Math.min(...others(dir).map((n, at) => n - (others('baseline')[at] ?? NaN)));
+    return { calls, more, reached: calls >= 7 && more >= 7 && lost >= -2 };
+  };
+  const [listed, line] = [against('listed'), against('line')];
+  assert.ok(listed.reached && !line.reached);
+  has(measurements, `Listed reached the rule, with ${listed.calls} more questions that had a call and ${listed.more} more right`, 'the rule');
+  has(measurements, `A line fell one short of it on both, ${line.calls} and ${line.more}.`, 'the rule');
+  assert.deepEqual([line.calls, line.more], [6, 6]);
+
+  // What the baseline did not fetch, and what listing the tools changed.
+  has(
+    measurements,
+    `the baseline called neither \`recall\` nor \`find\` for ${21 - count(meaning('baseline'), fetched)} of the 21 questions by meaning with a key, and for ${21 - count(meaning('baseline', 'default'), fetched)} of 21 without`,
+    'no call',
+  );
+  for (const dir of ['baseline', 'listed', 'line'] as const) assert.equal(count(meaning(dir), fetched), count(meaning(dir), found), `${dir}: with a key, every question with a call had one to find`);
+  const brought = meaning('listed').filter(found);
+  assert.equal(right(brought), brought.length);
+  has(measurements, `with the tools listed each of those ${brought.length} was answered right`, 'find, then right');
+  const haiku = (dir: Dir) => all[dir].filter((unit) => /haiku/.test(unit.model)).flatMap((unit) => unit.questions);
+  assert.equal(count(haiku('listed'), searched), 0);
+  has(measurements, `none of the ${haiku('listed').length} questions had a call to Claude Code's tool search, where ${count(haiku('baseline'), searched)} of the baseline's ${haiku('baseline').length} had one`, 'tool search');
+  has(
+    measurements,
+    `by meaning it called for ${count(meaning('listed', 'default'), fetched)} questions where the baseline called for ${count(meaning('baseline', 'default'), fetched)}, and was right on ${right(meaning('listed', 'default'))} where the baseline was on ${right(meaning('baseline', 'default'))}`,
+    'no key',
+  );
+  has(
+    measurements,
+    `calls \`find\` for ${count(codes('listed'), found)} of 9 and is right on ${right(codes('listed'))}, where the baseline called it for ${count(codes('baseline'), found)} and was right on ${right(codes('baseline'))}`,
+    'a code',
+  );
+  const opaque = (dir: Dir) => asked(dir, 'opaque', 'find');
+  const first = (dir: Dir) => median(opaque(dir).map((one) => one.requests[0] ?? NaN)).toLocaleString('en-US', { maximumFractionDigits: 0 });
+  const seconds = (dir: Dir) => (sum(opaque(dir).map((one) => one.durationMs)) / 1000).toFixed(0);
+  const usd = (dir: Dir) => sum(opaque(dir).map((one) => one.own.costUSD)).toFixed(2);
+  const recalls = (dir: Dir) => sum(opaque(dir).map((one) => one.retrieval.recalls));
+  has(
+    measurements,
+    `a median ${first('listed')} tokens against ${first('baseline')}, in \`opaque\` with a key. The ${opaque('listed').length} questions there took ${seconds('listed')} seconds and ${usd('listed')} USD, where the baseline took ${seconds('baseline')} and ${usd('baseline')}; \`recall\` was called ${recalls('listed')} times in them, where the baseline called it ${recalls('baseline')} times.`,
+    'what it costs',
+  );
+
+  // Sonnet 5.5, one run of the baseline and one with the tools listed: the same either way.
+  const sonnetOn = (dir: Dir, key: Key, prefix: string) => asked(dir, 'opaque', key, prefix, /sonnet/);
+  /** With a key: questions by meaning with a call to find, those right, and the codes right. */
+  const sonnetWithKey = (dir: Dir) => [count(sonnetOn(dir, 'find', 'find-doc-'), found), right(sonnetOn(dir, 'find', 'find-doc-')), right(sonnetOn(dir, 'find', 'find-code-'))];
+  const sonnet = (dir: 'baseline' | 'listed') => [...sonnetWithKey(dir), right(sonnetOn(dir, 'default', 'find-doc-')), right(sonnetOn(dir, 'default', 'find-code-'))];
+  assert.deepEqual(sonnet('listed'), sonnet('baseline'));
+  const [calls, yes, code, no, noCode] = sonnet('listed');
+  has(
+    measurements,
+    `came out the same either way: with a key it called \`find\` for ${calls} of the 7 questions by meaning and was right on ${yes}, and on ${code} of the 3 codes; with no key, right on ${no} and on ${noCode}.`,
+    'Sonnet',
+  );
+  const sonnetAsked = (dir: Dir) => all[dir].filter((unit) => /sonnet/.test(unit.model)).flatMap((unit) => unit.questions);
+  assert.equal(count(sonnetAsked('listed'), searched), 0);
+  has(measurements, `in each of the baseline's ${count(sonnetAsked('baseline'), searched)} questions and in none with the tools listed`, 'Sonnet, tool search');
+  assert.equal(sonnetAsked('baseline').length, count(sonnetAsked('baseline'), searched));
+
+  // The code that is merged, measured once more with a key: the table, and what docs/limits.md and README.md say of the plugin as it now is.
+  const named = asked('merged', 'results', 'find');
+  const full = asked('merged', 'full', 'find');
+  for (const [label, list] of [['`opaque`, by meaning', meaning('merged')], ['`opaque`, by a code', codes('merged')], ['`results`', named], ['`full`', full]] as const) {
+    has(measurements, `| ${label} | ${count(list, found)} of ${list.length} | ${right(list)} of ${list.length} |`, `merged, ${label}`);
+  }
+  assert.equal(count(haiku('merged'), searched), 0);
+  has(measurements, `None of the ${haiku('merged').length} questions had a call to the tool search, and`, 'merged, tool search');
+  has(
+    measurements,
+    `The codes, ${right(codes('listed'))} of 9 right with the tools listed and \`find\` as it was, are ${right(codes('merged'))} of 9 with the tools listed and \`find\` as it now is.`,
+    'merged, codes',
+  );
+  const sonnetMerged = sonnetWithKey('merged');
+  has(measurements, `Sonnet 5.5, one run: \`find\` for ${sonnetMerged[0]} of the 7 questions by meaning and ${sonnetMerged[1]} right, and ${sonnetMerged[2]} of the 3 codes.`, 'merged, Sonnet');
+  assert.equal(sonnetMerged[0], calls, 'Sonnet calls find as often, listed or not, merged or not');
+  has(
+    limits,
+    `about what a result was about: ${count(meaning('merged'), found)} of 21, in a made-up conversation of thirteen such results, all moved out. ` +
+      `With the two behind the search it called it for ${count(meaning('baseline'), found)} of 21, and for ${count(meaning('listed'), found)} with them listed and \`find\` as it was before it looked for a value (Sonnet 5.5, one run: ${calls} of 7, listed or not)`,
+    'limits',
+  );
+  const namedBefore = asked('baseline', 'results', 'find');
+  has(
+    limits,
+    `it calls \`find\` for most as well, ${count(named, found)} of ${named.length} questions, where it called it for ${count(namedBefore, found)} with the two behind the search. So with a key set more is sent to the provider than before`,
+    'limits',
+  );
+  has(
+    comparison,
+    `Haiku 4.5 called \`find\` for ${count(named, found)} of ${named.length} questions where each call named its file, and for ${count(meaning('merged'), found)} of 21 about what a result was about where the calls said nothing of what came back, finding the code ${right(codes('merged'))} times of 9. Each call sends the provider what [Usage](usage.md) lists.`,
+    'comparison',
+  );
+
+  // The README's opening: of the two conversations where results were moved out, which is what the sentence is about (`full` goes to the summary).
+  const moved = [...asked('merged', 'opaque', 'find'), ...named];
+  assert.ok(all.merged.filter((unit) => unit.trace !== 'full').every((unit) => unit.compaction.line?.outcome === 'moved'));
+  assert.ok(all.merged.filter((unit) => unit.trace === 'full').every((unit) => unit.compaction.line?.outcome !== 'moved'));
+  has(readme, `Asked about a result that was moved out, Haiku 4.5 with a key set called \`find\` for ${count(moved, found)} of ${moved.length} questions`, 'README, opening');
+
+  // Calling find more often is sending more often: said where the change is said, with the figures.
+  const withKey = (dir: Dir) => all[dir].filter((unit) => /haiku/.test(unit.model) && unit.variant === 'find').flatMap((unit) => unit.questions);
+  const sent = (dir: Dir) => ({ questions: count(withKey(dir), found), of: withKey(dir).length, calls: sum(withKey(dir).map((one) => one.retrieval.finds)) });
+  const [was, listedSent, mergedSent] = [sent('baseline'), sent('listed'), sent('merged')];
+  assert.deepEqual([was.of, listedSent.of, mergedSent.of], [69, 69, 69]);
+  const namedListed = asked('listed', 'results', 'find');
+  const fewer = `in ${count(namedListed, found)} of ${namedListed.length}`;
+  has(measurements, `\`find\` was called in ${listedSent.questions} of 69 questions with the tools listed, where the baseline called it in ${was.questions}, and ${fewer} in \`results\`, where every call names the file it read and the baseline called it in ${count(namedBefore, found)}.`, 'sent, listed');
+  has(measurements, `and ${mergedSent.questions} had one to \`find\` (${mergedSent.calls} calls, where the baseline made ${was.calls}), ${count(named, found)} of the ${named.length} in \`results\`.`, 'sent, merged');
+  // What is still not fetched: with no key (the tools listed, which no key and #55 have nothing to do with), and with one as merged.
+  has(
+    limits,
+    `Haiku was right on ${right(meaning('listed', 'default'))} questions of 21 and called \`recall\` for ${count(meaning('listed', 'default'), fetched)}. With a key it was right on ${right(meaning('merged'))} of 21.`,
+    'limits, not fetched',
+  );
+  // Sonnet did not ask every time either: one question of seven had no call, in every plugin measured.
+  assert.equal(sonnetMerged[0], 6);
+  has(limits, `Sonnet 5.5 called \`find\` for ${sonnetMerged[0]} of 7 results asked for by what they were about`, 'limits, Sonnet');
+  const changelog = read('../CHANGELOG.md');
+  has(
+    changelog,
+    `called \`find\` for ${count(meaning('baseline'), found)} of 21 questions about what a result was about and was right on ${right(meaning('baseline'))}; with the two listed, for ${count(meaning('listed'), found)} and right on ${right(meaning('listed'))}; ` +
+      `and as merged, with \`find\` looking for a value as well (#55), for ${count(meaning('merged'), found)} and right on ${right(meaning('merged'))}, and right on ${right(codes('merged'))} of 9 codes further down a document`,
+    'CHANGELOG',
+  );
+  has(
+    changelog,
+    `Haiku called \`find\` in ${mergedSent.questions} of 69 questions where it had in ${was.questions}, and in ${count(named, found)} of ${named.length} where every call names the file it read, where it had in ${count(namedBefore, found)}`,
+    'CHANGELOG, sent',
+  );
+  has(changelog, `Sonnet 5.5 called \`find\` for ${calls} of 7 either way`, 'CHANGELOG');
+  has(changelog, `right on ${right(meaning('listed', 'default'))} of 21, where it was on ${right(meaning('baseline', 'default'))}`, 'CHANGELOG');
+
+  // The record of the decision gives the figures it was taken on.
+  const adr = read('../docs/adr/0017-recall-and-find-are-listed-in-front-of-the-agent.md');
+  for (const [dir, label] of [['baseline', 'Baseline'], ['listed', '`recall` and `find` listed'], ['line', 'A line after a compaction by the plugin']] as const) {
+    has(adr, `| ${label} | ${count(meaning(dir), fetched)} of 21 | ${right(meaning(dir))} of 21 |`, `ADR 0017, ${dir}`);
+  }
+  has(adr, `for ${21 - count(meaning('baseline'), fetched)} of 21 questions about a result that had been moved out`, 'ADR 0017');
+  has(adr, `still searched for the tool (${count(asked('line', 'opaque', 'find'), searched)} of 30 questions)`, 'ADR 0017');
+  has(
+    adr,
+    `(${right(asked('line', 'results', 'find'))} of 24 and ${right(asked('line', 'full', 'find'))} of 15 right with a key, against ${right(asked('baseline', 'results', 'find'))} and ${right(asked('baseline', 'full', 'find'))})`,
+    'ADR 0017',
+  );
+  has(adr, `(right on ${right(meaning('listed', 'default'))} of 21 questions, where it was on ${right(meaning('baseline', 'default'))})`, 'ADR 0017');
+  has(
+    adr,
+    `it was called in ${listedSent.questions} of 69 questions, where the baseline called it in ${was.questions}, and ${fewer} where every call names the file it read, where the baseline called it in ${count(namedBefore, found)}; ` +
+      `and in ${mergedSent.questions} of 69 as merged, with \`find\` looking for a value as well (#55)`,
+    'ADR 0017, sent',
+  );
+
+  // Nothing of the machine in what was published.
+  assert.ok(!/[\/-]Users[\/-]|[\/-]home[\/-][a-z]|cctmp|CLOUDFLARE_API_TOKEN|TYPESAFE_API_KEY/.test(JSON.stringify(all)));
+});
+
+const SHOWN_AT = fileURLToPath(new URL('../bench/results/2026-10-03-shown-again', import.meta.url));
+
+test('the units in the repository measured a note in place of a file shown again after a summary: every figure docs/measurements.md gives of it (#54)', () => {
+  const measurements = readFileSync(new URL('../docs/measurements.md', import.meta.url), 'utf8').replace(/\s+/g, ' ');
+  const has = (phrase: string, what: string) => assert.ok(measurements.includes(phrase), `${what}: ${phrase}`);
+  type Asked = Unit['questions'][number];
+  const of = (dir: string) => {
+    const { units, older } = currentOf(unitsUnder(`${SHOWN_AT}/${dir}`));
+    assert.equal(older, 0, dir);
+    // The plugin's arm, asked the benchmark's questions with maxAfterPercent at 1: every one went to the summary, which is where a file is shown again.
+    assert.ok(units.every((unit) => unit.arm === 'plugin' && unit.mode === 'ask' && unit.variant === 'max-after-1' && unit.compaction.summarized), dir);
+    assert.equal(new Set(units.map((unit) => unit.plugin)).size, 1, dir);
+    return units;
+  };
+  const all = { baseline: of('baseline'), note: of('note'), merged: of('merged') };
+  type Dir = keyof typeof all;
+  const dirs = ['baseline', 'note', 'merged'] as const;
+  // `merged` is the code that is merged: the tools listed, and no note.
+  assert.equal(all.merged[0]?.plugin, MERGED_CODE);
+  const traces = ['writes', 'prose', 'short', 'thinking'];
+  // All three were asked of the same building of each conversation.
+  for (const trace of traces) {
+    assert.equal(new Set(Object.values(all).flatMap((units) => units.filter((unit) => unit.trace === trace).map((unit) => unit.base))).size, 1, trace);
+  }
+  const asked = (dir: Dir, ids: readonly string[], on: readonly string[] = traces, model = /haiku/): Asked[] => {
+    const these = all[dir].filter((unit) => on.includes(unit.trace) && model.test(unit.model));
+    assert.equal(these.length, on.length * (model.source === 'haiku' ? 3 : 1), `${dir} ${on.join()}`);
+    return these.flatMap((unit) => unit.questions).filter((one) => ids.includes(one.id));
+  };
+  const right = (list: readonly Asked[]) => list.filter((one) => one.verdict === 'correct').length;
+
+  // The table. Each of these is graded by the program: the text asked for is in the answer.
+  const rows = [
+    ['What the file said when it was read, of 12', ['then']],
+    ['What it says now, of 12', ['now']],
+    ['A file that is unchanged, of 12', ['unchanged']],
+    ["The script's output no file holds any more, of 24", ['gone-1', 'gone-2']],
+  ] as const;
+  for (const [label, ids] of rows) {
+    for (const dir of dirs) assert.equal(asked(dir, ids).length, ids.length * 12, `${dir}, ${label}`);
+    has(`| ${label} | ${right(asked('baseline', ids))} | ${right(asked('note', ids))} | ${right(asked('merged', ids))} |`, label);
+  }
+
+  // The rule set before measuring, the note against the baseline it was built on: 4 more and at least 10 of 12 for the reading, the two other questions about files no worse.
+  const then = { baseline: right(asked('baseline', ['then'])), note: right(asked('note', ['then'])), merged: right(asked('merged', ['then'])) };
+  assert.ok(then.note - then.baseline >= 4 && then.note >= 10);
+  for (const id of ['now', 'unchanged']) assert.ok(right(asked('note', [id])) >= right(asked('baseline', [id])), id);
+
+  // Where the changed file is not shown again, and where it is.
+  const shown = ['prose', 'short', 'thinking'];
+  for (const dir of dirs) assert.equal(right(asked(dir, ['then'], ['writes'])), 3, dir);
+  const shownRight = (dir: Dir) => right(asked(dir, ['then'], shown));
+  const noted = asked('note', ['then']);
+  assert.ok(noted.every((one) => one.retrieval.recalls === 1 && one.retrieval.reads === 0));
+  has(
+    `in the other three the baseline was right ${shownRight('baseline')} times of 9 and the code as merged ${shownRight('merged')} times of 9, each miss an answer with no call that gave another text, ` +
+      `and with the note each of the ${noted.length} answers came after one \`recall\` and no reading of the file`,
+    'where it is shown again',
+  );
+  // Each miss: nothing called, and another text given, which the grader called wrong and not unable to tell.
+  const missedIn = (dir: 'baseline' | 'merged') => {
+    const grades = JSON.parse(readFileSync(`${SHOWN_AT}/${dir}/grades.json`, 'utf8')) as Grades;
+    const missed = all[dir]
+      .filter((unit) => /haiku/.test(unit.model))
+      .flatMap((unit) => unit.questions.filter((one) => one.id === 'then' && one.verdict !== 'correct').map((one) => ({ unit, one })));
+    assert.ok(missed.every(({ unit, one }) => shown.includes(unit.trace) && one.calls.length === 0 && verdictOf(unit, one, grades) === 'incorrect'), dir);
+    return missed.length;
+  };
+  assert.equal(missedIn('baseline'), 9 - shownRight('baseline'));
+
+  // What docs/limits.md says is not fetched is of the code that is merged; the note was measured on the baseline.
+  const limits = readFileSync(new URL('../docs/limits.md', import.meta.url), 'utf8').replace(/\s+/g, ' ');
+  assert.ok(limits.includes(`Haiku was right ${shownRight('merged')} times of 9. The other ${missedIn('merged')} times it called nothing and gave another text`), 'limits');
+  assert.ok(limits.includes(`brought ${shownRight('note')} of 9 on the plugin as it was before the tools were listed, which was right ${shownRight('baseline')} times of 9 without it`), 'limits');
+  const changelog = readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8').replace(/\s+/g, ' ');
+  assert.ok(
+    changelog.includes(`from ${then.baseline} right of 12 to ${then.note} with Haiku 4.5, on the plugin before the tools were listed; as merged, without the note, it is ${then.merged} of 12`),
+    'CHANGELOG',
+  );
+
+  // Sonnet 5.5, `short` once: no worse.
+  for (const dir of dirs) {
+    assert.equal(right(asked(dir, ['then', 'now', 'unchanged'], ['short'], /sonnet/)), 3, dir);
+    assert.deepEqual(asked(dir, ['then'], ['short'], /sonnet/).map((one) => one.retrieval.recalls), [1], dir);
+  }
+  has('Sonnet 5.5 on `short`, one run: right on all three with the note, without it and as merged, with one `recall` for the reading each time.', 'Sonnet');
+  assert.ok(limits.includes('and fetched the reading of a changed file'), 'limits, Sonnet');
+
+  // Every call to `recall` in the units measured for #54, these and those of the tools listed: how many of them were refused is of the records.
+  const recalls = (units: readonly Unit[]) => units.flatMap((unit) => unit.questions).reduce((total, one) => total + one.retrieval.recalls, 0);
+  const total = recalls(Object.values(all).flat()) + recalls(['baseline', 'listed', 'line', 'merged'].flatMap((dir) => currentOf(unitsUnder(`${LISTED_AT}/${dir}`)).units));
+  has(`Over every unit above \`recall\` was called ${total} times.`, 'recall, counted');
+  assert.ok(limits.includes(`of ${total} calls, over every plugin measured for this, built or not`), 'limits, recall');
+  assert.ok(changelog.includes(`of ${total} calls, and a later call went through`), 'CHANGELOG, recall');
+
+  // Nothing of the machine in what was published.
+  assert.ok(!/[\/-]Users[\/-]|[\/-]home[\/-][a-z]|cctmp|CLOUDFLARE_API_TOKEN|TYPESAFE_API_KEY/.test(JSON.stringify(all)));
 });
