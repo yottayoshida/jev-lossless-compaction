@@ -2,6 +2,34 @@
 
 What the plugin does not do, and what a repository or a version can change.
 
+## In short
+
+- **A `/compact` with nothing to move out and room left does nothing** but
+  say so: Claude Code shows it as not compacted, and `/compact` with
+  instructions summarizes (ADR 0015).
+- **Claude Code's own summary still runs** when moving results out is not
+  enough; when nothing can be moved out and the compaction is automatic,
+  `/compact` is given instructions, or more than `maxAfterPercent` is in use,
+  the last being one of the six kinds of conversation
+  [measured](comparison.md); when the
+  conversation holds
+  an image or a document outside a tool result, a block of a kind the plugin
+  does not know, or 4096 messages or more; and in a subagent.
+- **What a summary replaces is kept first**, on the main conversation, and
+  `recall` returns it unchanged by the ids left right after the summary. Not
+  kept: images, documents, thinking, and messages older than the 4096 Claude
+  Code shows.
+- **`find` does not see everything.** It offers the tickets it sees in the
+  conversation and in the parts kept before a summary, shows Jev the first
+  lines of each result, and gives a request to Jev up after twenty seconds.
+- **Sizes are not capped, and are estimates.** There is no limit on how much
+  is kept. How full the conversation is afterwards is counted from Claude
+  Code's own figures: where results were moved out it came within 20 % of
+  what the next request sent, and within 3 % in five long working
+  sessions. `keepTokens` is turned into characters at three to a token.
+
+Each of these in full, and the rest, below.
+
 ## When the built-in compaction runs instead
 
 Claude Code's built-in compaction runs instead when the conversation holds an
