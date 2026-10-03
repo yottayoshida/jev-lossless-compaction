@@ -64,7 +64,10 @@ With a key set, each call to `find` sends the provider:
 - for every result moved out of the conversation, the call that made it and
   a 400-character digest of it;
 - for every part of the conversation that was kept, before a summary or in
-  place of one, the head of what was said in it;
+  place of one, a 400-character digest of what was said in it, made as a
+  result's is: its first lines, up to five lines between that look like
+  failures, and its last lines, which are its newest messages (of a result or
+  a part over 256 KB, the digest is of its first 8 KB);
 - where one result alone has a line holding a number, a checksum or a code
   the question names: that it has, in one sentence, and no line of it.
 

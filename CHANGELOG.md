@@ -30,6 +30,10 @@ All notable changes to this project are documented here. The format follows [Kee
 - The README was written again for a reader deciding whether to install, and went from 249 lines to 98. Its figures are those measured with Opus 5.5 and Sonnet 5.5, where they were those of Haiku 4.5, and the picture at its head no longer gives a figure of Haiku's. Where the plugin compacted by itself, the two larger models answered no worse after the built-in compaction, reading Claude Code's own record of the session after a summary; what differed was the compaction's time and cost and the size of what is sent afterwards. It says what to know before installing: a `/compact` typed by hand can do nothing, results are kept as plain files with no limit, and `find` sends excerpts of the conversation from every repository once a key is set. Its sections on usage, on how the plugin works and on the comparison measured with Haiku moved, their text as it was, to `docs/usage.md`, `docs/how-it-works.md` and `docs/comparison.md`, and its list of limits to the head of `docs/limits.md`.
 - A test holds the README to a page (100 lines, 760 words, 7 headings, 1 table, and no HTML), checks that its links reach a file and a heading and that the names it gives are the ones the code has, and fails unless `package.json`, `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` all name the version the README was last read against. What reading it means at a release is in `docs/development.md` ("The README").
 
+### Fixed
+
+- `docs/usage.md` now says what `find` sends of a part of the conversation that was kept: a 400-character digest made as a result's is, its first lines, up to five lines between that look like failures, and its last lines, which are its newest messages, or those of its first 8 KB when it is over 256 KB (#71). It said the head only. What is sent did not change.
+
 ## [0.6.1] - 2026-10-02
 
 ### Changed
