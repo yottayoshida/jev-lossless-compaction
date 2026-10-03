@@ -4,9 +4,10 @@
 
 The two figures in the picture are each from one recorded session
 ([how each was taken](docs/measurements.md)), and show the plugin where it
-does best. Of six kinds of conversation measured, five ended in Claude
-Code's summary with the plugin as without it, which took longer with the
-plugin in most runs, and with `find` registered the agent did not call it:
+does best. Of six kinds of conversation measured, the plugin compacted one
+by itself and left four as they were, having nothing to move and room to go
+on; the sixth ended in Claude Code's summary with the plugin as without it,
+and with `find` registered the agent did not call it:
 [against the built-in compaction](#against-the-built-in-compaction).
 
 When a Claude Code conversation fills up, the built-in compaction replaces it
@@ -16,8 +17,9 @@ instead. One line, a ticket, stays behind for each result, and the agent gets
 the exact result back when it needs it: by the id on the ticket with `recall`,
 or by saying what it is about with `find`, which asks
 [Jev](https://typesafe.ai) to choose. Where tool results are not what fills
-the conversation, Claude Code's summary still runs, and the plugin keeps the
-conversation first ([Limits](#limits)).
+the conversation, a `/compact` with room left does nothing, and a full
+conversation still goes to Claude Code's summary, the plugin keeping it
+first ([Limits](#limits)).
 
 A compaction sends nothing anywhere. `find` is optional and needs a Jev key;
 with one set, it sends [excerpts of the conversation](#usage) to the Jev
@@ -112,30 +114,32 @@ first and the built-in compaction's second:
 
 | The conversation is mostly      | The summary ran | A compaction took   | Output of a script since removed: right, of 6 |
 | ------------------------------- | --------------- | ------------------- | --------------------------------------------- |
-| Large tool results              | 0 of 3 · 3 of 3 | 0.1–0.3 s · 20–26 s | 6 · 2                                         |
-| Files the agent wrote           | 3 of 3 · 3 of 3 | 30–31 s · 27–31 s   | 3 · 1                                         |
-| Text pasted into messages       | 3 of 3 · 3 of 3 | 28–34 s · 20–26 s   | 6 · 4                                         |
-| Many short results              | 3 of 3 · 3 of 3 | 33–46 s · 25–30 s   | 5 · 1                                         |
-| Text filling most of the window | 3 of 3 · 3 of 3 | 31–49 s · 22–26 s   | 6 · 3                                         |
-| Thinking                        | 3 of 3 · 3 of 3 | 31–40 s · 29–34 s   | 6 · 1                                         |
+| Large tool results              | 0 of 3 · 3 of 3 | 0.1 s · 20–26 s     | 6 · 2                                         |
+| Files the agent wrote           | 0 of 3 · 3 of 3 | 0.05 s · 27–31 s    | 5 · 1                                         |
+| Text pasted into messages       | 0 of 3 · 3 of 3 | 0.05 s · 20–26 s    | 4 · 4                                         |
+| Many short results              | 0 of 3 · 3 of 3 | 0.05 s · 25–30 s    | 6 · 1                                         |
+| Text filling most of the window | 3 of 3 · 3 of 3 | 25–31 s · 22–26 s   | 6 · 3                                         |
+| Thinking                        | 0 of 3 · 3 of 3 | 0.04 s · 29–34 s    | 6 · 1                                         |
 
 - **The plugin compacted by itself in one kind of the six**, the one where
-  tool results are what fills the conversation. In the other five it had
-  nothing to move that would make room: it kept the conversation and handed
-  over to Claude Code's summary.
-- **After a hand-over, a script's output that no file held any more was
-  still answered** 26 times of 30, through `recall` of the conversation
-  kept, against 10 of 30 after the built-in compaction alone.
-- **What goes the other way.** Where the plugin compacted by itself, the
-  next request was 43,995 tokens against 8,313 after the summary, and later
-  requests carry that. After a hand-over the summary took longer with the
-  plugin in 14 of 15 pairs of runs, by a median 7.7 s: the summary it got
-  was longer. What a file said before it changed was answered
-  wrong by both, mostly, with nothing fetched: 5 right of 18 against 0. With
-  Sonnet 5.5, in one run on three of the conversations, both answered every
-  such question, the built-in compaction by searching Claude Code's own
-  record of the session, and the plugin's questions cost more to ask (1.57
-  USD against 0.18 for the nine, where it had compacted by itself).
+  tool results are what fills the conversation. **In four it did nothing**:
+  there was nothing to move out and room to go on, so the `/compact` was not
+  carried out and the conversation stayed as it was. The one filling most of
+  the window it kept and handed over to Claude Code's summary.
+- **What a file said before it changed was answered** 15 times of 18,
+  against none after the built-in compaction: in the four left as they were
+  it was still in the conversation, and all 12 were answered with no tool.
+  A script's output that no file held any more: 33 of 36 against 12.
+- **What goes the other way.** Where nothing was compacted, every later
+  request carries the whole conversation: 29,343 to 69,039 tokens against
+  12,573 to 26,034 after a summary. The nine questions on files written cost
+  1.12 USD in the first run, which put the conversation in the prompt cache,
+  and 0.08 in each run after it, against 0.42 to 0.51 after a summary; with
+  Sonnet 5.5, 2.81 against 1.00. Where the plugin compacted by itself the
+  next request was 43,995 tokens against 8,313. A rule stated in the first
+  message was answered 34 times of 36 against 36: in the conversation that
+  is a third thinking, left as it was, the agent twice asked back about the
+  format instead of stating it.
 - **`find` was compared apart**, on seven distinct questions about what a
   result was and six about a value in it. Asked what a result was about, it
   gave or listed first the right one 16 times of 19; asked by a value
@@ -172,9 +176,13 @@ The protocol, every table and what they do not show:
 
 ## Limits
 
+- **A `/compact` with nothing to move out and room left does nothing** but
+  say so: Claude Code shows it as not compacted, and `/compact` with
+  instructions summarizes (ADR 0015).
 - **Claude Code's own summary still runs** when moving results out is not
-  enough, or nothing can be moved out, which was five of the six kinds of
-  conversation above; when the conversation holds
+  enough, or nothing can be moved out and the conversation is full, the
+  compaction automatic or `/compact` given instructions, which was one of the
+  six kinds of conversation above; when the conversation holds
   an image or a document outside a tool result, a block of a kind the plugin
   does not know, or 4096 messages or more; and in a subagent.
 - **What a summary replaces is kept first**, on the main conversation, and

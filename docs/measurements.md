@@ -911,6 +911,10 @@ message before the compaction is in no file, and the conversation cannot be
 put together. That leaves 143: 102 automatic ones from 56 sessions in 5
 projects, 75 of them in one project, and 41 run by hand.
 
+This count did not tell a session run in a directory made for measuring from
+a working one. Counted again with those set apart:
+[a `/compact` with nothing to move out](#a-compact-with-nothing-to-move-out).
+
 Each conversation was put together as it stood before the compaction: the
 messages back to the compaction before it, with what that one left in
 place put after its summary. (In the 42 conversations where that applies,
@@ -1042,3 +1046,135 @@ In both conversations the message holding the tickets stood right after
 the summary, and a further turn and a resumed session read it; the
 conversation handed back was no larger than the summary and what Claude
 Code kept.
+
+## A `/compact` with nothing to move out
+
+On 2026-10-02 and 03, for #44 and ADR 0015: how often a compaction finds
+nothing to move out in working sessions, what a compaction left undone comes
+to, and the benchmark with it.
+
+### How often, in working sessions
+
+Offline, as in
+[Moving out tool inputs, counted in hand-overs](#moving-out-tool-inputs-counted-in-hand-overs)
+and with `compact()` as it is at 0.6.1: no model was called and nothing was
+sent. The transcripts held 819 boundaries, 501 of them distinct. 169 held a
+conversation already counted, and for 91 the message before the compaction
+is in no file. Of the 241 left, 117 were of sessions run in a directory made
+for measuring — a benchmark's box, a probe — and are set apart. That leaves
+124 compactions of working sessions, from 2026-09-03 to 10-02, of 63
+sessions in 3 projects:
+
+|               | Compacted by moving results out | Nothing to move out | Still too full afterwards | Not rebuilt |
+| ------------- | ------------------------------: | ------------------: | ------------------------: | ----------: |
+| Automatic, 94 |                              86 |                   2 |                         5 |           1 |
+| By hand, 30   |                              23 |                   6 |                         1 |           0 |
+
+The six still too full are all of the large window and were estimated at
+75.0 to 81.2 % of it, where 75 % may stay. Offline, what is not the
+conversation is taken as the session's first request and the thinking from
+the signatures in the transcript: so near the line, each could fall on
+either side, and they are not what was looked at here.
+
+The eight with nothing to move out, in none of which the size of the window
+is recorded:
+
+- Five are all the compactions of one project, used to try the plugin out
+  on 09-29 and 09-30: two automatic ones, at 76,606 and 68,602 tokens, and
+  three by hand right after a summary, of two messages each.
+- One by hand right after a summary, of three messages and no tool result.
+- One by hand with 105,156 tokens in use, about 90,000 of them not the
+  conversation, which was 400 characters.
+- One by hand with 199,462 tokens in use and 78,000 characters pasted into
+  messages: full if its window was 200,000, at 21 % if it was 967,000.
+
+In none of the eight does the transcript hold a line of the plugin's: it was
+not installed yet, or the line was not recorded. So of thirty compactions by
+hand, two had room and nothing to move out for certain, and a third if its
+window was the large one.
+
+Moving out the text pasted into messages and the inputs of `Write` and
+`Edit` would have changed none of the eight. One held any such text, 15,607
+characters of it older than the newest `keepTokens`, a tenth of that
+conversation. Over the 124, text of `minChars` or more in a message after
+the first is 8.6 % of the characters, and such inputs are 11.6 %.
+
+### What a compaction left undone comes to
+
+In a terminal and with `-p`, on Claude Code 2.1.288 with Haiku 4.5, one run
+each, on conversations of the benchmark:
+
+| What was run                                                | What happened                                                        |
+| ----------------------------------------------------------- | -------------------------------------------------------------------- |
+| `/compact`, 28,425 of 167,000 tokens in use                 | Not compacted, in 40 ms; the line names the two figures              |
+| `/compact` with instructions                                | The conversation kept in one part, then summarized, in 49.9 s        |
+| `/compact` with `maxAfterPercent` at 1                      | Kept, then summarized, in 35.3 s                                     |
+| `/compact` right after that summary                         | Not compacted, in 34 ms; Claude Code gave no figure, the line none   |
+| An automatic compaction, 143,259 tokens where it runs at 117,000 | `trigger` was `auto`: kept in 17 parts, then summarized, in 30.6 s |
+
+In a terminal the skipped `/compact` shows one line under the command,
+`Not compacted · lossless-compaction: nothing to move out, …`, and the
+session goes on. With `-p` the session ends without an error and prints that
+line as its result. A classic `PreCompact` hook does not run.
+
+### The benchmark with it
+
+On 2026-10-03 the plugin's arm of
+[the run on 0.6.1](#the-benchmark-run-again-on-061) was measured again with
+this change, on the same conversations and with the same Claude Code,
+2.1.287: Haiku 4.5 three times on the six, Sonnet 5.5 once on `results` and
+`writes`. The built-in arm is that of the run on 0.6.1, unchanged. The code
+measured (`cd125deb5b55`) is this change before it was put on top of #46,
+which adds a line after a summary and changes nothing of a compaction left
+undone. Sonnet on `prose` is left out: on the conversation left as it was,
+its question about what a file said before it changed was refused twice by
+Sonnet 5.5's safeguards (`reasoning_extraction`), and a refused question is
+not one the benchmark can measure. Then, with `maxAfterPercent` at 1, each
+of the four left undone was compacted three times more and asked one thing:
+all twelve were handed to the summary. The units, their grades and every
+table are in `bench/results/2026-10-03/`, and a test holds the tables to the
+units and the figures below to the tables.
+
+Haiku 4.5, three runs; "Next request" is the median of the runs.
+
+| Trace      | The summary ran: plugin | built-in | Seconds: plugin | built-in  | Next request: plugin | built-in |
+| ---------- | ----------------------: | -------: | --------------: | --------: | -------------------: | -------: |
+| `results`  |                  0 of 3 |   3 of 3 |            0.09 | 20.4–26.4 |               43,995 |    8,313 |
+| `writes`   |                  0 of 3 |   3 of 3 |       0.04–0.05 | 27.5–30.5 |               69,039 |   26,034 |
+| `prose`    |                  0 of 3 |   3 of 3 |       0.04–0.05 | 20.3–26.5 |               59,893 |   12,573 |
+| `short`    |                  0 of 3 |   3 of 3 |       0.04–0.05 | 24.8–29.8 |               29,343 |   13,157 |
+| `full`     |                  3 of 3 |   3 of 3 |       25.0–31.0 | 22.1–26.4 |               14,671 |   12,557 |
+| `thinking` |                  0 of 3 |   3 of 3 |            0.04 | 28.6–34.4 |               33,098 |   12,781 |
+
+`writes`, `prose`, `short` and `thinking` were left as they were in all
+three runs, `results` was compacted by moving results out and `full` handed
+over, as before.
+
+| Kind of question                    | Asked | Plugin | on 0.6.1 | Built-in |
+| ----------------------------------- | ----: | -----: | -------: | -------: |
+| Exact, source gone                  |    36 |     33 |       32 |       12 |
+| Exact, file unchanged               |    18 |     18 |       18 |       18 |
+| Exact, file changed: what it said   |    18 |     15 |        5 |        0 |
+| Exact, file changed: what it says   |    18 |     18 |       18 |       18 |
+| Where the work stands               |    36 |     34 |       34 |       34 |
+| A rule stated early                 |    36 |     34 |       36 |       36 |
+| All                                 |   162 |    152 |      143 |      118 |
+
+- What a file said before it changed was answered in all 12 questions on
+  the four left as they were, each from the conversation that was still
+  there and with no tool. On 0.6.1, after a summary, 2 of those 12 were.
+- A rule stated early was missed twice, both in `thinking`: left as it was,
+  the agent asked whether to keep the format instead of stating it. After a
+  summary of the same conversation it had stated it every time.
+- Every later request carries the whole conversation, where a summary left
+  about 13,000 to 26,000 tokens. What the nine questions cost turns on the
+  prompt cache: the three runs of the plugin's arm were run one after
+  another, so the first wrote the conversation to the cache and the two
+  after it read it (on `writes` 1.12 USD, then 0.08 each, against 0.42 to
+  0.51 after a summary). In the run on 0.6.1 the arms took turns. With
+  Sonnet on `writes`, one run: 86,799 tokens and 2.81 USD against 28,400 and
+  1.00.
+- How often a `/compact` with room and nothing to move out happens in use is
+  [above](#how-often-in-working-sessions): two of thirty by hand, on one
+  machine.
+
