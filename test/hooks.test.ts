@@ -214,9 +214,49 @@ test('stored results are written through mv where it starts, the reason a write 
 });
 
 test("a compaction is told what is not the conversation from Claude Code's breakdown, and the line comes from src/", () => {
-  assert.ok(hooks.includes('count: countFrom(context?.breakdown, tokens, api, messages),'), 'count: the thinking from the blocks, the density over the messages the hook was handed');
+  assert.ok(hooks.includes('const count = countFrom(context?.breakdown, tokens, api, messages);'), 'count: the thinking from the blocks, the density over the messages the hook was handed');
+  assert.ok(hooks.includes('        tokens: inUse,\n        count,\n        window: windowFrom(context, FALLBACK_WINDOW),'), 'and the compaction is handed it');
   assert.ok(!hooks.includes('function summary('), 'no line of its own');
-  assert.equal(hooks.split('reportLine(outcome.report)').length - 1, 3, 'every line a compaction shows');
+  assert.equal(hooks.split('reportLine(outcome.report)').length - 1, 3, 'every line a compaction shows that moved results out or handed over');
+  // Where the oldest messages are kept in place of a summary, the line is src/cut.ts's, around the same report.
+  assert.equal(hooks.split('cutLine(').length - 1, 2, 'cut, or handed back as rebuilt');
+});
+
+test('a conversation too full, or with nothing to move out, is cut in place of a summary where src/ says so, and handed over as before where it does not (ADR 0019)', () => {
+  const handler = hooks.slice(hooks.indexOf("on('session.compact'"));
+  // The call, argument by argument: what the compaction rebuilt and what it estimated, how it counted, and what `/compact` was given.
+  const call =
+    'const decision = decide({ messages: outcome.messages, tokens: outcome.report.tokensAfter, count: tried.count, window: outcome.report.window, ' +
+    'maxAfterPercent: tried.maxAfterPercent, cutTo: outcome.target, keepTokens: tried.keepTokens, instructions: e.instructions });';
+  assert.ok(handler.includes(call), 'the call');
+  assert.equal(handler.split('decide(').length - 1, 1, 'nowhere else');
+  // After a compaction that did enough is handed back, and before either branch that hands over for the size.
+  const decided = handler.indexOf(call);
+  assert.ok(handler.indexOf('if (!nothing && outcome.enough) {') < decided, 'a compaction that did enough is not asked');
+  assert.ok(decided < handler.indexOf('say($, `built-in compaction: nothing could be moved out'), 'before nothing to move out is handed over');
+  assert.ok(decided < handler.indexOf('say($, `built-in compaction on what is left, too much is still in use'), 'before too much left is handed over');
+  // Handed back only where the decision says so: as rebuilt, or cut. A part that could not be written falls through to the hand-over.
+  const back = handler.slice(handler.indexOf("if (decision.hand === 'back') {"), handler.indexOf('if (nothing) {'));
+  assert.ok(back.includes('if (decision.at === 0) {\n        say($, cutLine(outcome.report, null));\n        return { messages: outcome.messages };'), 'room once rebuilt: the rebuilt messages, no handle');
+  assert.ok(back.includes('const cut = await cutKeeping($, tried, decision.after, decision.at, decision.over);\n      if (cut !== null) return cut;'), 'cut, or not');
+  assert.ok(!back.includes('next(') && !back.includes('summarizeKeeping('), 'no summary in that branch');
+  // What is cut is what the compaction rebuilt, never the messages the hook was handed, which carry Claude Code's handles.
+  const keeping = hooks.slice(hooks.indexOf('async function cutKeeping('), hooks.indexOf('type WithTools'));
+  assert.ok(
+    keeping.includes('await keepOldest(storingFilesOf($), tried.store, { messages: outcome.messages, tokens: outcome.report.tokensAfter, count: tried.count }, after, at);'),
+    'kept through the files a stored result is written through, in the place results are written to and read from',
+  );
+  assert.ok(keeping.includes("if ('failed' in cut) return null;"), 'nothing cut when a part could not be written');
+  assert.ok(keeping.includes('return { messages: cut.messages };'));
+  assert.ok(!/\be\.messages/.test(keeping) && !keeping.includes('next('), 'and calls no summary');
+  // How far a cut goes is no setting of its own: the size `compact()` moved results out to reach, as it worked it out.
+  assert.ok(compaction.includes('const target = Math.min((input.window * config.targetPercent) / 100, before / 2);'));
+  assert.ok(!hooks.includes('cutToPercent') && !hooks.includes("options['cutTo"), 'nothing of it is read from the options');
+  assert.ok(hooks.includes('keepTokens: config.keepTokens,'));
+  // What `find` says of itself speaks of parts kept either way, and its sentences stand apart as they did.
+  assert.ok(hooks.includes("moved out of this conversation and the parts of it that were ` +\n          'kept, the one a question is about, and returns it unchanged. Ask in words what the result contains or is about;"));
+  // The line names the messages kept by their place in the conversation: from behind what stays in front, up to the cut.
+  assert.ok(keeping.includes('say($, cutLine(report, { first: after + 1, last: at, of: outcome.messages.length, parts: cut.parts, over }));'));
 });
 
 test('a /compact left undone is decided in src/: by who asked, with what, what Claude Code says is in use, and what could have left (ADR 0015)', () => {
@@ -225,18 +265,20 @@ test('a /compact left undone is decided in src/: by who asked, with what, what C
   // was in use and not the size a report estimates, the window the compaction measured against, and the candidates.
   assert.ok(
     handler.includes(
-      'if (leftUndone({ trigger: e.trigger, instructions: e.instructions, inUse: tried.inUse, window: outcome.report.window, maxAfterPercent: tried.maxAfterPercent, candidates: outcome.report.candidates })) {',
+      'if (nothing && leftUndone({ trigger: e.trigger, instructions: e.instructions, inUse: tried.inUse, window: outcome.report.window, maxAfterPercent: tried.maxAfterPercent, candidates: outcome.report.candidates })) {',
     ),
   );
   // What was in use is Claude Code's own figure, thinking included, made up from characters only when it gives none; the compaction is handed the same.
   assert.ok(hooks.includes("const given = typeof tokens === 'number' && tokens > 0;"));
   assert.ok(hooks.includes('const inUse = given ? tokens : Math.ceil(charsOf(messages) / CHARS_PER_TOKEN) + media.images * IMAGE_TOKENS;'));
   assert.ok(hooks.includes('tokens: inUse,'));
-  assert.ok(hooks.includes('return { outcome, store, inUse, given, maxAfterPercent: config.maxAfterPercent };'));
-  // Only where nothing was moved out, and before that branch keeps and hands over: nothing of the conversation is kept, and nothing is summarized.
-  const branch = handler.slice(handler.indexOf('if (outcome.report.moved === 0) {'), handler.indexOf('if (!outcome.enough) {'));
+  assert.ok(hooks.includes('      inUse,\n      given,\n      maxAfterPercent: config.maxAfterPercent,'), 'and they are what the hook decides from');
+  // Only where nothing was moved out, and before anything else is decided: nothing of the conversation is kept, cut or summarized.
+  assert.ok(handler.includes('const nothing = outcome.report.moved === 0;'));
+  const branch = handler.slice(handler.indexOf('const nothing = outcome.report.moved === 0;'), handler.indexOf('if (!nothing && outcome.enough) {'));
   assert.ok(branch.includes('leftUndone('));
-  assert.ok(branch.indexOf('return { skip: ') > 0 && branch.indexOf('return { skip: ') < branch.indexOf('return summarizeKeeping('));
+  assert.ok(branch.indexOf('return { skip: ') > 0 && !branch.includes('decide(') && !branch.includes('summarizeKeeping('));
+  assert.ok(handler.indexOf('return { skip: `${PLUGIN}: ${undoneLine(') < handler.indexOf('decide('), 'before a cut is decided');
   assert.equal(handler.split('leftUndone(').length - 1, 1, 'nowhere else');
   // The line names the figure only when Claude Code gave it, and is said once: as the reason of the skip, with no line of the plugin's before it.
   assert.ok(branch.includes('return { skip: `${PLUGIN}: ${undoneLine(tried.given ? tried.inUse : null, outcome.report.window)}` };'));

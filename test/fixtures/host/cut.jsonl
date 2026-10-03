@@ -1,0 +1,4 @@
+{"type": "system", "subtype": "ui_log", "text": "lossless-compaction: no summary, messages 2-19 of 20 kept in 1 part: moved 0 of 7 tool results out (67214 -> 453 chars, about 6599 of 167000 tokens in use) in 79 ms; still over what may stay in use, which a summary would not change"}
+{"type": "system", "subtype": "hook_response", "hook_event": "SessionStart", "exit_code": 0, "stdout": ""}
+{"type": "system", "subtype": "init", "session_id": "00000000-0000-0000-0000-000000000000", "claude_code_version": "2.1.288", "tools": ["Read", "ToolSearch", "mcp__lossless-compaction__recall"], "plugins": [{"name": "lossless-compaction", "path": "<path>"}]}
+{"type": "result", "result": ""}

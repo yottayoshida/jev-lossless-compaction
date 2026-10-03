@@ -328,7 +328,7 @@ test('a part of an earlier summary is followed even when the results already fil
   });
   await find({ files, dirs: [DIR], messages: [{ role: 'user', text: line, toolUses: [] }], provider: TYPESAFE, http, question: 'which one?' });
   // The earlier summary's part (messages 1-4 of the first conversation) is still offered.
-  assert.ok(options.some((text) => text.startsWith('part 1 of 1 of the conversation before a summary, messages 1-4')), 'the earlier part is followed');
+  assert.ok(options.some((text) => text.startsWith('part 1 of 1 of the kept conversation, messages 1-4')), 'the earlier part is followed');
 });
 
 test('keeping a conversation as large as Claude Code hands a plugin takes well under the hook\'s ten seconds', async () => {

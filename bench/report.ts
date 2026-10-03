@@ -204,6 +204,7 @@ export function finds(units: readonly Unit[]): string {
 /**
  * What the plugin estimated to be in use after it had moved what it would,
  * against what was, per checkout or setting of the plugin. Where it compacted,
+ * by moving results out or by keeping the oldest messages in place of a summary,
  * that is what the next request was sent. Where it moved nothing and handed
  * over, nothing had changed, and the estimate is of what was in use before the
  * compaction, as Claude Code counted it, less the thinking, which no rebuilt
@@ -222,9 +223,11 @@ export function estimates(units: readonly Unit[]): string {
       const estimate = line?.estimate;
       const thinking = unit.compaction.thinkingBefore;
       const before = unit.compaction.preTokens - (thinking ?? 0);
-      const against = line?.outcome === 'moved' ? actual : line?.outcome === 'nothing' ? before : NaN;
+      // Handed back by the plugin, whichever way: what it estimated is what the next request was sent.
+      const sent = line?.outcome === 'moved' || line?.outcome === 'cut' || line?.outcome === 'rebuilt';
+      const against = sent ? actual : line?.outcome === 'nothing' ? before : NaN;
       const measured =
-        line?.outcome === 'moved' ? `${actual} sent next` : line?.outcome === 'nothing' ? `${before} in use before${thinking === undefined ? '' : `, without ${thinking} of thinking`}` : '—';
+        sent ? `${actual} sent next` : line?.outcome === 'nothing' ? `${before} in use before${thinking === undefined ? '' : `, without ${thinking} of thinking`}` : '—';
       const error = estimate === undefined || !(against > 0) ? '—' : `${(((estimate - against) / against) * 100).toFixed(1)} %`;
       return [unit.trace, unit.model, `${unit.variant} (${unit.plugin ?? 'not recorded'})`, String(unit.run), line?.outcome ?? '—', estimate === undefined ? 'none stated' : String(estimate), measured, error];
     });

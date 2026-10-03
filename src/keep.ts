@@ -1,8 +1,10 @@
-// What Claude Code's own summary replaces, kept before it runs (ADR 0007).
+// What Claude Code's own summary replaces, kept before it runs (ADR 0007), and
+// the oldest messages of a conversation too full to go on with, kept in place
+// of a summary (ADR 0019, src/cut.ts decides which).
 //
 // The conversation is written as text, in parts small enough for `recall` to
 // hand back whole, and a message holding a ticket for each part is put right
-// after the summary.
+// after the summary, or where the messages it lists stood.
 
 import { inputLine } from './ask.ts';
 import { changedLines } from './changed.ts';
@@ -19,6 +21,11 @@ export const PART_BYTES = 40_000;
 export const INLINE_BYTES = 400;
 /** The first line of the message put after the summary; `goalOf` does not count a message that starts with it. */
 export const KEPT = `[${PLUGIN}] The conversation this summary replaces is kept`;
+/**
+ * The first line of the message that stands where the oldest messages stood, no summary having taken their place.
+ * It names no place in the conversation: the first message may stay in front of it, and each part says which messages it holds.
+ */
+export const KEPT_UNSUMMARIZED = `[${PLUGIN}] Earlier messages of this conversation are kept as they were said, with no summary in their place`;
 
 /**
  * The conversation as Claude Code hands it with its blocks, read into the
@@ -186,8 +193,22 @@ async function withTickets(files: Files, dir: string, message: Message, tools: R
  * Under the parts, that message names the files the conversation read that
  * are no longer on disk what the `Read` returned (src/changed.ts); `read` is
  * where a reading moved out earlier is read from.
+ *
+ * With `summarized` false the messages are the oldest of a conversation, kept
+ * in place of a summary: the message says so, the tickets do not speak of a
+ * summary, and no file is named. Claude Code shows no file again where no
+ * summary ran, and the messages that follow, which may have written the file
+ * since, are not among these. `after` is how many messages of the conversation
+ * stand in front of them, so that a part names its messages by their place in
+ * the whole.
  */
-export async function keepConversation(files: Files, dir: string, messages: readonly Message[], read: readonly string[] = [dir]): Promise<Kept> {
+export async function keepConversation(
+  files: Files,
+  dir: string,
+  messages: readonly Message[],
+  read: readonly string[] = [dir],
+  { summarized = true, after = 0 }: { summarized?: boolean; after?: number } = {},
+): Promise<Kept> {
   const tools = new Map(messages.flatMap((message) => message.toolUses).map((use) => [use.tool_use_id, use.tool]));
   // Pieces of text, each with the number of the message it comes from, one based.
   // Every message ends in a line break, so the parts read in order are the messages in order.
@@ -197,7 +218,7 @@ export async function keepConversation(files: Files, dir: string, messages: read
     let text = `${messageText(ticketed)}\n`;
     // Its results are tickets by now; only its inputs are left to move out.
     if (bytesOf(text) > PART_BYTES) text = `${messageText(await withTickets(files, dir, ticketed, tools, true))}\n`;
-    for (const piece of cut(text, PART_BYTES)) pieces.push({ text: piece, at: index + 1, bytes: bytesOf(piece) });
+    for (const piece of cut(text, PART_BYTES)) pieces.push({ text: piece, at: after + index + 1, bytes: bytesOf(piece) });
   }
 
   const parts: { text: string; first: number; last: number; bytes: number }[] = [];
@@ -213,14 +234,14 @@ export async function keepConversation(files: Files, dir: string, messages: read
   }
   if (parts.length === 0) return { nothing: true };
 
-  const lines = [`${KEPT}, in ${parts.length} part${parts.length === 1 ? '' : 's'}; recall a part by its id.`];
+  const lines = [`${summarized ? KEPT : KEPT_UNSUMMARIZED}, in ${parts.length} part${parts.length === 1 ? '' : 's'}; recall a part by its id.`];
   for (const [index, part] of parts.entries()) {
     const moved = await moveOut(files, dir, PART, part.text);
     if ('reason' in moved) return { failed: moved.reason, ...(moved.code === undefined ? {} : { code: moved.code }) };
-    lines.push(partTicketText({ part: index + 1, parts: parts.length, first: part.first, last: part.last, bytes: moved.bytes, id: moved.id }));
+    lines.push(partTicketText({ part: index + 1, parts: parts.length, first: part.first, last: part.last, bytes: moved.bytes, id: moved.id }, summarized));
   }
   // It throws nothing: the parts stand whatever it meets.
-  lines.push(...(await changedLines(files, dir, read, messages)));
+  if (summarized) lines.push(...(await changedLines(files, dir, read, messages)));
   return { text: lines.join('\n'), parts: parts.length };
 }
 

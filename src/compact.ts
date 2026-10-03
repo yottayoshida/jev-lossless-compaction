@@ -87,6 +87,12 @@ export type Outcome = {
    * out. `messages` are then the ones handed in, untouched, handles and all.
    */
   abandoned?: string;
+  /**
+   * The size results were moved out to reach, in tokens: `targetPercent` of the window, and never more
+   * than half of what was in use. Where the oldest messages are kept in place of a summary, they are cut
+   * down to the same size (src/cut.ts).
+   */
+  target: number;
   report: Report;
 };
 
@@ -155,6 +161,14 @@ export function charsOf(messages: readonly Message[]): number {
 /** The characters of a conversation, weighted as `weigh` does. */
 export function weightOf(messages: readonly Message[]): number {
   return sizeOf(messages, weigh);
+}
+
+/**
+ * The tokens `messages` come to, the way a compaction counts them: weighted characters at the
+ * session's density where sizes are counted from what stays, else characters at three a token.
+ */
+export function tokensOf(messages: readonly Message[], count: Count | undefined): number {
+  return count === undefined ? charsOf(messages) * (1 / CHARS_PER_TOKEN) : weightOf(messages) * count.density;
 }
 
 async function inParallel<T, R>(items: readonly T[], limit: number, run: (item: T) => Promise<R>): Promise<R[]> {
@@ -340,6 +354,7 @@ export async function compact(input: Input, config: Config, host: Host): Promise
       messages: [...input.messages],
       enough: false,
       abandoned: why,
+      target: Math.min((input.window * config.targetPercent) / 100, input.tokens / 2),
       report: {
         results: resultCount,
         candidates: 0,
@@ -397,7 +412,7 @@ export async function compact(input: Input, config: Config, host: Host): Promise
   const measure = count === undefined ? lengthOf : weigh;
   const perUnit = count?.density ?? 1 / CHARS_PER_TOKEN;
   const charsBefore = charsOf(input.messages);
-  const before = count === undefined ? input.tokens : count.fixedTokens + sizeOf(input.messages, measure) * perUnit;
+  const before = count === undefined ? input.tokens : count.fixedTokens + tokensOf(input.messages, count);
   // At most the target, and never more than half of what is there now: a
   // compaction that was asked for should leave room to work in. Both measured the
   // same way, so that something is always needed.
@@ -447,7 +462,7 @@ export async function compact(input: Input, config: Config, host: Host): Promise
   // What is measured against the window is everything in it: the system prompt and the
   // tools' definitions too, which no compaction makes smaller.
   const charsAfter = charsOf(messages);
-  const conversationAfter = sizeOf(messages, measure) * perUnit;
+  const conversationAfter = tokensOf(messages, count);
   const tokensAfter = Math.round(count === undefined ? input.tokens - saved * perUnit : count.fixedTokens + conversationAfter);
   // How far over what may stay in use. A summary can take away no more than the
   // conversation that is left: when that does not cover it, handing over gains nothing.
@@ -455,6 +470,7 @@ export async function compact(input: Input, config: Config, host: Host): Promise
   return {
     messages,
     enough: moved.size > 0 && (over <= 0 || conversationAfter < over),
+    target,
     report: {
       results: resultCount,
       candidates: candidates.length,
@@ -491,9 +507,10 @@ export function reportLine(report: Report): string {
 /**
  * The tokens that may stay in use to go on with: `maxAfterPercent` of the size at
  * which Claude Code compacts on its own. One line for what is left after moving
- * out and for what is in use where nothing could be moved.
+ * out, for what is in use where nothing could be moved, and for what is left once
+ * the oldest messages are kept in place of a summary (src/cut.ts).
  */
-function mayStay(window: number, maxAfterPercent: number): number {
+export function mayStay(window: number, maxAfterPercent: number): number {
   return (window * maxAfterPercent) / 100;
 }
 

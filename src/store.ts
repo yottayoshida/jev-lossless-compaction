@@ -49,11 +49,15 @@ const TICKET_2026_09 = new RegExp(
     `and is kept unchanged on disk\\. To read it, call the tool ${OLD_RECALL_TOOL} with id ([0-9a-f]{64})\\.$`,
 );
 
-/** The name the index gives a part of a conversation kept before the built-in summary (ADR 0007). */
+/**
+ * The name the index gives a part of a kept conversation: kept before the built-in
+ * summary (ADR 0007), or in place of one (ADR 0019).
+ */
 export const PART = 'conversation';
-// A part has a wording of its own, so that no tool named `conversation` is taken for one.
+// A part has a wording of its own, so that no tool named `conversation` is taken for one. The words
+// "before the summary" are written where a summary followed and left out where none did; both are read.
 const PART_TICKET = new RegExp(
-  `^\\[moved out\\] conversation before the summary, part (\\d{1,6}) of (\\d{1,6}), messages (\\d{1,6})-(\\d{1,6}), (\\d{1,9}) bytes; recall with ${RECALL_TOOL} id ([0-9a-f]{64})$`,
+  `^\\[moved out\\] conversation(?: before the summary)?, part (\\d{1,6}) of (\\d{1,6}), messages (\\d{1,6})-(\\d{1,6}), (\\d{1,9}) bytes; recall with ${RECALL_TOOL} id ([0-9a-f]{64})$`,
 );
 
 export type Ticket = { tool: string; bytes: number; id: string };
@@ -61,8 +65,9 @@ export type Ticket = { tool: string; bytes: number; id: string };
 /** Which part of a kept conversation a line stands for, and which of its messages the part holds. */
 export type PartTicket = Ticket & { part: number; parts: number; first: number; last: number };
 
-export function partTicketText({ part, parts, first, last, bytes, id }: Omit<PartTicket, 'tool'>): string {
-  return `[moved out] conversation before the summary, part ${part} of ${parts}, messages ${first}-${last}, ${bytes} bytes; recall with ${RECALL_TOOL} id ${id}`;
+/** The line that stands for one part. `summarized` is false where no summary took the conversation's place. */
+export function partTicketText({ part, parts, first, last, bytes, id }: Omit<PartTicket, 'tool'>, summarized = true): string {
+  return `[moved out] conversation${summarized ? ' before the summary' : ''}, part ${part} of ${parts}, messages ${first}-${last}, ${bytes} bytes; recall with ${RECALL_TOOL} id ${id}`;
 }
 
 /** Reads a line that has the shape of a part's ticket. The shape alone proves nothing: see `isStored`. */

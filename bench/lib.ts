@@ -269,7 +269,7 @@ export type Line = {
    * and room left as it was, and nothing was compacted. The others name why the built-in
    * compaction ran.
    */
-  outcome: 'moved' | 'too-much' | 'nothing' | 'other' | 'undone';
+  outcome: 'moved' | 'too-much' | 'nothing' | 'other' | 'undone' | 'cut' | 'rebuilt';
   moved: number;
   results: number;
   images: number;
@@ -280,12 +280,20 @@ export type Line = {
   window?: number;
   /** Of a compaction left undone: what was in use, as Claude Code gave it; absent when it gave none. */
   inUse?: number;
+  /** Of a conversation cut in place of a summary (ADR 0019): which of its messages were kept, of how many, in how many parts. */
+  cut?: { first: number; last: number; of: number; parts: number };
   ms: number;
 };
 
 const LINE =
   /moved (\d+) of (\d+) tool results out(?:, (\d+) images? with them)? \((\d+) -> (\d+) chars(?:, about (\d+) of (\d+) tokens in use)?\) in ([\d.]+) (ms|s)/;
 const UNDONE = /nothing to move out(?:, (\d+) of (\d+) tokens in use)?: the conversation is left as it is/;
+// No summary in place of one (ADR 0019, src/cut.ts writes the line): the oldest messages kept, or nothing to cut once rebuilt.
+const CUT = /no summary, messages (\d+)-(\d+) of (\d+) kept in (\d+) parts?: /;
+const REBUILT = 'no summary, nothing to cut: ';
+
+/** True when the built-in summary ran on what the plugin left: it handed over, for the size or for what it cannot rebuild. */
+export const summarizedBy = (line: Line): boolean => line.outcome === 'too-much' || line.outcome === 'nothing' || line.outcome === 'other';
 
 /** Reads the line the plugin shows at a compaction, in any of the forms it has had since 0.5.0. */
 export function readLine(text: string): Line | null {
@@ -300,8 +308,9 @@ export function readLine(text: string): Line | null {
     return line;
   }
   if (!match) return text.includes('built-in compaction:') ? { outcome: 'other', ...none } : null;
+  const cut = CUT.exec(text);
   const line: Line = {
-    outcome: text.includes('too much is still in use') ? 'too-much' : text.includes('nothing could be moved out') ? 'nothing' : 'moved',
+    outcome: text.includes('too much is still in use') ? 'too-much' : text.includes('nothing could be moved out') ? 'nothing' : cut ? 'cut' : text.includes(REBUILT) ? 'rebuilt' : 'moved',
     moved: Number(match[1]),
     results: Number(match[2]),
     images: Number(match[3] ?? 0),
@@ -309,6 +318,7 @@ export function readLine(text: string): Line | null {
     charsAfter: Number(match[5]),
     ms: Number(match[8]) * (match[9] === 's' ? 1000 : 1),
   };
+  if (cut) line.cut = { first: Number(cut[1]), last: Number(cut[2]), of: Number(cut[3]), parts: Number(cut[4]) };
   if (match[6] !== undefined) line.estimate = Number(match[6]);
   if (match[7] !== undefined) line.window = Number(match[7]);
   return line;
