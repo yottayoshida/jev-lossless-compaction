@@ -1,0 +1,325 @@
+{
+ "trace": "results",
+ "version": 1,
+ "base": "5adde713-fb9d-46b7-99b5-f59b8c9c814f",
+ "plugin": "b6736911384a",
+ "pluginCommit": "8074a6f32e66",
+ "model": "claude-haiku-4-5-20251001",
+ "run": 1,
+ "arm": "plugin",
+ "first": true,
+ "variant": "find",
+ "mode": "find",
+ "at": "2026-10-03T06:49:28.749Z",
+ "claudeCode": "2.1.287",
+ "compaction": {
+  "sessionId": "1422d158-036c-47d2-9b9d-c2e53f331111",
+  "durationMs": 106,
+  "wallMs": 1898,
+  "preTokens": 102276,
+  "postTokens": 23635,
+  "thinkingBefore": 873,
+  "line": {
+   "outcome": "moved",
+   "moved": 10,
+   "results": 15,
+   "images": 0,
+   "charsBefore": 235652,
+   "charsAfter": 94458,
+   "ms": 62,
+   "estimate": 45354,
+   "window": 167000
+  },
+  "summarized": false,
+  "own": {
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "cacheReadInputTokens": 0,
+   "cacheCreationInputTokens": 0,
+   "costUSD": 0,
+   "thinkingTokens": 0
+  }
+ },
+ "questions": [
+  {
+   "id": "find-report",
+   "kind": "exact-gone",
+   "answer": "batch 58: 2 warnings, checksum d8923051",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    43995,
+    44566,
+    46924
+   ],
+   "durationMs": 7618,
+   "wallMs": 8877,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 600,
+    "cacheReadInputTokens": 132526,
+    "cacheCreationInputTokens": 2931,
+    "costUSD": 0.022142600000000012,
+    "thinkingTokens": 392
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-kept",
+   "kind": "exact-gone",
+   "answer": "record 91-0017: station 6922 reported 618 units at step 17",
+   "calls": [
+    "ToolSearch",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "618 units at step 17"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    43998,
+    44982,
+    45443,
+    48055
+   ],
+   "durationMs": 18022,
+   "wallMs": 19282,
+   "own": {
+    "inputTokens": 38,
+    "outputTokens": 1163,
+    "cacheReadInputTokens": 178381,
+    "cacheCreationInputTokens": 4059,
+    "costUSD": 0.03180909999999998,
+    "thinkingTokens": 871
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-script",
+   "kind": "exact-gone",
+   "answer": "The first line is: **batch 01: 10 warnings, checksum 9e3817e8**",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    43999,
+    44488,
+    46831
+   ],
+   "durationMs": 7108,
+   "wallMs": 8518,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 494,
+    "cacheReadInputTokens": 132456,
+    "cacheCreationInputTokens": 2834,
+    "costUSD": 0.021411599999999975,
+    "thinkingTokens": 278
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-stays",
+   "kind": "exact-gone",
+   "answer": "kept-1.log:\n\n`1\trecord 91-0001: station 9867 reported 122 units at step 1`",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    44008,
+    44555,
+    47161
+   ],
+   "durationMs": 7747,
+   "wallMs": 9024,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 567,
+    "cacheReadInputTokens": 132541,
+    "cacheCreationInputTokens": 3155,
+    "costUSD": 0.022427099999999978,
+    "thinkingTokens": 343
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-changes",
+   "kind": "exact-gone",
+   "answer": "`1\trecord 81-0001: station 8557 reported 112 units at step 1`",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall"
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 0,
+    "searches": 1,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    44008,
+    44790,
+    47393
+   ],
+   "durationMs": 11472,
+   "wallMs": 12759,
+   "own": {
+    "inputTokens": 28,
+    "outputTokens": 854,
+    "cacheReadInputTokens": 132776,
+    "cacheCreationInputTokens": 3387,
+    "costUSD": 0.024349600000000027,
+    "thinkingTokens": 602
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-log-a",
+   "kind": "exact-gone",
+   "answer": "record 2-0150: station 1325 reported 664 units at step 150",
+   "calls": [
+    "Grep",
+    "Read"
+   ],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 2
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    43998,
+    45141,
+    45395
+   ],
+   "durationMs": 12406,
+   "wallMs": 13715,
+   "own": {
+    "inputTokens": 26,
+    "outputTokens": 1339,
+    "cacheReadInputTokens": 133109,
+    "cacheCreationInputTokens": 1399,
+    "costUSD": 0.022829900000000014,
+    "thinkingTokens": 1061
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-log-b",
+   "kind": "exact-gone",
+   "answer": "From log9.txt:\n\n```\nrecord 9-0203: station 3083 reported 320 units at step 203\n```",
+   "calls": [],
+   "retrieval": {
+    "recalls": 0,
+    "finds": 0,
+    "searches": 0,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    43994
+   ],
+   "durationMs": 2078,
+   "wallMs": 3607,
+   "own": {
+    "inputTokens": 10,
+    "outputTokens": 205,
+    "cacheReadInputTokens": 43984,
+    "cacheCreationInputTokens": 0,
+    "costUSD": 0.005433399999999977,
+    "thinkingTokens": 168
+   },
+   "verdict": "correct"
+  },
+  {
+   "id": "find-seventh",
+   "kind": "exact-gone",
+   "answer": "`1\trecord 7-0001: station 8836 reported 38 units at step 1`",
+   "calls": [
+    "ToolSearch",
+    "mcp__lossless-compaction__recall",
+    "ToolSearch",
+    "mcp__lossless-compaction__find"
+   ],
+   "findQuestions": [
+    "\"record 7-0001\""
+   ],
+   "retrieval": {
+    "recalls": 1,
+    "finds": 1,
+    "searches": 2,
+    "reads": 0
+   },
+   "outside": false,
+   "refused": 0,
+   "tells": 0,
+   "requests": [
+    43998,
+    44555,
+    45269,
+    45292,
+    47061,
+    54233
+   ],
+   "durationMs": 35598,
+   "wallMs": 36750,
+   "own": {
+    "inputTokens": 56,
+    "outputTokens": 3907,
+    "cacheReadInputTokens": 270115,
+    "cacheCreationInputTokens": 10237,
+    "costUSD": 0.06707650000000004,
+    "thinkingTokens": 3496
+   },
+   "verdict": "correct"
+  }
+ ]
+}

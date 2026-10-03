@@ -1,0 +1,44 @@
+[
+ {
+  "trace": "results",
+  "kind": "value of another result",
+  "ask": "Which earlier result was what the shell script printed? It was run before record 2-0077 was looked at.",
+  "target": "batch 01: 10 warnings, checksum 9e3817e8",
+  "must": "not-wrong"
+ },
+ {
+  "trace": "results",
+  "kind": "value said not to be it",
+  "ask": "Which earlier result was the log that was to be left as it is? Not the output with checksum 9e3817e8.",
+  "target": "record 91-0001: station 9867 reported 122 units at step 1",
+  "must": "not-wrong"
+ },
+ {
+  "trace": "mixed",
+  "kind": "value of another result",
+  "ask": "Which earlier result was what the shell script printed? It was run before record 41-0077 was looked at.",
+  "target": "batch 01: 6 warnings, checksum 9e3bcd32",
+  "must": "not-wrong"
+ },
+ {
+  "trace": "mixed",
+  "kind": "value said not to be it",
+  "ask": "Which earlier result was the log that was to be left as it is? Not the output with checksum 9e3bcd32.",
+  "target": "record 97-0001: station 680 reported 128 units at step 1",
+  "must": "not-wrong"
+ },
+ {
+  "trace": "japanese",
+  "kind": "value of another result",
+  "ask": "Which earlier result was what the shell script printed? It was run before record 111-0077 was looked at.",
+  "target": "batch 01: 9 warnings, checksum 9e3c6b69",
+  "must": "not-wrong"
+ },
+ {
+  "trace": "japanese",
+  "kind": "value said not to be it",
+  "ask": "Which earlier result was the log that was to be left as it is? Not the output with checksum 9e3c6b69.",
+  "target": "record 98-0001: station 811 reported 129 units at step 1",
+  "must": "not-wrong"
+ }
+]

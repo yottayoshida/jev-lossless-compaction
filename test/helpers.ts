@@ -162,6 +162,21 @@ export function questionsOf(sent: Sent): Record<string, { instructions: string }
   return (body.questions ?? body.input?.questions ?? {}) as Record<string, { instructions: string }>;
 }
 
+/** The options of the one choice a request carries, each with its key. */
+export const optionsAsked = (sent: Sent) => Object.entries((questionsOf(sent)['q'] as { criteria?: Record<string, string> } | undefined)?.criteria ?? {});
+
+/** What `find` adds to the option of the one result a line of which holds the values a question names. */
+export const TOLD = /One of its lines holds ("[^"]+"(?: and )?)+\.$/;
+
+/** A stand-in for Jev that takes the result it is told holds the values, at probability `p`, and says none where it is told of no one result. */
+export const trusting = (p = 0.95) =>
+  recordingHttp((sent) => {
+    const options = optionsAsked(sent);
+    const told = options.filter(([, text]) => TOLD.test(text));
+    const winner = told.length === 1 ? (told[0]?.[0] ?? 'none') : 'none';
+    return ok({ answers: { q: { type: 'choice', choice: winner, probabilities: Object.fromEntries(options.map(([key]) => [key, key === winner ? p : (1 - p) / (options.length - 1)])) } } });
+  });
+
 export type Call = { tool: string; input: Record<string, unknown>; text: string; isError?: boolean };
 
 /**

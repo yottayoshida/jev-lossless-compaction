@@ -662,9 +662,43 @@ with a key set calls `find`, without being told to, for about half the
 questions about what a result was about: 11 of 21, in a made-up conversation of
 thirteen such results, all moved out (Sonnet 5.5, one run: 6 of 7). Where the calls
 name what they read, it calls `find` seldom and `recall` by the ticket's
-id. Asked for a value further down a result, `find` mostly says that none
-of them is about it, since Jev is shown each result's first lines; its
-answer says so and how to look further.
+id.
+
+With a key set, a question that names a value — a number, a checksum, a
+code, with three digits or more in one of them — has its values looked for
+in the whole of each moved-out result, a line at a time. Where one result
+alone has a line holding them all, each as a word of its own, Jev is told so
+beside that result's first lines, and still chooses: a result is not given
+because a line of it holds a value. So a question about one result that
+names a value of another has Jev told of the other, and Jev may take it:
+asked 6 such questions it gave the result asked for 5 times and listed it
+first once (`docs/measurements.md`). Where Jev takes none of the results,
+those with such a line are named with their ids, eight at most, and none of
+them is given as the answer. Jev is shown each result's first lines, so
+without this a value further down is found only as a phrase in double
+quotes.
+
+What is sent for it is one sentence: that a line of that result holds the
+values, which the question already holds. No line of the result is sent. The
+values are taken from the question as it is sent, with shapes of secrets
+blanked and cut at 2,000 characters: a value blanked or cut off there is not
+looked for. Where several results have such a line, and where a line holds
+only some of the values, Jev is told nothing: told of each of four results a
+line of which held one of the two values asked for, it gave the first of
+them as the answer (`docs/measurements.md`).
+
+A value is a word of its own where no letter or digit stands right before or
+after it: `4821` is found in `job-4821` and in `status:4821`, and not in
+`48210` or `v4821`. Not found this way, and said so in the answer: values
+that stand on different lines of a result, a value in another letter case, a
+value that is only part of a longer word or number there (the first
+characters of a checksum, the `1.2.3` of `v1.2.3`), the number of a line
+(the number `Read` puts in front of each line is left out), and a value in a
+kept part of the conversation. Nor is a result that holds an image looked
+through. A run with one digit ("the 2 logs", `log7.txt`) is no value, a
+number written with commas between its digits ("9,821.50") gives none, and a
+question whose values all have fewer than three digits ("step 17") has none
+looked for. Without a key there is no `find`, and so none of this.
 
 ## Sizes and older versions
 

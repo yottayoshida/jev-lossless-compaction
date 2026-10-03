@@ -245,7 +245,8 @@ leaves it out unless it is named.
 - **With an agent in between** (`find`): the same questions asked of the
   plugin's arm after a compaction, once with `recall` alone and once with
   `find` as well, each ending "Quote that line in full" (or "its first
-  line"), which a program checks. The plugin is told which provider to ask
+  line"), which a program checks. What the agent asked `find` is kept in the
+  unit (`findQuestions`), so that a test can put it to `find` again. The plugin is told which provider to ask
   in its settings and finds the key in the session's environment; no other
   session has it there, whatever the environment of whoever runs this.
 
@@ -268,7 +269,9 @@ node bench/main.ts publish --to bench/results/2026-10-02   # the units, grades a
 node bench/main.ts publish --to bench/results/2026-10-02-estimate --variants adr-0013,v0.6.0   # only those variants' units
 node bench/main.ts report --from bench/results/2026-10-02  # the tables again, from what was published: no box needed
 BENCH_JEV_ENV=~/somewhere/jev.env node bench/main.ts pick     # asks Jev: no session of Claude Code
+BENCH_JEV_ENV=~/somewhere/jev.env node bench/main.ts pick --questions test/fixtures/values/held-out.json   # the questions of a file
 BENCH_JEV_ENV=~/somewhere/jev.env node bench/main.ts find     # results and short, with and without `find`
+BENCH_JEV_ENV=~/somewhere/jev.env node bench/main.ts find --traces opaque --variants find   # only the arm with `find`
 ```
 
 A run that is stopped goes on where it was: each unit is written once, when

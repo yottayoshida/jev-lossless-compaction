@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { digest } from '../src/ask.ts';
-import { find, phrasesOf, shown, ticketsIn, type FindInput } from '../src/find.ts';
+import { MIN_DIGITS, VALUED_LISTED, VALUE_DIGITS, find, lineHolds, phrasesOf, shown, ticketsIn, valuesOf, type FindInput } from '../src/find.ts';
 import { FIND_TOOL, RECALL_TOOL, moveOut, ticketText } from '../src/store.ts';
 import type { Http, Message } from '../src/types.ts';
-import { MemoryFiles, conversation, ok, output, questionsOf, recordingHttp, type Call, type Sent } from './helpers.ts';
+import { MemoryFiles, TOLD, conversation, ok, output, questionsOf, recordingHttp, trusting, type Call, type Sent } from './helpers.ts';
 
 const DIR = '/home/u/.claude/lossless-compaction';
 const TYPESAFE = { kind: 'typesafe', key: 'test-key-for-typesafe', model: 'jev-latest' } as const;
@@ -388,4 +388,209 @@ test('when several results hold the quoted phrase and Jev says none, they are li
   assert.equal(text.split('\n').filter((line) => line.includes(`recall with ${RECALL_TOOL} id `)).length, 2, text);
   assert.ok(text.includes('show c') && text.includes('show d'), text);
   assert.match(text, /- or none of them; probability 0\.90$/);
+});
+
+// --- values a question names (#55) ---
+
+test('the values a question names: runs with two digits or more, used only when one has three', () => {
+  assert.deepEqual(valuesOf('Which earlier result held a line reading "d8923051"?'), ['d8923051']);
+  assert.deepEqual(valuesOf('Which earlier result listed a station that reported 618 units at step 17?'), ['618', '17']);
+  assert.deepEqual(valuesOf('Which earlier result held the record numbered 9-0203?'), ['9-0203']);
+  assert.deepEqual(valuesOf('Which earlier result gave the reference code RX-5323-T?'), ['RX-5323-T']);
+  assert.deepEqual(valuesOf('What ran at 10:30:05.'), ['10:30:05']);
+  // A value named twice is one value.
+  assert.deepEqual(valuesOf('Was 4821 the serial, 4821?'), ['4821']);
+  // One digit is no value: a count, an ordinal, the number in a file's name stand beside the value without being needed on its line.
+  assert.deepEqual(valuesOf('Which of the 2 logs shows status 500?'), ['500']);
+  assert.deepEqual(valuesOf('Where is order 2-0077 in log7.txt, the 3rd one?'), ['2-0077']);
+  // No value of three digits: nothing is looked for.
+  assert.deepEqual(valuesOf('Of the 2 log files looked at near the start, which was to be left as it is?'), []);
+  assert.deepEqual(valuesOf('Which result is from version 1.2 of log7.txt, at step 17 of 42?'), []);
+  assert.deepEqual(valuesOf('Which earlier result was what the shell script printed?'), []);
+  assert.deepEqual([MIN_DIGITS, VALUE_DIGITS], [3, 2]);
+  // A number written with commas between its digits is cut by them, and no run of it is the number: it gives no value.
+  assert.deepEqual(valuesOf('Which result had the total $9,821.50?'), []);
+  assert.deepEqual(valuesOf('Which result listed the 1,234,567 rows of build 4821?'), ['4821']);
+  assert.deepEqual(valuesOf('Which result had the 12,345 lines of build 4821?'), ['4821']);
+  // A comma of the sentence is no such comma.
+  assert.deepEqual(valuesOf('At step 17, 618 units: which result?'), ['17', '618']);
+  // A run ends at its last letter or digit, however much punctuation follows, and a long question is read in no time.
+  assert.deepEqual(valuesOf(`serial 4821${'.'.repeat(50)} and build 77:`), ['4821', '77']);
+  const began = performance.now();
+  assert.deepEqual(valuesOf(`a${'.'.repeat(200_000)}b 4821`), ['4821']);
+  assert.ok(performance.now() - began < 500);
+});
+
+test('a line holds the values when every one of them is on it, each a word of its own', () => {
+  assert.ok(lineHolds('a\nstation 6922 reported 618 units at step 17\nb', ['618', '17']));
+  // On two lines; with a letter or a digit right before or after it; none asked for.
+  assert.ok(!lineHolds('reported 618 units\nat step 17', ['618', '17']));
+  assert.ok(!lineHolds('station 16180 and step 17', ['618', '17']));
+  assert.ok(!lineHolds('checksum d8923051f', ['d8923051']));
+  assert.ok(!lineHolds('tag v1.2.3 at 2026-10-03T12:30:05Z', ['1.2.3']) && !lineHolds('tag v1.2.3 at 2026-10-03T12:30:05Z', ['12:30:05']));
+  assert.ok(!lineHolds('python 13.12', ['3.12']));
+  assert.ok(!lineHolds('anything 618', []));
+  // Joined to another word by a hyphen, a point, a colon or an underscore it is still a word: a key and its value, a name and its number.
+  for (const line of ['job-4821 done', 'build_4821 ok', 'ERR:4821', '17:4821 passed', 'record 1-4821', 'x 0.4821', '4821-rc1 tagged', '4821.log written']) assert.ok(lineHolds(line, ['4821']), line);
+  assert.ok(lineHolds('status:500', ['500']) && lineHolds('sha256:9e3817e8abcd', ['9e3817e8abcd']) && lineHolds('python 3.12.1', ['3.12']));
+  // Next to punctuation, at the end of a sentence, after a sign: a word. Another letter case is another value.
+  assert.ok(lineHolds('code (RX-5323-T), filed.', ['RX-5323-T']));
+  assert.ok(lineHolds('it was 0077.', ['0077']) && lineHolds('offset -5000', ['5000']) && lineHolds('{"limit":250}', ['250']));
+  assert.ok(!lineHolds('code rx-5323-t', ['RX-5323-T']));
+  // A character of a pattern in the value is taken as written.
+  assert.ok(lineHolds('at 10.30 sharp', ['10.30']) && !lineHolds('at 10x30 sharp', ['10.30']));
+});
+
+const deep = (label: string, line: string): Call => ({ tool: 'Bash', input: { command: `show ${label}` }, text: `${output(label, 30)}\n${line}\n${output(`${label}x`, 30)}` });
+const sayingNone = () => recordingHttp((request) => answer(keysOf(request), 'none', 0.9));
+const toldOf = (sent: readonly Sent[]) => optionsOf(sent[0] as Sent).map((option) => TOLD.exec(option)?.[0] ?? '');
+
+test('a value one result alone holds further down: Jev is told so of that result, and what it then chooses is returned', async () => {
+  const files = new MemoryFiles();
+  const messages = await compacted(files, [call('a'), deep('b', 'serial 4821 passed at 10:30:05'), call('c')]);
+  const jev = trusting();
+
+  const text = await find(input(files, messages, 'Which result had the serial 4821?', jev.http));
+  // Jev was asked, once; of none and the three results, only the one that holds the value was said to.
+  assert.equal(jev.sent.length, 1);
+  assert.deepEqual(toldOf(jev.sent), ['', '', 'One of its lines holds "4821".', '']);
+  // The line itself is not sent: the value is in the question, and that is all that is said of the middle of the result.
+  assert.ok(!JSON.stringify(jev.sent).includes('passed at'));
+  const [head, ...body] = text.split('\n\n');
+  assert.match(head ?? '', /^\[found\] Bash result, \d+ bytes; id [0-9a-f]{64}; probability 0\.95; the one result with a line holding "4821"$/);
+  assert.ok(body.join('\n\n').includes('serial 4821 passed'));
+  // Two values on that one line are both said.
+  const both = trusting();
+  await find(input(files, messages, 'Which result had 4821 at 10:30:05?', both.http));
+  assert.deepEqual(toldOf(both.sent)[2], 'One of its lines holds "4821" and "10:30:05".');
+});
+
+test('the values are those of the question as it is sent: a secret blanked there, or a value past where it is cut, is told of no result', async () => {
+  // Put together here so that no line of this file has the shape of a real credential.
+  const secret = ['gh', 'p_', 'a1B2c3D4'.repeat(5)].join('');
+  const files = new MemoryFiles();
+  const messages = await compacted(files, [call('a'), deep('b', `the token was ${secret} then`), deep('c', 'serial 4821 passed at 10:30:05'), call('d')]);
+  const tolds = (sent: readonly Sent[]) => toldOf(sent).filter((told) => told !== '');
+
+  // Named in the question, the secret is blanked in what Jev is asked. No piece of it goes out beside a result, and nothing is said of the result that holds it.
+  const jev = trusting();
+  const text = await find(input(files, messages, `Which result held ${secret}?`, jev.http));
+  assert.equal(jev.sent.length, 1);
+  for (let at = 0; at + 8 <= secret.length; at += 1) assert.ok(!JSON.stringify(jev.sent).includes(secret.slice(at, at + 8)), `piece at ${at}`);
+  assert.ok(JSON.stringify(jev.sent).includes('[redacted]'));
+  assert.deepEqual(tolds(jev.sent), []);
+  assert.ok(!text.includes(secret));
+
+  // A value past the 2,000 characters a question is cut at is not in what Jev is asked, and is told of no result; before the cut it is.
+  const filler = 'Which of the results was it? '.repeat(70);
+  assert.ok(filler.length > 2000);
+  const late = trusting();
+  await find(input(files, messages, `${filler}The one with serial 4821.`, late.http));
+  assert.ok(!JSON.stringify(late.sent).includes('4821'));
+  assert.deepEqual(tolds(late.sent), []);
+  const early = trusting();
+  await find(input(files, messages, `The one with serial 4821. ${filler}`, early.http));
+  assert.deepEqual(tolds(early.sent), ['One of its lines holds "4821".']);
+});
+
+test('a result is not given because a line of it holds the value: Jev choosing another is returned, and Jev saying none gets it named, not given', async () => {
+  const files = new MemoryFiles();
+  const messages = await compacted(files, [call('a'), deep('b', 'checksum sha256 of build 4821'), call('c')]);
+  // Asked about something else, Jev takes the third: that one comes back, the result holding the value does not.
+  const other = recordingHttp((request) => answer(keysOf(request), 't3'));
+  const chosen = await find(input(files, messages, 'Which result shows c, from build 4821?', other.http));
+  assert.ok(chosen.startsWith('[found] Bash result') && chosen.includes('probability 0.95') && !chosen.includes('line holding') && !chosen.includes('checksum sha256'), chosen.slice(0, 200));
+  // Jev takes none of them: the one that holds the value is named for the agent to read, and its text is not handed over as the answer.
+  const said = await find(input(files, messages, 'Which result is about build 4821?', sayingNone().http));
+  const lines = said.split('\n');
+  assert.equal(lines[0], '[not sure] None of the moved-out results seems to be about that from its call and first lines, but one has a line holding "4821":');
+  assert.equal(lines.length, 2);
+  assert.match(lines[1] ?? '', new RegExp(`^- Bash called with \\{"command":"show b"\\}; \\d+ bytes; recall with ${RECALL_TOOL} id [0-9a-f]{64}$`));
+  assert.ok(!said.includes('checksum sha256'));
+});
+
+test('a value several results hold: Jev is told of none of them, and when it takes none they are named, the likeliest first, eight at most', async () => {
+  const files = new MemoryFiles();
+  const messages = await compacted(files, [deep('a', 'serial 4821 passed'), call('b'), deep('c', 'serial 4821 failed')]);
+  // Told the same of each, Jev was measured taking the first for the answer: nothing is said of either.
+  const trusted = trusting();
+  await find(input(files, messages, 'Which result had the serial 4821?', trusted.http));
+  assert.deepEqual(toldOf(trusted.sent), ['', '', '', '']);
+  // Not sure: the list of the likeliest three (none of them, a and b here) says which of them hold the value.
+  const unsure = recordingHttp((request) => answer(keysOf(request), null));
+  const listed = (await find(input(files, messages, 'Which result had the serial 4821?', unsure.http))).split('\n');
+  assert.equal(listed[0], '[not sure] The likeliest results, most likely first:');
+  assert.deepEqual(
+    listed.slice(1).filter((line) => line.startsWith('- Bash')).map((line) => [/show (\w)/.exec(line)?.[1], line.includes('; one of its lines holds "4821"; recall with')]),
+    [['a', true], ['b', false]],
+  );
+  // None: both named, in the order Jev ranked them.
+  const none = recordingHttp((request) => {
+    const keys = keysOf(request);
+    return ok({ answers: { q: { type: 'choice', choice: 'none', probabilities: Object.fromEntries(keys.map((key) => [key, key === 'none' ? 0.9 : key === 't3' ? 0.06 : 0.02])) } } });
+  });
+  const named = (await find(input(files, messages, 'Which result had the serial 4821?', none.http))).split('\n');
+  assert.equal(named[0], '[not sure] None of the moved-out results seems to be about that from its call and first lines, but 2 have a line holding "4821":');
+  assert.ok(named[1]?.includes('show c') && named[2]?.includes('show a') && named.length === 3, named.join('\n'));
+
+  const filesMany = new MemoryFiles();
+  const ten = await compacted(filesMany, Array.from({ length: 10 }, (_, i) => deep(`r${i}`, `serial 4821 run ${i}`)));
+  const many = (await find(input(filesMany, ten, 'Which result had the serial 4821?', sayingNone().http))).split('\n');
+  assert.ok(many[0]?.includes('but 10 have a line holding "4821":'));
+  assert.equal(many.length, 1 + VALUED_LISTED + 1);
+  assert.equal(many.at(-1), '- and 2 more: say more of what is asked for to tell them apart');
+});
+
+test('values no line holds together, or a question with no value: nothing is said to Jev of lines, and its none is answered as before', async () => {
+  const files = new MemoryFiles();
+  const messages = await compacted(files, [call('a'), deep('b', 'serial 4821 passed\nat 11:45:00'), call('c')]);
+  // Two values on two lines of one result: looked for, not held, and the answer says what was and was not looked for.
+  const two = sayingNone();
+  const said = await find(input(files, messages, 'Which result had 4821 at 11:45:00?', two.http));
+  assert.deepEqual(toldOf(two.sent), ['', '', '', '']);
+  assert.ok(said.startsWith('[not found] None of the moved-out results has a line holding "4821" and "11:45:00" as a word of its own'), said);
+  for (const part of ['on different lines', 'in another letter case', 'only part of a longer word or number', 'the number of a line', 'a kept part of the conversation', 'quote twelve characters or more', `read the results with ${RECALL_TOOL}`]) {
+    assert.ok(said.includes(part), part);
+  }
+  assert.ok(!said.includes('can be missed') && !said.includes('as written, and'), said);
+  // A count beside the value is no value: the result that holds the value alone is told of.
+  const count = trusting();
+  assert.ok((await find(input(files, messages, 'Which of the 2 results had 4821?', count.http))).startsWith('[found] Bash result'));
+  assert.deepEqual(toldOf(count.sent)[2], 'One of its lines holds "4821".');
+  // No value of three digits: the answer of before.
+  const plain = sayingNone();
+  const before = await find(input(files, messages, 'Which of the 2 results is line 17 of?', plain.http));
+  assert.deepEqual(toldOf(plain.sent), ['', '', '', '']);
+  assert.ok(before.startsWith('[not found] None of the moved-out results seems to be about that') && before.includes('can be missed'), before);
+});
+
+test('the number Read puts in front of a line is not the value, and a column of numbers in another tool\'s result is', async () => {
+  const files = new MemoryFiles();
+  const read = (label: string): Call => ({ tool: 'Read', input: { file_path: `${label}.md` }, text: Array.from({ length: 300 }, (_, i) => `${i + 1}\t${label} says nothing of note`).join('\n') });
+  const table: Call = { tool: 'Bash', input: { command: 'cat rows.tsv' }, text: Array.from({ length: 300 }, (_, i) => `${i + 1}\trow of the table`).join('\n') };
+  // Two files read whose line 250 says nothing of 250, and one table whose first column is its own: the table alone holds it.
+  const messages = await compacted(files, [read('a'), read('b'), table, call('c')]);
+  const jev = sayingNone();
+
+  const said = await find(input(files, messages, 'Which result mentioned 250?', jev.http));
+  assert.deepEqual(toldOf(jev.sent), ['', '', '', 'One of its lines holds "250".', '']);
+  assert.ok(said.includes('but one has a line holding "250":') && said.includes('cat rows.tsv'), said);
+});
+
+test('a quoted phrase is looked for first, and where it narrowed the choice the values are looked for among those left', async () => {
+  const files = new MemoryFiles();
+  const one = await compacted(files, [deep('a', 'serial 4821 passed'), call('b'), call('c')]);
+  const text = await find(input(files, one, 'Which result has "c line 17: value" and the serial 4821?'));
+  assert.match(text.split('\n\n')[0] ?? '', /matched the quoted phrase "c line 17: value"$/);
+
+  // The phrase is in two results, the serial in one of them and in a third: Jev chooses between the two, told of the one that holds the serial.
+  const filesTwo = new MemoryFiles();
+  const two = await compacted(filesTwo, [deep('a', 'serial 4821 passed'), deep('c', 'the build went through cleanly'), deep('d', 'the build went through cleanly\nserial 4821 again')]);
+  const jev = trusting();
+  const question = 'Which result has "the build went through" and the serial 4821?';
+  assert.deepEqual(valuesOf(question), ['4821']);
+  const chosen = await find(input(filesTwo, two, question, jev.http));
+  assert.equal(jev.sent.length, 1);
+  assert.deepEqual(toldOf(jev.sent), ['', '', 'One of its lines holds "4821".']);
+  assert.ok(chosen.startsWith('[found] Bash result') && chosen.includes('serial 4821 again'), chosen.slice(0, 160));
 });

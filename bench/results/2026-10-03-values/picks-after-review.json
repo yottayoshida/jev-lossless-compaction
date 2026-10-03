@@ -1,0 +1,60 @@
+{
+ "at": "2026-10-03T06:40:47.679Z",
+ "provider": "cloudflare",
+ "picks": [
+  {
+   "trace": "results",
+   "question": "meaning with a number",
+   "by": "value",
+   "options": 15,
+   "right": [
+    "dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c"
+   ],
+   "words": "dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c"
+    ],
+    "ms": 408,
+    "said": "[found] Bash result, 4831 bytes; id dcaa0a65449289df9251156219bcaf7cfcfd4bef5038ae18b9a55e75764f7d9c; probability 0.99"
+   }
+  },
+  {
+   "trace": "mixed",
+   "question": "meaning with a number",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "74bb139c1ad510d36fd6abc88cc39948be86ea9ab2bc987c360922c85aca168d"
+   ],
+   "words": "74bb139c1ad510d36fd6abc88cc39948be86ea9ab2bc987c360922c85aca168d",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "74bb139c1ad510d36fd6abc88cc39948be86ea9ab2bc987c360922c85aca168d"
+    ],
+    "ms": 274,
+    "said": "[found] Bash result, 4830 bytes; id 74bb139c1ad510d36fd6abc88cc39948be86ea9ab2bc987c360922c85aca168d; probability 0.99"
+   }
+  },
+  {
+   "trace": "japanese",
+   "question": "meaning with a number",
+   "by": "value",
+   "options": 9,
+   "right": [
+    "0db53fd7defadca699ed642bbff42df829553e7a340a7199d612a5f1a27b62cc"
+   ],
+   "words": "0db53fd7defadca699ed642bbff42df829553e7a340a7199d612a5f1a27b62cc",
+   "jev": {
+    "kind": "gave",
+    "ids": [
+     "0db53fd7defadca699ed642bbff42df829553e7a340a7199d612a5f1a27b62cc"
+    ],
+    "ms": 263,
+    "said": "[found] Bash result, 4831 bytes; id 0db53fd7defadca699ed642bbff42df829553e7a340a7199d612a5f1a27b62cc; probability 0.99"
+   }
+  }
+ ]
+}

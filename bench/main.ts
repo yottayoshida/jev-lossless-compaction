@@ -5,7 +5,8 @@
 //   node bench/main.ts run     --traces a,b --models m1,m2 --runs 3
 //   node bench/main.ts probe   --traces a,b --models m1 [--plugin-dirs name=path,...] [--max-after 100]   (both: each checkout at that setting)
 //   node bench/main.ts pick                          what `find` picks against a word match (asks Jev: BENCH_JEV_ENV)
-//   node bench/main.ts find    [--traces a,b]        the same questions with an agent in between, with and without `find`
+//   node bench/main.ts pick    --questions file.json  the same of a file's questions: [{ trace, kind, ask, target }]
+//   node bench/main.ts find    [--traces a,b] [--variants find]   the same questions with an agent in between, with and without `find`
 //   node bench/main.ts grade   [--model m]           grade what a program cannot
 //   node bench/main.ts report  [--from dir]          the tables, of the box or of results that were published
 //   node bench/main.ts publish --to dir [--variants a,b]   the units, grades and tables, without the paths of this machine
@@ -15,14 +16,14 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join, resolve, sep } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 
 import { providerFrom } from '../src/ask.ts';
 import type { Http } from '../src/types.ts';
 import { build, type Conversation, type Places } from './build.ts';
 import { currentOf, grade, published, scrubbed, unitsUnder, type Grades } from './grade.ts';
 import { keysIn } from './lib.ts';
-import { pick, pickTable, type Pick } from './pick.ts';
+import { pick, pickTable, wentOf, type Pick } from './pick.ts';
 import { whole } from './report.ts';
 import { leaf, runAll, variantsOf } from './run.ts';
 import { BUILT, FOUND, PROBED, TRACES, described } from './traces.ts';
@@ -114,11 +115,24 @@ async function main(): Promise<void> {
     const provider = providerFrom({ provider: kind }, keys);
     if (provider === null || 'error' in provider) throw new Error(`the key for Jev cannot be used: ${provider === null ? 'none was given' : provider.error}`);
     const picks: Pick[] = [];
+    const conversationOf = (name: string) => JSON.parse(readFileSync(join(places.box, 'bases', `${name}.conversation.json`), 'utf8')) as Conversation;
+    // With --questions, the questions of that file instead, each on the conversation it names: written beside picks.json under the file's own name.
+    const file = flag(args, 'questions');
+    if (file !== undefined) {
+      const asked = JSON.parse(readFileSync(file, 'utf8')) as { trace: string; kind: string; ask: string; target: string }[];
+      for (const one of asked) {
+        const [got] = await pick(one.trace, [{ id: one.kind, by: 'value', ask: one.ask, target: one.target }], conversationOf(one.trace), provider, overHttp);
+        if (got === undefined) throw new Error(`${one.trace} ${one.kind}: not asked`);
+        console.log(`${one.trace} ${one.kind}: ${wentOf(got)}`);
+        picks.push(got);
+      }
+      writeFileSync(join(places.box, `picks-${basename(file)}`), `${JSON.stringify({ at: new Date().toISOString(), provider: provider.kind, picks }, null, 1)}\n`);
+      return;
+    }
     for (const name of traces) {
       const trace = [...TRACES, ...FOUND].find((one) => one.name === name);
       if (trace === undefined) throw new Error(`no trace named ${name}`);
-      const conversation = JSON.parse(readFileSync(join(places.box, 'bases', `${name}.conversation.json`), 'utf8')) as Conversation;
-      const of = await pick(name, trace.finds, conversation, provider, overHttp);
+      const of = await pick(name, trace.finds, conversationOf(name), provider, overHttp);
       for (const one of of) log(`${name} ${one.question}: ${one.options} options, ${one.jev.kind} in ${one.jev.ms} ms`);
       picks.push(...of);
     }
@@ -128,6 +142,7 @@ async function main(): Promise<void> {
   }
   if (command === 'find') {
     const { keys, provider } = jevKeys();
+    const only = flag(args, 'variants')?.split(',');
     const units = await runAll(
       {
         traces: list(flag(args, 'traces'), ['results', 'short']),
@@ -136,10 +151,11 @@ async function main(): Promise<void> {
         buildModel,
         mode: 'find',
         arms: ['plugin'],
+        // With --variants, only those named: `find` alone, where the arm without a key is already measured on the same code path.
         variants: [
           { name: 'default', pluginDir },
           { name: 'find', pluginDir, options: { provider }, env: keys },
-        ],
+        ].filter((variant) => only === undefined || only.includes(variant.name)),
       },
       places,
       log,

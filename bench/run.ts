@@ -25,6 +25,8 @@ export type Asked = {
    */
   verdict?: 'correct';
   calls: string[];
+  /** What the agent asked `find`, in the order it asked: absent where it did not call it. */
+  findQuestions?: string[];
   retrieval: Retrieval;
   outside: boolean;
   /** Calls the session made that were refused: something it tried that a question does not allow. */
@@ -195,11 +197,13 @@ export async function unit(
     if (session.compaction !== null) throw new Error(`${records}: the conversation was compacted again at the question ${question.id}`);
     const gaps = gapsOf(session, 'question');
     if (gaps.length > 0) throw new Error(`${records}, ${question.id}: ${gaps.join('; ')}`);
+    const putToFind = session.toolCalls.filter((call) => call.name === FIND_TOOL).map((call) => String(call.input['question'] ?? ''));
     const one: Asked = {
       id: question.id,
       kind: question.kind,
       answer: session.answer,
       calls: session.toolCalls.map((call) => call.name),
+      ...(putToFind.length > 0 ? { findQuestions: putToFind } : {}),
       retrieval: retrievalOf(session.toolCalls),
       // Against the directory the session says it ran in: the box may be reached through a link.
       outside: lookedOutside(session.toolCalls, session.cwd || cwd),

@@ -518,7 +518,8 @@ export async function registerTools($: WithTools & WithUi, provider: Provider | 
         description:
           `Finds, among the tool results that ${PLUGIN} moved out of this conversation and the parts of it kept before ` +
           'a summary replaced them, the one a question is about, and returns it unchanged. Ask in words what the result contains or is about; a phrase of twelve characters ' +
-          'or more in double quotes is looked for as written. When Jev is not sure which result it is, the likeliest few ' +
+          'or more in double quotes is looked for as written. A number, a checksum or a code the question names, one of them with three digits or more, is looked for as written, letter case too, in the whole of each result, a line at a time, and Jev is told when one result alone holds it. ' +
+          'When Jev is not sure which result it is, the likeliest few ' +
           'are listed with the ids to recall them by; when none of them seems to be about it, it says so.',
         inputSchema: {
           type: 'object',

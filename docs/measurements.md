@@ -532,6 +532,114 @@ since, changes only a `/compact` that moves nothing out: `opaque` and
 `results` move results out and are not such a compaction; `short` is, and
 since #48 it is left as it was where there is room, which was not measured.
 
+## `find` asked for a value
+
+Asked for a value in the middle of a result, `find` said that none of the
+results was about it: Jev is shown the call that made each result and its
+first 400 characters (#55). `find` now looks in the whole text of each result
+for the values the question names — runs of letters and digits that hold two
+digits or more, used when one of them has three — a line at a time, each as
+a word of its own, with the number `Read` puts in front of a line left out.
+Where one result alone has a line holding them all, Jev is told so beside
+that result's first lines. Jev still chooses; where it takes none of the
+results, those with such a line are named, and none is given as the answer.
+
+**With no agent in between** (`pick`, the seven conversations, Jev on
+Cloudflare Workers AI). "Before" is what `bench/results/2026-10-02/` and
+`bench/results/2026-10-03-find/` hold of the same questions.
+
+| Asked by                              | Asked | Before: gave the right one | Now: gave the right one |
+| ------------------------------------- | ----: | -------------------------: | ----------------------: |
+| A value, its result among the options |    17 |                          1 |                      17 |
+| Meaning                               |    26 |           18, and listed 8 |        18, and listed 8 |
+
+Each of the 17 was Jev's choice, told of the one result with a line holding
+the value. The one question whose answer is too short to be an option was
+answered with none, as before. The questions by meaning name no value, so
+nothing sent for them changed, and Jev asked again does not always answer
+the same. Of those listed, the right result was first for 5 before and 6
+now, further down for 2 and 1, and not among them for 1 and 1.
+
+**Other questions.** A line at a time and three digits were settled on the
+questions above, so twenty-one more were written before any rule was built,
+on `results`, `mixed` and `japanese`, seven kinds on each
+(`test/fixtures/values/`). They are not unseen by the rule as it is: one
+kind of them, two values on two lines, is what showed the rule before it
+giving a wrong result (below). Three were written after the first review,
+and six after the rule was settled and before they were put to Jev, to see
+whether being told misleads it: questions by meaning that name a value
+another result holds than the one asked for. Asked of Jev
+(`picks-held-out.json`, `picks-after-review.json` and
+`picks-misleading.json`, beside the units):
+
+| The question names | Jev is told | What `find` did on the three |
+| --- | --- | --- |
+| A record's number (`2-0077`) | of the one result | Gave the right result |
+| One number no other result holds (a station) | of the one result | Gave the right result |
+| Two values that stand on two lines | nothing | Said none |
+| The first five characters of a checksum | nothing | Said none |
+| A checksum in capitals | nothing | Said none |
+| A number many results hold, meant as the number of a line (`250`) | nothing | Listed other results, giving none as the answer |
+| A count in a question by meaning ("the 2 log files") | nothing: it names no value | Listed the right result first |
+| A number in a question by meaning ("all 120 batches of it") | nothing | Gave the right result |
+| A value another result holds, in a question by meaning ("run before record 2-0077 was looked at") | of another result | Gave the right result |
+| A value of a result said not to be it ("Not the output with checksum 9e3817e8") | of another result | Gave the right result on two; listed the right result first on one |
+
+No answer gave a wrong result. On the last two kinds Jev was told of a result
+that was not the one asked for. It gave the result asked for 5 times of 6
+and listed it first the other time. What comes back there is Jev's choice:
+six questions asked once do not show that it never takes the result it is
+told of.
+
+A test holds the thirty questions, with two stand-ins for Jev — one that
+says none whatever it is shown, one that takes the result it is told of — to
+this: Jev is asked once each time; the first is given no wrong result; the
+second is given the first two kinds, and on the last two the other result,
+which is what it took.
+
+**Telling Jev of every result that holds a value gave wrong results.** The
+rule as it was first rebuilt told Jev of each result a line of which held
+the values of three digits or more, however many results did. Asked for two
+values that stand on two lines ("395 units at step 78"), four results of
+`results` had a line holding 395, and Jev, told so of each, gave the first
+of them as the answer at probability 0.55; in `japanese`, told of two, it
+gave the first at 0.57; in `mixed`, told of three, it listed results without
+the one asked for (`told-of-each/picks-held-out.json`; that rule is in no
+commit). As it is, Jev is told of a result only where it alone has a line
+holding every value, and on those three questions `find` said none.
+
+**With an agent in between** (Haiku 4.5 with a key, three runs,
+`bench/results/2026-10-03-values/`). The arm with no key was not run again:
+it has no `find`, and nothing it meets changed. A unit names the code it was
+measured with by `plugin`, the hash of the tree of that code; its
+`pluginCommit` is a commit made to measure, which was not pushed.
+
+| | With #51 | Now |
+| --- | ---: | ---: |
+| `opaque`, a code in the middle of a document: right | 1 of 9 (2 of 9 with no key) | 8 of 9 |
+| `opaque`, by meaning: called `find` | 11 of 21 | 12 of 21 |
+| `opaque`, by meaning: right | 11 of 21 | 11 of 21 |
+| `results`, eight questions: right | 6, 8 and 5 | 8, 8 and 7 |
+
+In `opaque` the agent called `find` for 8 of the 9 codes, each time with the
+code alone as its question, and was right on all 8; for the other it called
+no tool, and was not right. In `results` it called `find` 2, 3 and 3 times
+in the three runs, where there were 1, 2 and 1: for 6 of the 12 questions by
+a value, right on all 6, and 2 times for a question by meaning; of the 6 by
+a value it did not call `find` for, it was right on 6. The units record what
+the agent asked `find` (`findQuestions`), and a test puts each of the 15
+that name a value to `find` again, with a stand-in for Jev that takes the
+result it is told of: the right result comes back each time. Jev, asked for
+14 of them, is told of one result each time, the right one; the other one is
+settled by a phrase the agent quoted.
+
+The change is in the first row. The rows by meaning and of `results` are
+there to show that nothing fell: three runs do not tell 12 of 21 from 11.
+
+Not measured: Sonnet and Opus with an agent in between; a working session;
+values as people ask for them, which may come in another letter case or in
+part.
+
 ## The README's demo, after the rename
 
 A fresh conversation under 0.4.0, on a machine holding
