@@ -449,7 +449,8 @@ and had room, and was left as it was.
   took 51.4 s and cost 2.93 USD. Then every request carried what the plugin
   had left, 272,428 tokens in `large` against 6,538 after a summary, and the
   eleven questions cost 3.58 USD against 0.20: with the compaction, 3.58
-  against 3.13.
+  against 3.13. Those questions took 82.4 s against 53.9; with the
+  compaction, 82.8 s against 105.3, and in `results` 42.5 s against 72.0.
 
 **`find`, on `opaque`**, ten questions with `recall` alone and ten with
 `find` as well:

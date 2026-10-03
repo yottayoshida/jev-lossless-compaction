@@ -1347,7 +1347,7 @@ test('the benchmark run again on 0.6.1: of conversations built again, every answ
   assert.deepEqual(sonnet('plugin', three).map((unit) => `${unit.trace} ${unit.compaction.line?.outcome}`).sort(), ['prose nothing', 'results moved', 'writes nothing']);
   const nine = [answered(sonnet('plugin', ['results'])), answered(sonnet('builtin', ['results']))];
   assert.deepEqual(nine, [9, 9]);
-  assert.ok(readFileSync(new URL('../README.md', import.meta.url), 'utf8').replace(/\s+/g, ' ').includes(`Sonnet answered ${nine[0]} of 9 either way`), 'README');
+  assert.ok(readFileSync(new URL('../README.md', import.meta.url), 'utf8').replace(/\s+/g, ' ').includes(`Sonnet ${nine[0]} of 9 either way`), 'README');
   // Every answer has a verdict, and the grader was right on every answer whose grade was known.
   assert.equal(outcomesOf(units, grades).ungraded, 0);
   assert.equal(grades.controls.asExpected, grades.controls.count);
@@ -2008,22 +2008,30 @@ test('the units in the repository measured with Opus 5.5, three conversations an
     const line = (label: string, cell: (unit: Unit) => string) => has(readme, `| ${label} | ${cell(mine)} | ${cell(built)} |`, `README, ${trace}`);
     has(readme, `| **${thousands(mine.compaction.preTokens)} tokens, ${what}** | | |`, `README, ${trace}`);
     line('`/compact` took', (unit) => `${seconds(unit.compaction.durationMs)} s`);
-    line('`/compact` cost', (unit) => paid(unit.compaction.own.costUSD));
     line('The next request carried', (unit) => `${thousands(next(unit))} tokens`);
-    line(`With ${questions} questions: time`, (unit) => `${((unit.compaction.durationMs + sum(unit.questions.map((one) => one.durationMs))) / 1000).toFixed(1)} s`);
-    line(`With ${questions} questions: cost`, (unit) => paid(unit.compaction.own.costUSD + asked(unit)));
+    line(`\`/compact\` and ${questions} questions cost`, (unit) => paid(unit.compaction.own.costUSD + asked(unit)));
   }
+  // The plugin's own compaction cost nothing, which the README says by "calls no model".
+  for (const trace of ['results', 'large']) assert.equal(of(trace, 'plugin').compaction.own.costUSD, 0, trace);
   // Under the table, of the larger conversation: the plugin's questions took longer, and cost more than the summary with its questions.
   const asking = (unit: Unit) => sum(unit.questions.map((one) => one.durationMs));
   assert.ok(asking(large) > asking(summary) && asked(large) > summary.compaction.own.costUSD + asked(summary));
   has(readme, 'In the larger conversation its questions took longer, and cost more than the summary and the questions after it.', 'README');
+  // The time with the compaction counted, which the measurements give beside the cost.
+  const took = (unit: Unit) => ((unit.compaction.durationMs + asking(unit)) / 1000).toFixed(1);
+  const [small, smallBuilt] = [of('results', 'plugin'), of('results', 'builtin')];
+  has(
+    measurements,
+    `Those questions took ${(asking(large) / 1000).toFixed(1)} s against ${(asking(summary) / 1000).toFixed(1)}; with the compaction, ${took(large)} s against ${took(summary)}, and in \`results\` ${took(small)} s against ${took(smallBuilt)}.`,
+    'measurements',
+  );
   // The answers where the plugin compacted, which leaves `prose` out: what the program counts, and that every answer it does not count holds the line with the prefix.
   const compacted = (set: readonly Unit[]) => set.filter((unit) => unit.trace !== 'prose');
   for (const set of [compacted(ours), compacted(theirs)]) assert.equal(count(set, exact), byProgram(set) + count(set, prefixed));
   has(
     readme,
-    `Opus had ${byProgram(compacted(ours))} of ${count(compacted(ours), exact)} exact answers counted right with the plugin and ${byProgram(compacted(theirs))} without; ` +
-      'the others held the right line with an id written the way a rule of the conversation asks',
+    `Opus ${byProgram(compacted(ours))} of ${count(compacted(ours), exact)} exact answers counted right with the plugin and ${byProgram(compacted(theirs))} without, ` +
+      'the rest right but for how an id was written',
     'README',
   );
   has(

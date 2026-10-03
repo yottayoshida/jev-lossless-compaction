@@ -93,7 +93,7 @@ screen, and is not in what the model is sent.
 ## The README
 
 The README is where a reader decides whether to install the plugin, and it
-grows. `test/readme.test.ts` holds it to a page: 120 lines, 850 words, 7
+grows. `test/readme.test.ts` holds it to a page: 100 lines, 760 words, 7
 headings under the title and 1 table, the words counted as `wc -w` counts
 them. What does not fit goes to `docs/`, and a link stays. It is written in
 Markdown alone, with no HTML and no heading made by underlining, so that
