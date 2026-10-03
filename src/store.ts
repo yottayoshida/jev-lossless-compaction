@@ -5,7 +5,7 @@
 // changes nothing that an earlier compaction left in the conversation.
 
 import { decodeMedia, textOf, type MediaPart } from './media.ts';
-import type { Files } from './types.ts';
+import type { Files, Message } from './types.ts';
 
 export const PLUGIN = 'lossless-compaction';
 /** The name the plugin carried up to 0.3.0. What was written under it is still read (ADR 0004). */
@@ -367,4 +367,66 @@ export async function recall(files: Files, dirs: string | readonly string[], id:
     return media === null ? { text } : { text: textOf(media), parts: media };
   }
   return { error: 'Nothing is stored under that id on this machine.' };
+}
+
+// An id as it is written in a text: 64 hexadecimal characters, with none right before or after.
+const WRITTEN_ID = /(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])/g;
+/** How many characters of an id, from its first, tell which one an agent meant. */
+export const ID_HEAD = 16;
+
+/** True when `given` begins with 16 hexadecimal characters: only then is the conversation read for the id that was meant. */
+function mayBeMeant(given: unknown): given is string {
+  return typeof given === 'string' && /^[0-9a-f]{16}/.test(given);
+}
+
+/**
+ * The id an agent meant by one that `recall` refused: the one id written in
+ * the conversation that begins with the first 16 characters of what it gave.
+ * Null when none does, or more than one. An agent copying 64 characters gets
+ * them wrong now and then: it gives the first half, drops a character further
+ * on, or writes one that is no digit (#54).
+ *
+ * Read from the user messages and what tools returned, not from what the
+ * agent said or put in its calls: an id it gave wrong before would stand
+ * beside the one it was copied from. What the agent wrote can still reach
+ * those, as Claude Code's summary or as a kept part `recall` returned; an id
+ * copied wrong there in full makes two that begin alike, and it is refused.
+ */
+export function idMeant(given: unknown, messages: readonly Message[]): string | null {
+  if (!mayBeMeant(given)) return null;
+  const head = given.slice(0, ID_HEAD);
+  let meant: string | null = null;
+  for (const message of messages) {
+    const texts = [message.role === 'user' ? message.text : '', ...(message.toolResults ?? []).map((result) => result.text), ...message.toolUses.map((use) => use.text ?? '')];
+    for (const text of texts) {
+      for (const [id] of text.matchAll(WRITTEN_ID)) {
+        if (!id.startsWith(head) || id === meant) continue;
+        if (meant !== null) return null;
+        meant = id;
+      }
+    }
+  }
+  return meant;
+}
+
+/**
+ * What is stored under `id`, or, when `id` is refused, under the id the agent
+ * meant by it (`idMeant`). `read` is `recall` with what the caller does around
+ * it. Where that id is refused too, or the conversation cannot be read, the
+ * answer is the refusal of the id as it was given: that is the one the agent
+ * can copy again.
+ */
+export async function recallMeant(read: (id: unknown) => Promise<Recalled>, id: unknown, conversation: () => Promise<readonly Message[]>): Promise<Recalled> {
+  const found = await read(id);
+  // What could tell no id is refused without reading the conversation, as it was before.
+  if (!('error' in found) || !mayBeMeant(id)) return found;
+  let meant: string | null = null;
+  try {
+    meant = idMeant(id, await conversation());
+  } catch {
+    // The conversation could not be read: the id is refused as it was given.
+  }
+  if (meant === null || meant === id) return found;
+  const again = await read(meant);
+  return 'error' in again ? found : again;
 }

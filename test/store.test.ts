@@ -3,19 +3,24 @@ import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 
 import {
+  ID_HEAD,
   MAX_BYTES,
   RECALL_TOOL,
+  idMeant,
   idOf,
   isStored,
   moveOut,
   oldStoreDirFrom,
+  partTicketText,
   placesOf,
   readTicket,
   recall,
+  recallMeant,
   storeDirFrom,
   ticketText,
   type Moved,
 } from '../src/store.ts';
+import type { Message } from '../src/types.ts';
 import { MemoryFiles, output } from './helpers.ts';
 
 const DIR = '/home/u/.claude/lossless-compaction';
@@ -210,6 +215,121 @@ test('an id that is not an id reaches no file, inside the store or outside it', 
   }
 
   assert.equal(files.looked.length, before);
+});
+
+/** A conversation where a tool result is the ticket of `id`, as it stands after the plugin moved the result out. */
+const withTicket = (id: string, bytes = 5600): Message[] => [
+  { role: 'user', text: 'read the config', toolUses: [] },
+  { role: 'assistant', text: '', toolUses: [{ tool_use_id: 'toolu_1', tool: 'Read', input: { file_path: '/work/config.json' } }] },
+  { role: 'user', text: '', toolUses: [], toolResults: [{ tool_use_id: 'toolu_1', text: ticketText({ tool: 'Read', bytes, id }), isError: false }] },
+];
+
+test('an id copied wrong is taken for the one id written in the conversation that begins with its first 16 characters (#54)', () => {
+  const id = '743feea18b5621f139f1fcd383b3db8df5471116cfd5c7086af6fb95b9a1c2d3';
+  const conversation = withTicket(id);
+  // The ways an agent got 64 characters wrong where it was measured: the first half alone, with one more character,
+  // characters dropped further on, one that differs, one that is no hexadecimal digit, and two too many at the end.
+  const wrong = [
+    id.slice(0, 32),
+    id.slice(0, 33),
+    `${id.slice(0, 28)}${id.slice(35)}`,
+    `${id.slice(0, 50)}${id.slice(52)}`,
+    `${id.slice(0, 58)}0${id.slice(59)}`,
+    `${id.slice(0, 59)}s${id.slice(60)}`,
+    `${id}f2`,
+    id.slice(0, 16),
+  ];
+  for (const given of wrong) {
+    assert.notEqual(given, id);
+    assert.equal(idMeant(given, conversation), id, given);
+  }
+  // Not told by fewer than 16 characters, by one that goes wrong before the sixteenth, or by what is no id:
+  // the size on a ticket, another letter case, a path, and what is no text.
+  for (const given of [id.slice(0, 15), `${id.slice(0, 12)}b20418df${id.slice(20)}`, '34375', '5600 bytes', id.toUpperCase(), `../${id}`, ` ${id}`, 42, undefined, null, { id }]) {
+    assert.equal(idMeant(given, conversation), null, JSON.stringify(given));
+  }
+  assert.equal(ID_HEAD, 16);
+
+  // Wherever the agent did not write it: what the plugin said after a summary, a result as the model read it, and a ticket inside a result.
+  const part = 'c'.repeat(64);
+  const said: Message[] = [{ role: 'user', text: `[lossless-compaction] The conversation this summary replaces is kept.\n${partTicketText({ part: 1, parts: 1, first: 1, last: 40, bytes: 38211, id: part })}`, toolUses: [] }];
+  assert.equal(idMeant(part.slice(0, 32), said), part);
+  const read: Message[] = [{ role: 'assistant', text: '', toolUses: [{ tool_use_id: 'toolu_2', tool: 'Read', input: {}, text: ticketText({ tool: 'Read', bytes: 9, id }) }] }];
+  assert.equal(idMeant(id.slice(0, 20), read), id);
+  const inside: Message[] = [{ role: 'user', text: '', toolUses: [], toolResults: [{ tool_use_id: 'toolu_3', text: `the part, as it was:\n${ticketText({ tool: 'Bash', bytes: 9, id })}\nand more`, isError: false }] }];
+  assert.equal(idMeant(id.slice(0, 40), inside), id);
+
+  // Not what the agent wrote: an id it gave wrong before stands in the conversation too, in what it said and in its call.
+  const once = `${id.slice(0, 58)}0${id.slice(59)}`;
+  const wroteIt: Message[] = [
+    ...conversation,
+    { role: 'assistant', text: `I will recall ${once}`, toolUses: [{ tool_use_id: 'toolu_4', tool: RECALL_TOOL, input: { id: once } }] },
+    { role: 'user', text: '', toolUses: [], toolResults: [{ tool_use_id: 'toolu_4', text: '[lossless-compaction] Nothing is stored under that id on this machine.', isError: false }] },
+  ];
+  assert.equal(idMeant(once, wroteIt), id);
+  // The control: the same wrong id where the person wrote it stands beside the right one, and neither is taken.
+  assert.equal(idMeant(once, [...conversation, { role: 'user', text: `try ${once}`, toolUses: [] }]), null);
+
+  // Two ids that begin alike: neither. The same id written twice is one.
+  const twin = `${id.slice(0, 16)}${'e'.repeat(48)}`;
+  assert.equal(idMeant(id.slice(0, 30), [...conversation, ...withTicket(twin)]), null);
+  assert.equal(idMeant(id.slice(0, 30), [...conversation, ...withTicket(id)]), id);
+  // A longer run of hexadecimal characters holds no id.
+  assert.equal(idMeant(id.slice(0, 30), [{ role: 'user', text: `${id}ab`, toolUses: [] }]), null);
+  assert.equal(idMeant(id.slice(0, 30), []), null);
+});
+
+test('recall reads the id that was meant when the id given is refused, and refuses the id as it was given otherwise (#54)', async () => {
+  const files = new MemoryFiles();
+  const text = output('config', 70);
+  const ticket = await moved(files, text);
+  const conversation = withTicket(ticket.id, ticket.bytes);
+  let asked = 0;
+  const messages = async () => {
+    asked += 1;
+    return conversation;
+  };
+  const read = (id: unknown) => recall(files, DIR, id);
+  const half = ticket.id.slice(0, 32);
+  const refused = await recall(files, DIR, half);
+  assert.ok('error' in refused);
+
+  // The id as it is stored: read, and the conversation is not asked for.
+  assert.deepEqual(await recallMeant(read, ticket.id, messages), { text });
+  assert.equal(asked, 0);
+  // Its first half, and 64 characters with one wrong: the result comes back as it was stored.
+  assert.deepEqual(await recallMeant(read, half, messages), { text });
+  assert.deepEqual(await recallMeant(read, `${ticket.id.slice(0, 40)}${ticket.id[40] === '0' ? '1' : '0'}${ticket.id.slice(41)}`, messages), { text });
+  assert.equal(asked, 2);
+
+  // Refused as the id was given: nothing in the conversation begins as it does, the conversation is empty (a subagent's), or it cannot be read.
+  assert.deepEqual(await recallMeant(read, 'f'.repeat(32), messages), refused);
+  // What could tell no id is refused without the conversation being asked for: the size on a ticket, fewer than 16 characters, no text.
+  const before = asked;
+  for (const given of ['5600', ticket.id.slice(0, 15), 5600, undefined, ticket.id.toUpperCase()]) {
+    assert.ok('error' in (await recallMeant(read, given, messages)), String(given));
+  }
+  assert.equal(asked, before);
+  assert.deepEqual(await recallMeant(read, half, async () => []), refused);
+  const failing = async (): Promise<Message[]> => {
+    throw new Error('no session');
+  };
+  assert.deepEqual(await recallMeant(read, half, failing), refused);
+  // The id that was meant is not stored either: the refusal is of the id as it was given, the one the agent can copy again.
+  const elsewhere = 'd'.repeat(64);
+  assert.deepEqual(await recallMeant(read, elsewhere.slice(0, 20), async () => withTicket(elsewhere)), await recall(files, DIR, elsewhere.slice(0, 20)));
+  // Stored, written in the conversation, and changed on disk since: not returned, by the id that was meant as by its own.
+  files.files.set(`${DIR}/blobs/${ticket.id}.txt`, `${text} changed`);
+  assert.deepEqual(await recallMeant(read, half, messages), refused);
+
+  // An id given whole that is in the conversation and not stored is read once, not twice.
+  const reads: unknown[] = [];
+  const counted = (id: unknown) => {
+    reads.push(id);
+    return recall(files, DIR, id);
+  };
+  assert.ok('error' in (await recallMeant(counted, elsewhere, async () => withTicket(elsewhere))));
+  assert.deepEqual(reads, [elsewhere]);
 });
 
 test('recall does not follow a link put in place of a stored result', async () => {
