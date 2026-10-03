@@ -168,12 +168,15 @@ test('the clean-up runs after the session starts, unwaited, and recall, find and
   assert.ok(recallHook.includes('const found = await recallMeant('), 'recall, by the id that was meant');
   assert.ok(recallHook.includes('async () => (agentId === undefined ? ((await $.session.messages()) as readonly Message[]) : []),'), 'recall, the main conversation alone');
   assert.ok(recallHook.includes('const agentId = (e as { agentId?: string | undefined }).agentId;'), "recall, the subagent told by the event's own agentId");
+  // What is put back takes along what the kept parts among it name, through earlier parts (#73).
+  const restoreForAt = hooks.indexOf('async function restoreFor(');
+  assert.ok(hooks.slice(restoreForAt, hooks.indexOf('\n}\n', restoreForAt)).includes('restoreThroughParts(filesOf($), listOf($), execOf($), store.read, ids, parts)'), 'through the parts');
   const putBack = recalled.indexOf('restoreFor($, store, new Set([id]))');
   assert.ok(recalledAt > 0 && putBack > 0 && putBack < recalled.lastIndexOf('recall(filesOf($), store.read, id)'), 'recall, put back first');
   const findHook = hooks.slice(hooks.indexOf(hookOn('tool.call', FIND_TOOL)), hooks.indexOf("on('session.compact'"));
-  assert.ok(findHook.indexOf('restoreFor($, store, ticketIds(messages))') < findHook.indexOf('await find('), 'find, first');
+  assert.ok(findHook.indexOf('restoreFor($, store, ticketIds(messages), partIds(messages))') < findHook.indexOf('await find('), 'find, first');
   const attempt = hooks.slice(hooks.indexOf('async function attempt('), hooks.indexOf('export const register'));
-  assert.ok(attempt.indexOf('restoreFor($, store, ticketIds(messages))') < attempt.indexOf('await compact('), 'the compaction, first');
+  assert.ok(attempt.indexOf('restoreFor($, store, ticketIds(messages), partIds(messages))') < attempt.indexOf('await compact('), 'the compaction, first');
   assert.ok(attempt.indexOf('await privateOf($, store)') < attempt.indexOf('noteRootOf('), 'the place recorded once private');
 });
 

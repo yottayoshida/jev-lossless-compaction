@@ -658,8 +658,9 @@ too, so they are counted without the plugin keeping a list of its own.
   `trash/<day>/`. One the trash has held over a week, still named by none,
   is removed; one named again goes back.
 - `recall`, `find` and a compaction put back from the trash what the
-  conversation names before reading it. A result moved there while a session
-  used it is not lost.
+  conversation names before reading it, and what the kept parts among that
+  hold, through the parts of earlier summaries. A result moved there while a
+  session used it is not lost.
 - A recorded place that is gone is skipped: nothing can be resumed from it.
   A place on a disk that is not mounted at the time looks gone too, and what
   only its transcripts name can go to the trash; it comes back from there if
