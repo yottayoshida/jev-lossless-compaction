@@ -61,7 +61,8 @@ export type Mover = {
 };
 
 /** One entry of a directory, as it stands: a link is not followed. */
-export type DirEntry = { name: string; kind: 'file' | 'dir' | 'other'; mtimeMs: number; isLink: boolean };
+/** One entry of a directory, as the host lists it; `size` is in bytes, absent where a caller made the entry up without one. */
+export type DirEntry = { name: string; kind: 'file' | 'dir' | 'other'; mtimeMs: number; isLink: boolean; size?: number };
 
 /** Runs a command by its argument vector, no shell; rejects when it cannot be started or runs past `timeoutMs`. */
 export type Exec = (

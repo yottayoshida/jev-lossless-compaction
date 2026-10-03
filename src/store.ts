@@ -12,6 +12,8 @@ export const PLUGIN = 'lossless-compaction';
 export const OLD_PLUGIN = 'jev-lossless-compaction';
 export const RECALL = 'recall';
 export const FIND = 'find';
+/** The slash command that says what the store holds (ADR 0016). */
+export const STORE_COMMAND = 'lossless-store';
 /** The names the model calls this plugin's tools by. */
 export const RECALL_TOOL = `mcp__${PLUGIN}__${RECALL}`;
 export const FIND_TOOL = `mcp__${PLUGIN}__${FIND}`;

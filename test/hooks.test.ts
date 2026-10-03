@@ -4,7 +4,7 @@ import { test } from 'node:test';
 
 import type { Provider } from '../src/ask.ts';
 import { FIND_IN_RECALL, recallDescription } from '../src/tools.ts';
-import { FIND_TOOL, RECALL_TOOL } from '../src/store.ts';
+import { FIND_TOOL, RECALL_TOOL, STORE_COMMAND } from '../src/store.ts';
 import { KEY_VARIABLES, PLACE_VARIABLES, ROUTE_VARIABLES } from '../src/trust.ts';
 
 const hooks = readFileSync(new URL('../hooks/move-out.ts', import.meta.url), 'utf8');
@@ -46,10 +46,10 @@ test("where results are kept and where find sends both go through the repository
   assert.ok(user !== undefined && both?.includes('repo = null;') && !user.includes('repo = null'), 'the user file is read on its own');
   assert.ok(hooks.includes('placeTaints(taints, options)'), 'the place');
   assert.ok(hooks.includes('sendTaints(taints, options)'), 'the sending');
-  // Each of recall, find, the compaction and the clean-up takes the place from storeOf and gives up on its reason.
+  // Each of recall, find, the compaction, the clean-up and /lossless-store takes the place from storeOf and gives up on its reason.
   const givingUp = hooks.split("if (typeof store === 'string')").length - 1;
   // The compaction calls it `place` until the place is known to be private (it keeps the conversation after that).
-  assert.equal(givingUp + (hooks.split("if (typeof place === 'string')").length - 1), 4, 'four callers');
+  assert.equal(givingUp + (hooks.split("if (typeof place === 'string')").length - 1), 5, 'five callers');
   const collecting = hooks.slice(hooks.indexOf('async function collectOnce('), hooks.indexOf('function numberIn('));
   assert.ok(collecting.includes("const store = await storeOf($, options);\n    if (typeof store === 'string') return;"), 'the clean-up too');
 });
@@ -212,4 +212,42 @@ test('recall names find in its description when find is registered, and only the
   }
   assert.match((await run({ error: 'no' })).said.join('\n'), /: the find tool is not registered: no$/m);
   assert.match((await run(provider, true)).said.join('\n'), /: the find tool could not be registered: refused$/m);
+});
+
+test('/lossless-store is a command, not a tool: registered at the start, answered from storeOf over every place read, with nothing of a result (ADR 0016)', () => {
+  assert.ok(hooks.includes(`on('command.run', { command: '${STORE_COMMAND}' }`), 'the matcher is spelled as STORE_COMMAND');
+  const start = hooks.slice(hooks.indexOf("on('session.start'"), hooks.indexOf("on('command.run'"));
+  assert.ok(start.includes('await $.command.register({\n        name: STORE_COMMAND,'), 'registered at the start');
+  assert.ok(start.includes('immediate: true'), 'answers mid-turn too');
+  // The tools the agent is offered are the two they were.
+  assert.equal(hooks.split('$.tool.register(').length - 1, 2);
+  const handler = hooks.slice(hooks.indexOf("on('command.run'"), hooks.indexOf(`{ tool: '${RECALL_TOOL}' }`));
+  assert.ok(handler.includes('const store = await storeOf($, options);'), 'the place as the repository cannot decide it');
+  assert.ok(handler.includes('for (const dir of store.read)'), 'every place read');
+  // A place is counted as the clean-up takes it: a plain directory, not a link.
+  assert.ok(handler.includes('const there = await plainDirsOf($, store);'), 'the places the clean-up reads');
+  assert.ok(handler.includes('for (const dir of store.read) counted.push(there.includes(dir) ? await countStore(files, list, dir, now) : skipped(dir));'));
+  const collecting = hooks.slice(hooks.indexOf('async function collectOnce('), hooks.indexOf('function numberIn('));
+  assert.ok(collecting.includes('const dirs = await plainDirsOf($, store);'), 'the same places as the clean-up');
+  const plain = hooks.slice(hooks.indexOf('async function plainDirsOf('), hooks.indexOf('async function collectOnce('));
+  assert.ok(plain.includes("if (found && found.kind === 'dir' && found.isLink !== true) dirs.push(dir);"));
+  // What an error says may name a path: it is not shown.
+  assert.ok(!handler.includes('error.message'));
+  assert.ok(handler.includes('const gc = await stateIn(files, list, there);'));
+  assert.ok(handler.includes('return { text: storeReport(counted, gc, now, set) };'));
+  // What answers it reads nothing itself: no recall, no read of a file.
+  assert.ok(!/recall\(|\$\.fs\.read\(|files\.read\(/.test(handler));
+});
+
+test('a clean-up that stops records the kind, never its words: from where it stopped, or as unexpected; one that ends clears it', () => {
+  const collecting = hooks.slice(hooks.indexOf('async function collectOnce('), hooks.indexOf('function numberIn('));
+  assert.ok(collecting.includes('const record = await noteTried(files, store.write, state, now);'));
+  assert.ok(collecting.includes('await stoppedAs(files, store.write, record, live.kind);'));
+  assert.ok(collecting.includes('await stoppedAs(files, store.write, record, named.kind);'));
+  assert.ok(collecting.includes('stopped ??= done.kind;'));
+  assert.ok(collecting.includes('if (stopped === null) await noteRun(files, store.write, now);\n    else await stoppedAs(files, store.write, record, stopped);'));
+  assert.ok(collecting.includes("if (tried !== null) await stoppedAs(filesOf($), tried.dir, tried.record, 'unexpected');"));
+  // The words are said, and only said.
+  assert.equal(collecting.split('stoppedAs(').length - 1, 5, 'four places it stops and the declaration');
+  assert.ok(!/noteStopped\([^)]*\.stop\b/.test(collecting));
 });

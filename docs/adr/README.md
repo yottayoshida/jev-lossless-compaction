@@ -33,3 +33,5 @@ Why the plugin is built the way it is, one record a decision.
   after a summary.
 - [0015](0015-a-compact-with-nothing-to-move-and-room-left-is-not-summarized.md):
   why a `/compact` with nothing to move out and room left is not summarized.
+- [0016](0016-the-store-is-told-not-bounded.md): why the store is said, by
+  `/lossless-store`, and still not bounded.
