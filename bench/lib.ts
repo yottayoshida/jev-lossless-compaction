@@ -279,14 +279,16 @@ const UNDONE = /nothing to move out(?:, (\d+) of (\d+) tokens in use)?: the conv
 /** Reads the line the plugin shows at a compaction, in any of the forms it has had since 0.5.0. */
 export function readLine(text: string): Line | null {
   const match = LINE.exec(text);
+  // A line that names no results moved: none, and no time of the plugin's.
+  const none = { moved: 0, results: 0, images: 0, charsBefore: 0, charsAfter: 0, ms: 0 };
   const undone = match ? null : UNDONE.exec(text);
   if (undone) {
-    const line: Line = { outcome: 'undone', moved: 0, results: 0, images: 0, charsBefore: 0, charsAfter: 0, ms: 0 };
+    const line: Line = { outcome: 'undone', ...none };
     if (undone[1] !== undefined) line.inUse = Number(undone[1]);
     if (undone[2] !== undefined) line.window = Number(undone[2]);
     return line;
   }
-  if (!match) return text.includes('built-in compaction:') ? { outcome: 'other', moved: 0, results: 0, images: 0, charsBefore: 0, charsAfter: 0, ms: 0 } : null;
+  if (!match) return text.includes('built-in compaction:') ? { outcome: 'other', ...none } : null;
   const line: Line = {
     outcome: text.includes('too much is still in use') ? 'too-much' : text.includes('nothing could be moved out') ? 'nothing' : 'moved',
     moved: Number(match[1]),

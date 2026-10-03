@@ -177,9 +177,10 @@ export async function unit(
   if (missing.length > 0) throw new Error(`${records}: ${missing.join('; ')}`);
   if (arm === 'plugin' && line === null) throw new Error(`${records}: the plugin said nothing at the compaction`);
   // Left undone, nothing changed: the time is the session's, and what was in use is what the plugin's line named, or the trace as it was built.
+  const inUse = line?.inUse ?? base.tokens;
   const sizes =
     boundary === null
-      ? { durationMs: compacted.session.durationMs, preTokens: line?.inUse ?? base.tokens, postTokens: line?.inUse ?? base.tokens }
+      ? { durationMs: compacted.session.durationMs, preTokens: inUse, postTokens: inUse }
       : { durationMs: boundary.durationMs, preTokens: boundary.preTokens, postTokens: boundary.postTokens };
   // A fork prints the usage of the session it came from with its own. Were that missing, taking one from the other would give a compaction that cost nothing.
   const unseen = Object.keys(base.modelUsage).filter((name) => !(name in compacted.session.modelUsage));
