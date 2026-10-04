@@ -372,3 +372,47 @@ test('a collection stops when a kept part it is to follow cannot be read', async
   const plain = await namedThroughParts(files, [DIR], new Set(['f'.repeat(64)]));
   assert.deepEqual(plain, new Set(['f'.repeat(64)]));
 });
+
+// #70: a half of a character with no other half, which UTF-8 cannot hold, made the part read back other than written.
+const utf8Disk = () => {
+  const files = new MemoryFiles();
+  files.corrupt = (text) => new TextDecoder().decode(new TextEncoder().encode(text));
+  return files;
+};
+const LONE = String.fromCharCode(0xd83c);
+const REPLACEMENT = String.fromCharCode(0xfffd);
+const withSurrogate = /\p{Surrogate}/u;
+
+test('a call whose one-line input would be cut inside an emoji keeps the conversation, the line whole (#70)', async () => {
+  const files = utf8Disk();
+  const command = `${'x'.repeat(281)}${'🎉'.repeat(20)}`;
+  const messages: Message[] = [
+    { role: 'user', text: 'run it', toolUses: [] },
+    { role: 'assistant', text: '', toolUses: [{ tool_use_id: 't1', tool: 'Bash', input: { command } }] },
+    { role: 'user', text: '', toolUses: [], toolResults: [{ tool_use_id: 't1', text: 'ok', isError: false }] },
+  ];
+
+  const kept = await keepConversation(files, DIR, messages);
+  assert.ok('text' in kept, JSON.stringify(kept));
+  const joined = (await partsOf(files, kept.text)).join('');
+  assert.ok(joined.includes(`command:\n${command}\n`), 'the value as it was');
+  const call = joined.split('\n').find((line) => line.startsWith('[call Bash t1] '));
+  assert.ok(call !== undefined && !withSurrogate.test(call) && !call.includes(REPLACEMENT), String(call));
+});
+
+test('a result holding half of a character is kept with U+FFFD in its place, everything else as it was (#70)', async () => {
+  const result = `${'a'.repeat(500)}${LONE}b`;
+  const messages: Message[] = [
+    { role: 'user', text: 'read it', toolUses: [] },
+    { role: 'assistant', text: '', toolUses: [{ tool_use_id: 't1', tool: 'Read', input: { file_path: '/p/a.txt' } }] },
+    { role: 'user', text: '', toolUses: [], toolResults: [{ tool_use_id: 't1', text: result, isError: false }] },
+  ];
+  const expected = messages.map((message) => `${messageText(message)}\n`).join('').replace(LONE, REPLACEMENT);
+
+  const files = utf8Disk();
+  // The control: the result alone cannot be moved out, so it stays in the part's text.
+  assert.deepEqual(await moveOut(files, DIR, 'Read', result), { reason: 'differs' });
+  const kept = await keepConversation(files, DIR, messages);
+  assert.ok('text' in kept, JSON.stringify(kept));
+  assert.equal((await partsOf(files, kept.text)).join(''), expected);
+});

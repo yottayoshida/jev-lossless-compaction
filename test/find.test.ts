@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { digest } from '../src/ask.ts';
-import { MIN_DIGITS, VALUED_LISTED, VALUE_DIGITS, find, lineHolds, phrasesOf, shown, ticketsIn, valuesOf, type FindInput } from '../src/find.ts';
+import { HEAD_CHARS, MIN_DIGITS, VALUED_LISTED, VALUE_DIGITS, WHOLE_UP_TO, find, lineHolds, phrasesOf, shown, ticketsIn, valuesOf, type FindInput } from '../src/find.ts';
 import { FIND_TOOL, RECALL_TOOL, moveOut, ticketText } from '../src/store.ts';
 import type { Http, Message } from '../src/types.ts';
 import { MemoryFiles, TOLD, conversation, ok, output, questionsOf, recordingHttp, trusting, type Call, type Sent } from './helpers.ts';
@@ -593,4 +593,11 @@ test('a quoted phrase is looked for first, and where it narrowed the choice the 
   assert.equal(jev.sent.length, 1);
   assert.deepEqual(toldOf(jev.sent), ['', '', 'One of its lines holds "4821".']);
   assert.ok(chosen.startsWith('[found] Bash result') && chosen.includes('serial 4821 again'), chosen.slice(0, 160));
+});
+
+test('the head of a large text with no line break to cut at is never cut inside a character (#70)', () => {
+  for (let n = HEAD_CHARS - 5; n <= HEAD_CHARS + 2; n += 1) {
+    const head = shown(`${'w'.repeat(n)}${'🎉'.repeat(WHOLE_UP_TO)}`);
+    assert.ok(!/\p{Surrogate}/u.test(head) && head.length <= HEAD_CHARS, `at ${n}`);
+  }
 });

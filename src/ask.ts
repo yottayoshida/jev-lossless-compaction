@@ -60,20 +60,30 @@ const LOUD = /\b(?:errors?|failed|failures?|fatal|panic(?:ked)?|exception|traceb
 const LINE = 200;
 
 /**
+ * The first `limit` UTF-16 units of `text`, one fewer where the last would be
+ * the first half of a pair: a half alone is not text UTF-8 can hold (#70).
+ */
+export function head(text: string, limit: number): string {
+  if (text.length <= limit) return text;
+  const last = text.charCodeAt(limit - 1);
+  return text.slice(0, last >= 0xd800 && last <= 0xdbff ? limit - 1 : limit);
+}
+
+/**
  * The head and the tail of a result, and the lines between them that look like
  * failures. Secrets' shapes are blanked over the whole text first: cutting
  * first could split one and leave a piece no shape matches.
  */
 export function digest(text: string, limit = 700): string {
   const lines = redact(text).split('\n');
-  const clip = (line: string) => (line.length > LINE ? `${line.slice(0, LINE)} [...]` : line);
-  if (lines.length <= 12) return lines.map(clip).join('\n').slice(0, limit);
+  const clip = (line: string) => (line.length > LINE ? `${head(line, LINE)} [...]` : line);
+  if (lines.length <= 12) return head(lines.map(clip).join('\n'), limit);
   const middle = lines.slice(6, -4);
   const loud = middle.filter((line) => LOUD.test(line)).slice(0, 5);
-  return [...lines.slice(0, 6), `[... ${middle.length} lines, of which these look like failures:]`, ...loud, '[...]', ...lines.slice(-4)]
-    .map(clip)
-    .join('\n')
-    .slice(0, limit);
+  return head(
+    [...lines.slice(0, 6), `[... ${middle.length} lines, of which these look like failures:]`, ...loud, '[...]', ...lines.slice(-4)].map(clip).join('\n'),
+    limit,
+  );
 }
 
 /** A value with every string in it blanked. */
@@ -90,7 +100,7 @@ function redactIn(value: unknown, depth = 0): unknown {
  * and again after, where a secret shows by the name of its field.
  */
 export function inputLine(input: Record<string, unknown>): string {
-  return redact(JSON.stringify(redactIn(input))).slice(0, 300);
+  return head(redact(JSON.stringify(redactIn(input))), 300);
 }
 
 export type Question = { type: 'choice'; instructions: string; criteria: Record<string, string> };
@@ -99,7 +109,7 @@ export type State = { task: string; judging: string };
 
 /** What Jev is told: the question, blanked, and what the options are. Nothing of the conversation. */
 export function stateFor(question: string): State {
-  return { task: redact(question).slice(0, 2000), judging: JUDGING };
+  return { task: head(redact(question), 2000), judging: JUDGING };
 }
 
 /** One option of a choice: a key Jev answers by, and the text it is shown. */
