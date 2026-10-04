@@ -170,3 +170,23 @@ Measured on Claude Code 2.1.286 before it was written:
   the variable (the one measured has them off). The hook does not read the
   variable, and a test holds that it says nothing with the mark of its
   process whether the variable is unset, `0` or `1`.
+
+## What the notices name, from 2026-10-04
+
+Claude Code 2.1.287 turned function hooks on by default and ignores
+`CLAUDE_CODE_ENABLE_FUNCTION_HOOKS` ([0021](0021-one-line-installs-it-and-nothing-is-set.md)).
+That the variable does not tell, as the Context says, holds the more: it is
+not read. The notices no longer name the setting to add: they name what the
+plugin needs, Claude Code 2.1.287 or later (`claude --version`) and mods not
+turned off (`claude plugin test`, run in an empty directory), and then
+`claude --debug`. The case left above as not measured is no longer one a
+rollout decides: on Claude Code 2.1.289, started with the variable unset and
+no settings file read, the module loaded. "A session open before the plugin
+was enabled has none of its hooks either", and the session open before the
+plugin was installed in the Consequences, hold where the plugin is installed
+or enabled from the shell or another session; installed from the session
+itself, it runs there unless Claude Code holds the reload (0021). "Someone who
+keeps function hooks off on purpose is held in every conversation" holds
+where the plugin's classic hooks still run: `disableAllHooks`, and a policy
+that keeps every hook of an installed plugin off, stop them too, and then
+nothing is told or held. Everything else here stands.

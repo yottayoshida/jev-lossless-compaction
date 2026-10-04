@@ -11,8 +11,9 @@ lines from them; it no longer compares the two compactions by them. The
 first four were recorded when the plugin was named `jev-lossless-compaction`,
 and the lines quoted are as they appeared then: one run each unless said
 otherwise, all on 2026-09-30, Claude Code 2.1.285 with Claude Haiku 4.5. The
-later ones say when they were taken. Function hooks are early access, and
-another version of Claude Code may have changed them.
+later ones say when they were taken. Function hooks were early access then,
+and are on by default from Claude Code 2.1.287; another version of Claude
+Code may have changed them.
 
 ## The benchmark
 

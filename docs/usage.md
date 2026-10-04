@@ -33,7 +33,8 @@ stood ([what stays, and how far a cut goes](limits.md#when-the-conversation-is-t
 ```
 
 In a session where the plugin is enabled and is not running, a line says so
-at the first message you send, naming the setting to add
+at the first message you send, naming what the plugin needs: Claude Code
+2.1.287 or later, and mods not turned off for you
 ([what else it does, and what it does not reach](limits.md#function-hooks)).
 
 **`recall`.** The agent calls it with the id on a ticket and gets the result
