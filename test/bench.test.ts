@@ -27,7 +27,7 @@ import {
 } from '../bench/lib.ts';
 import { cutLine } from '../src/cut.ts';
 import { saidBy, saidIn, type Conversation } from '../bench/build.ts';
-import { argsOf, envOf, toolsOf } from '../bench/cc.ts';
+import { FUNCTION_HOOKS, argsOf, envOf, toolsOf } from '../bench/cc.ts';
 import { MISSED, batchName, currentOf, itemsOf, keyOf, promptOf, published, scrubbed, summed, unitsUnder, verdictsIn, type Grades } from '../bench/grade.ts';
 import { MIN_CHARS, pick, pickTable, readAnswer, resultsOf, staged, wentOf, type Pick } from '../bench/pick.ts';
 import { estimates, finds, graderOf, outcomesOf, overruled, report, verdictOf, whole } from '../bench/report.ts';
@@ -1055,7 +1055,6 @@ test('a key for find is in a session only when it was handed one, and in nothing
   const plain = envOf({}, around);
   assert.equal(plain['PATH'], '/bin');
   assert.ok(KEY_VARS.every((name) => !(name in plain)));
-  assert.equal(plain['CLAUDE_CODE_ENABLE_FUNCTION_HOOKS'], '1');
   assert.equal(plain['CLAUDE_CODE_DISABLE_AUTO_MEMORY'], '1');
   // The variant that compares find is handed the keys of the file, and only those.
   const handed = envOf({ env: keys }, around);
@@ -1065,6 +1064,17 @@ test('a key for find is in a session only when it was handed one, and in nothing
   const args = argsOf({ out: '/o', cwd: '/w', model: 'm', arm: 'plugin', pluginDir: '/p', storeDir: '/s', pluginOptions: { provider: 'cloudflare' }, allowedTools: ['Read'], prompt: 'q', env: keys });
   assert.ok(!args.join(' ').includes('made-up-token') && !args.join(' ').includes('0123456789abcdef'));
   assert.ok(args.join(' ').includes('"provider":"cloudflare"'));
+});
+
+test('a session is started without the variable early access turned function hooks on with, unless it was handed one', () => {
+  // Whoever runs the benchmark may still have it set, as the quick start once asked: a session that runs the plugin
+  // then shows nothing about what the README now says, that nothing is to be set.
+  const around = { PATH: '/bin', [FUNCTION_HOOKS]: '1' };
+  assert.equal(FUNCTION_HOOKS, 'CLAUDE_CODE_ENABLE_FUNCTION_HOOKS');
+  assert.ok(!(FUNCTION_HOOKS in envOf({}, around)));
+  assert.equal(envOf({}, around)['PATH'], '/bin');
+  // check:host hands one session the value that turned them off before 2.1.287, to show that it no longer does.
+  assert.equal(envOf({ env: { [FUNCTION_HOOKS]: '0' } }, around)[FUNCTION_HOOKS], '0');
 });
 
 test('the questions find is for, asked of an agent, are tabled per unit: with recall alone and with find', () => {

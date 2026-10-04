@@ -3,8 +3,10 @@
 // one back as it was, that a conversation over what may stay is cut with no
 // summary and what was cut is kept (ADR 0019), and that a hook file Claude Code
 // does not load leaves the plugin "enabled but not running", told at the first
-// message and holding a /compact. Prints the Claude Code version it ran on;
-// exits 1 when a check fails.
+// message and holding a /compact. Nothing is set for the plugin to run: every
+// session is started without CLAUDE_CODE_ENABLE_FUNCTION_HOOKS, and one more with
+// it at 0, which Claude Code ignores from 2.1.287. Prints the Claude Code version
+// it ran on; exits 1 when a check fails.
 //
 //   npm run check:host
 //   node bench/host.ts --plugin-dir <a copy>     the running plugin's checks on another copy (the not-running
@@ -22,7 +24,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import { PART, RECALL_TOOL, idOf } from '../src/store.ts';
-import { argsOf, envOf } from './cc.ts';
+import { FUNCTION_HOOKS, argsOf, envOf } from './cc.ts';
 import { logFile } from './fixtures.ts';
 import { readLine } from './lib.ts';
 
@@ -175,6 +177,33 @@ export function judgeCut(cut: Stream, parts: readonly string[], first: string, l
   ];
 }
 
+/** The session started with CLAUDE_CODE_ENABLE_FUNCTION_HOOKS at 0, and how a session started without it is written. */
+export const ZERO = 'variable-0';
+export const UNSET = 'unset';
+
+/**
+ * Nothing to set: every session is started without CLAUDE_CODE_ENABLE_FUNCTION_HOOKS but one, which has it at 0, the value that
+ * turned function hooks off before Claude Code 2.1.287, and the plugin runs in that one too. The values are those the sessions
+ * were started with, so a run that handed the variable on from whoever ran it says so here.
+ */
+export function judgeNothingToSet(sessions: readonly { label: string; variable: string }[], zero: Stream): Check[] {
+  const told = promptHook(zero);
+  const others = sessions.filter(({ label }) => label !== ZERO);
+  const zeroed = sessions.find(({ label }) => label === ZERO)?.variable;
+  return [
+    {
+      name: `${FUNCTION_HOOKS} is unset in every session but one, and 0 there`,
+      ok: others.length > 0 && others.every(({ variable }) => variable === UNSET) && zeroed === '0',
+      detail: sessions.map(({ label, variable }) => `${label}=${variable}`).join(', '),
+    },
+    {
+      name: `with ${FUNCTION_HOOKS}=0 the plugin still runs`,
+      ok: zero.tools.includes(RECALL_TOOL) && told !== undefined && told.stdout.trim() === '',
+      detail: `${zero.tools.includes(RECALL_TOOL) ? 'recall registered' : 'no recall'}, ${told === undefined ? 'no UserPromptSubmit hook ran' : told.stdout.trim().slice(0, 80) || 'nothing told'}`,
+    },
+  ];
+}
+
 /** The plugin enabled and not running: no recall, told at the first message, and a /compact held. */
 export function judgeNotRunning(first: Stream, compact: Stream): Check[] {
   const told = promptHook(first);
@@ -205,17 +234,18 @@ async function main(): Promise<void> {
   const patched = spawnSync('patch', ['-p1', '-s', '-N', '-d', broken, '-i', join(root, 'test/fixtures/validate/pass-to-import.patch')]);
   if (list.status !== 0 || tar.status !== 0 || patched.status !== 0) throw new Error('could not make the broken copy of the working tree');
 
-  const sessions: { label: string; stream: Stream; pluginPath: string }[] = [];
+  const sessions: { label: string; stream: Stream; pluginPath: string; variable: string }[] = [];
   const run = (label: string, pluginDir: string, prompt: string, resume?: string, env: Record<string, string> = {}, pluginOptions?: Record<string, unknown>): Stream => {
     const args = argsOf({ out: '', cwd: work, model: MODEL, arm: 'plugin', pluginDir, storeDir: store, allowedTools: ['Read', 'ToolSearch', RECALL_TOOL], prompt, ...(resume ? { resume, fork: false } : {}), ...(pluginOptions ? { pluginOptions } : {}) });
-    const ran = spawnSync('claude', [...args, '--include-hook-events'], { cwd: work, env: envOf({ env }), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: LIMIT_MS });
+    const started = envOf({ env });
+    const ran = spawnSync('claude', [...args, '--include-hook-events'], { cwd: work, env: started, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: LIMIT_MS });
     if (ran.error !== undefined) throw new Error(`claude could not be run, or ran past ${LIMIT_MS / 60000} minutes: ${ran.error.message}`);
     writeFileSync(join(dir, `${label}.jsonl`), ran.stdout);
     if (ran.stdout === '') throw new Error(`claude printed nothing (exit ${ran.status}): ${String(ran.stderr).slice(0, 300)}`);
     const stream = streamOf(ran.stdout);
     // Both as the file system resolves them: macOS names one temporary directory /var/folders/… and /private/var/folders/….
     const real = (path: string) => (path !== '' && existsSync(path) ? realpathSync(path) : path);
-    sessions.push({ label, stream: { ...stream, pluginPath: real(stream.pluginPath) }, pluginPath: real(pluginDir) });
+    sessions.push({ label, stream: { ...stream, pluginPath: real(stream.pluginPath) }, pluginPath: real(pluginDir), variable: started[FUNCTION_HOOKS] ?? UNSET });
     return stream;
   };
 
@@ -243,12 +273,15 @@ async function main(): Promise<void> {
   // With another process's mark handed down, as from a session that started this one: it must not count as this one's.
   const notFirst = run('not-running-first', broken, 'Reply only: ok', undefined, { LOSSLESS_COMPACTION_RUNNING: ANOTHER_MARK });
   const notCompact = run('not-running-compact', broken, '/compact', notFirst.sessionId, { LOSSLESS_COMPACTION_RUNNING: ANOTHER_MARK });
+  // The value that turned function hooks off before Claude Code 2.1.287: ignored since, so the plugin runs here as well.
+  const zero = run(ZERO, plugin, 'Reply only: ok', undefined, { ...unmarked, [FUNCTION_HOOKS]: '0' });
 
   const checks = [
     ...judgeSessions(sessions),
     ...judgeRunning(first, compact, recalled, chosen?.id ?? '-', chosen?.text ?? ''),
     ...judgeCut(cut, partsIn(store), said, asked),
     ...judgeNotRunning(notFirst, notCompact),
+    ...judgeNothingToSet(sessions, zero),
   ];
   console.log(`Claude Code ${first.version || '?'} (${MODEL}), plugin from ${plugin}`);
   for (const check of checks) console.log(`${check.ok ? 'ok  ' : 'FAIL'} ${check.name}: ${check.detail}`);

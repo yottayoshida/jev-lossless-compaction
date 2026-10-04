@@ -5,8 +5,9 @@ conversations, asked the same questions afterwards. What it measured is in
 [`docs/measurements.md`](../docs/measurements.md); this file is how it is
 done and what it takes to do it again.
 
-It is not run in CI: it needs Claude Code, signed in, with function hooks on
-(`docs/limits.md`), and every session uses that account's quota.
+It is not run in CI: it needs Claude Code 2.1.287 or later, signed in, with
+mods not turned off (`docs/limits.md`), and every session uses that account's
+quota.
 
 What a run measured is in `results/<date>/`: each unit with its answers
 (`units/`), the grades (`grades.json`), what `find` picked (`picks.json`),

@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-import { judgeCut, judgeNotRunning, judgeRunning, judgeSessions, partsIn, streamOf, type Stream } from '../bench/host.ts';
+import { FUNCTION_HOOKS } from '../bench/cc.ts';
+import { UNSET, ZERO, judgeCut, judgeNothingToSet, judgeNotRunning, judgeRunning, judgeSessions, partsIn, streamOf, type Stream } from '../bench/host.ts';
 import { PART, RECALL_TOOL, idOf } from '../src/store.ts';
 
 // Cut from the streams of one `npm run check:host` on Claude Code 2.1.288: the events the checks read, nothing of the machine.
@@ -124,6 +125,25 @@ test('every session ran on one known Claude Code, with the plugin loaded from th
   assert.ok(sessions.every(({ stream }) => stream.pluginCount === 1));
   assert.deepEqual(failing(judgeSessions(sessions.map((session) => ({ ...session, stream: { ...session.stream, version: '' } })))), ['one Claude Code version, known']);
   assert.deepEqual(failing(judgeSessions([{ ...one, stream: { ...one.stream, version: '2.1.287' } }, ...rest])), ['one Claude Code version, known']);
+});
+
+test('nothing is set for the plugin to run: the variable early access asked for is unset in every session but one, at 0 there, where the plugin still runs', () => {
+  const unset = `${FUNCTION_HOOKS} is unset in every session but one, and 0 there`;
+  const runs = `with ${FUNCTION_HOOKS}=0 the plugin still runs`;
+  const sessions = [
+    { label: 'first', variable: UNSET },
+    { label: 'compact', variable: UNSET },
+    { label: ZERO, variable: '0' },
+  ];
+  // The first session of the real run stands for one that runs: recall registered, nothing told at the first message.
+  assert.deepEqual(failing(judgeNothingToSet(sessions, read('first'))), []);
+  // A session handed the variable at 1, as the quick start once asked, would show nothing about running without it.
+  assert.deepEqual(failing(judgeNothingToSet([{ label: 'first', variable: '1' }, ...sessions.slice(1)], read('first'))), [unset]);
+  // No session at 0, or none without it: what the check says was not measured.
+  assert.deepEqual(failing(judgeNothingToSet(sessions.slice(0, 2), read('first'))), [unset]);
+  assert.deepEqual(failing(judgeNothingToSet(sessions.slice(2), read('first'))), [unset]);
+  // At 0 and not running: no recall, and told at the first message.
+  assert.deepEqual(failing(judgeNothingToSet(sessions, read('not-running-first'))), [runs]);
 });
 
 test('a stream is read whatever else it holds: lines that are not JSON, and events of other kinds, are passed over', () => {

@@ -436,25 +436,36 @@ up as results are.
 
 ## Function hooks
 
-The plugin needs Claude Code's function hooks, which are early access.
-Whether they are on is decided by `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS` — `1`,
-`true`, `yes` or `on` turns them on, `0`, `false`, `no` or `off` turns them
-off — and, when it is not set, by Claude Code's own rollout for your account.
-With them off the plugin installs, shows in the list, and moves nothing
-out: there is no `recall` tool, and a compaction is Claude Code's own.
-Measured on Claude Code 2.1.286: on one account they were off without the
-variable, and `1` in `~/.claude/settings.json` under `env` turned them on;
-a value there wins over one set in the shell.
+The plugin needs Claude Code's function hooks, which run a plugin's hooks
+module, a mod. From Claude Code 2.1.287 they are on by default, and
+`CLAUDE_CODE_ENABLE_FUNCTION_HOOKS`, which early access asked for, is
+ignored: set to `0`, it does not turn them off. They can still be off for
+you. Anthropic can turn installed mods off remotely, and `disableAllHooks`
+or your organization's policy can turn them off; `claude plugin test`, run
+in a directory that holds no mod (an empty one will do), says which. Run
+where a mod is, it runs that mod's tests instead. An organization's
+`allowManagedModsOnly` lets only its own mods load, which that command does
+not report and `claude --debug` does, and in a directory whose trust prompt
+is not answered no mod loads (Claude Code's page on troubleshooting a mod). With them off the
+plugin installs, shows in the list, and moves nothing out: there is no
+`recall` tool, and a compaction is Claude Code's own. Measured on Claude
+Code 2.1.289: with the variable unset, `0` or `1`, and no settings file
+read, the module loaded. Before 2.1.287 the variable decided and, when it
+was not set, Claude Code's rollout for your account: on 2.1.286, on one
+account, they were off without it.
 
-A compaction in such a session does not go by unsaid. When the module runs,
-it sets `LOSSLESS_COMPACTION_RUNNING` to the id of its process. Three classic
-hooks, which run whether or not function hooks are on, compare it with the
-id Claude Code hands them:
+A compaction in such a session does not go by unsaid where the plugin's
+classic hooks still run. When the module runs, it sets
+`LOSSLESS_COMPACTION_RUNNING` to the id of its process. Three classic hooks,
+which run whether or not the module does unless hooks are turned off
+altogether (below), compare it with the id Claude Code hands them:
 
 - At the first message sent in a process without the mark, one line says
   that the plugin is not running in this session, that a compaction there
-  would be Claude Code's own, which setting to add, and to start a new
-  session. It is said once in a process, and again in the conversation
+  would be Claude Code's own, what the plugin needs (Claude Code 2.1.287 or
+  later, and mods not turned off), where to look (`claude --version`,
+  `claude plugin test` in an empty directory, then `claude --debug`), and to
+  start a new session. It is said once in a process, and again in the conversation
   reopened in another, where the plugin may still not run. The line is shown
   on the screen and is not part of the conversation: measured on Claude Code
   2.1.286, the tokens sent were the same with and without it, and `claude -p`
@@ -463,11 +474,11 @@ id Claude Code hands them:
   in a session where the plugin runs it reads no file and takes about 10 ms
   (0.3 s for a message of 1 MB, most of it reading its input).
 - Before a `/compact` without the mark, the compaction is held: nothing is
-  compacted, and a line says that the plugin is not running, which setting
-  to add, how to reopen the conversation, and that running `/compact` again
+  compacted, and a line says that the plugin is not running, what it needs,
+  how to reopen the conversation, and that running `/compact` again
   in that session goes ahead with the built-in summary. A process is held
   once. The conversation reopened in another process is held once more, so
-  that a setting that did not take is noticed before the summary runs, and
+  that a cause that was not put right is noticed before the summary runs, and
   from the third process on it goes through: `claude -p --resume … "/compact"`
   is a new process each time. What was held is one line each in `held` under
   the plugin's data directory (`~/.claude/plugins/data/`), written for its
@@ -480,9 +491,15 @@ id Claude Code hands them:
 
 Not reached:
 
-- A session that was already open when the plugin was installed or enabled.
-  Its hooks are not loaded there either.
-- A setup that turns all hooks off.
+- A session that was already open when the plugin was installed or enabled
+  from the shell or from another session: its hooks are not loaded there
+  either, until `/reload-plugins` is run in it. Installed from that session
+  itself, the plugin runs there unless Claude Code holds the reload, which
+  then waits for `/reload-plugins --force` in the same way
+  ([setting it up](#setting-it-up)).
+- A setup that turns all hooks off, the plugin's classic hooks with them:
+  `disableAllHooks`, and, as Claude Code's documentation has it, the policy
+  of an organization that keeps every hook of an installed plugin off.
 - A module that ran and was unloaded later in the same process: the mark
   stays.
 - A system without `/bin/sh` or `/usr/bin/sh`: the mark is then `any`, which
@@ -513,9 +530,11 @@ between it and Claude Code, the id the module reads would not be the one the
 hooks are handed, and a running session would be told it is not; this was
 not met, and was measured on one machine.
 
-Someone who keeps function hooks off with the plugin enabled is told and
-held as above in every conversation; `LOSSLESS_COMPACTION_RUNNING` set to
-`any` in their own settings' `env` ends it. The variable is in the
+Where mods stay off with the plugin enabled and its classic hooks still run,
+as with function hooks off before Claude Code 2.1.287, every conversation is
+told and held as above; `LOSSLESS_COMPACTION_RUNNING` set to `any` in your
+own settings' `env` ends it. Which of the ways mods are turned off now leave
+the classic hooks running was not measured. The variable is in the
 environment of everything the session starts, as every variable a plugin
 sets is. Measured on Claude Code 2.1.286, interactively and with `-p`: the
 line at the first message, the held `/compact`, the line after one that went
@@ -528,14 +547,41 @@ it; a `/compact` there was not held.
 
 ## Setting it up
 
-The README's quick start puts the variable in `~/.claude/settings.json`
-(under `CLAUDE_CONFIG_DIR` when that is set). It can also be exported in your
-shell profile, `export CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1`, or set under
-`env` in one repository's `.claude/settings.local.json`. The plugin is not on
-npm; it installs from this repository.
+The README's quick start installs from a Claude Code session, where
+`--marketplace` takes this repository on Claude Code 2.1.275 or later.
+**Install for you** records the plugin in `~/.claude/settings.json` (under
+`CLAUDE_CONFIG_DIR` when that is set), **Install for you, in this repo only**
+in the repository's `.claude/settings.local.json`, and **Install for all
+collaborators on this repository** in its `.claude/settings.json`, which you
+commit and each collaborator installs from again. Installed in a session, the
+plugin runs in that session: measured on Claude Code 2.1.289 with a copy of
+the plugin under another name, from a marketplace in a directory, installed
+before the first message and again after two in another session, the install
+said `Plugin is now active.`, `/plugin` said one mod was active, `recall` was
+among the agent's tools, and a `/compact` went through the plugin. Claude
+Code's documentation says it holds an install whose reload would make the
+next request read the conversation again uncached, and asks for
+`/reload-plugins --force`; that was not met. Where the plugin is installed
+already there is nothing to do: typed there, the line opened the plugin's
+options and, those closed with Esc, said `Already installed
+lossless-compaction.` and changed no setting (measured on 2.1.289, with the
+marketplace added from this repository).
+
+From the shell, or a script, it is two commands, and the plugin loads in the
+next session or after `/reload-plugins`:
+
+```sh
+claude plugin marketplace add yottayoshida/lossless-compaction
+claude plugin install lossless-compaction@lossless-compaction
+```
 
 To use the plugin in one repository only, add `--scope local` to the install
 and run it there; set the key without `--scope`.
+
+Nothing is to be set for the plugin to run. `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS`,
+which the quick start asked for before Claude Code 2.1.287, is ignored from that
+version on and can be removed. The plugin is not on npm; it installs from
+this repository.
 
 The key for `find` is set with
 `/plugin configure lossless-compaction@lossless-compaction`. `provider` is
@@ -808,7 +854,7 @@ over.
 
 This covers what a repository's settings change quietly, not what a
 repository you trust can run: its settings hooks, MCP servers, and the
-plugins or function hooks it enables run code of their own, which can read
+plugins it enables, mods among them, run code of their own, which can read
 the files directly or change the environment without a settings file.
 
 ## `find`
@@ -832,9 +878,9 @@ Claude Code's tool search, where an agent reads a tool's description only
 once it has loaded the tool, and Haiku 4.5 often answered that a moved-out
 result was not there. `claude plugin validate` takes the hook on Claude Code
 2.1.285 to 2.1.288; an earlier one was not tried, and one that does not know
-the event would load no hook of the plugin at all, and the line at the first
-message would name the setting for function hooks, not the version (ADR
-0010, ADR 0014, ADR 0017). Where the calls that made the results say nothing of what
+the event would load no hook of the plugin's module, and the line at the
+first message would say so, naming the version the plugin needs, 2.1.287 or
+later (ADR 0010, ADR 0014, ADR 0017). Where the calls that made the results say nothing of what
 is in them, Haiku 4.5 with a key set calls `find`, without being told to,
 for most questions about what a result was about: 20 of 21, in a made-up
 conversation of thirteen such results, all moved out. With the two behind

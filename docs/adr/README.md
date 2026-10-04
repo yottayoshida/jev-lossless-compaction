@@ -43,3 +43,5 @@ Why the plugin is built the way it is, one record a decision.
 - [0019](0019-a-conversation-too-full-is-cut-not-summarized.md): why a
   conversation too full is cut, its oldest messages kept, and not
   summarized.
+- [0021](0021-one-line-installs-it-and-nothing-is-set.md): why the plugin is
+  installed with one line in a session and nothing is set for it to run.

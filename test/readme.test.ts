@@ -109,13 +109,22 @@ test('how links and headings are read: a link with a title, a reference defined 
   ]);
 });
 
-test('the README names what the code names: the plugin and marketplace to install, the setting, the tools and the mark of its lines', () => {
+/** The repository the plugin installs from, as the marketplace source the README and docs/limits.md give. */
+const SOURCE = 'yottayoshida/lossless-compaction';
+
+test('the README names what the code names: the line that installs the plugin, the version it needs, the tools and the mark of its lines', () => {
   const plugin = (JSON.parse(read('.claude-plugin/plugin.json')) as { name: string }).name;
   const marketplace = (JSON.parse(read('.claude-plugin/marketplace.json')) as { name: string }).name;
-  assert.ok(README.includes(`claude plugin install ${plugin}@${marketplace}\n`), 'the plugin and marketplace to install');
-  // The setting the README gives is the one the plugin itself tells a session to add when it is not running.
-  const setting = /^setting='(.+)'$/m.exec(read('hooks/notice.sh'))?.[1];
-  assert.ok(setting !== undefined && README.includes(`{ "env": { ${setting} } }`), 'the setting that turns function hooks on');
+  // Typed in a session, one line adds the marketplace and installs; from the shell it is two commands, which docs/limits.md keeps.
+  assert.ok(README.includes(`\n/plugin install ${plugin} --marketplace ${SOURCE}\n`), 'the line that installs the plugin');
+  const limits = read('docs/limits.md');
+  assert.ok(limits.includes(`claude plugin marketplace add ${SOURCE}\n`), 'the marketplace to add from the shell');
+  assert.ok(limits.includes(`claude plugin install ${plugin}@${marketplace}\n`), 'the plugin to install from the shell');
+  // The version the README gives is the one the plugin itself names when it is not running. Nothing is to be set: from that
+  // version on Claude Code ignores the variable early access asked for, so a page that still asked for it would cost a step.
+  const version = /^version=(\d+\.\d+\.\d+)$/m.exec(read('hooks/notice.sh'))?.[1];
+  assert.ok(version !== undefined && README.includes(`Claude Code ${version} or later`), 'the version the plugin needs');
+  for (const page of ['README.md', 'docs/usage.md']) assert.ok(!read(page).includes('CLAUDE_CODE_ENABLE_FUNCTION_HOOKS'), `${page} asks for no setting`);
   for (const tool of [RECALL, FIND]) assert.ok(README.includes(`\`${tool}\``), tool);
   assert.ok(README.includes(`\`${PLUGIN}:\``), "the mark of the plugin's lines");
 });

@@ -85,11 +85,18 @@ export function argsOf(start: Start): string[] {
   ];
 }
 
-/** The environment a session is started in: that of whoever runs the benchmark, without a key for `find` unless the session was handed one. */
+/** The variable early access turned function hooks on with, ignored from Claude Code 2.1.287. */
+export const FUNCTION_HOOKS = 'CLAUDE_CODE_ENABLE_FUNCTION_HOOKS';
+
+/**
+ * The environment a session is started in: that of whoever runs the benchmark, without a key for `find` unless the session was
+ * handed one, and without `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS` unless it was handed that: from Claude Code 2.1.287 function hooks
+ * run without it, which a session that runs the plugin then shows, as the README says it needs nothing set.
+ */
 export function envOf(start: Pick<Start, 'env'>, from: Readonly<Record<string, string | undefined>> = process.env): Record<string, string | undefined> {
   const env = { ...from };
-  for (const name of KEY_VARS) delete env[name];
-  return { ...env, ...start.env, CLAUDE_CODE_ENABLE_FUNCTION_HOOKS: '1', CLAUDE_CODE_DISABLE_AUTO_MEMORY: '1' };
+  for (const name of [...KEY_VARS, FUNCTION_HOOKS]) delete env[name];
+  return { ...env, ...start.env, CLAUDE_CODE_DISABLE_AUTO_MEMORY: '1' };
 }
 
 /** Runs the session to its end. Throws when it was not the session meant: a wrong arm, other tools than those named, a refused tool, a hook of the machine. */
