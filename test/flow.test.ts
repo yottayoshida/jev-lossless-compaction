@@ -30,7 +30,7 @@ function turn(n: number, said: number): Message[] {
 const talk = (turns: number, said: number): Message[] => Array.from({ length: turns }, (_, at) => turn(at + 1, said)).flat();
 
 function report(over: Partial<Report> = {}): Report {
-  return { results: 5, candidates: 5, moved: 0, images: 0, charsBefore: 1000, charsAfter: 1000, tokensAfter: 20_000, counted: true, window: 100_000, notMoved: {}, writeErrors: [], ms: 12, ...over };
+  return { results: 5, candidates: 5, moved: 0, inputs: 0, images: 0, charsBefore: 1000, charsAfter: 1000, tokensAfter: 20_000, counted: true, window: 100_000, notMoved: {}, writeErrors: [], ms: 12, ...over };
 }
 
 /** A compaction in a window of 100,000 with 75 % allowed to stay, of `messages`, as `over` changes it. */
@@ -158,4 +158,14 @@ test("the settings' defaults are those plugin.json gives them, and a value out o
   for (const [name, value] of Object.entries(defaults)) assert.equal(value, manifest.userConfig[name]?.default, name);
   assert.deepEqual(configFrom({ keepTokens: -1, minChars: 'many', targetPercent: 100, maxAfterPercent: 0 }), defaults);
   assert.deepEqual(configFrom({ keepTokens: 1500.7, minChars: 0, targetPercent: 1, maxAfterPercent: 100 }), { keepTokens: 1500, minChars: 0, targetPercent: 1, maxAfterPercent: 100 });
+});
+
+test('long inputs moved out are something moved out: handed back when enough, and never a /compact left undone (ADR 0020)', () => {
+  // Only inputs left, and enough: handed back as rebuilt, saying so.
+  assert.deepEqual(nextStep(tried(WIDE, { report: { moved: 0, inputs: 2 }, enough: true })), { step: 'back', line: reportLine(report({ inputs: 2 })) });
+  // By hand, with room and no result that could leave: still not left undone, since inputs did leave.
+  const asked = { trigger: 'manual', inUse: 30_000, report: { moved: 0, candidates: 0, inputs: 1 }, enough: true } as const;
+  assert.equal(nextStep(tried(WIDE, asked)).step, 'back');
+  // The control: nothing at all left, the same /compact is left undone.
+  assert.equal(nextStep(tried(WIDE, { ...asked, report: { moved: 0, candidates: 0, inputs: 0 }, enough: false })).step, 'skip');
 });

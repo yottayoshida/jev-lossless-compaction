@@ -1,7 +1,7 @@
 // Which tool results may leave the conversation, and the order they leave in
 // when nothing but rules decides it.
 
-import { PLUGIN } from './store.ts';
+import { PLUGIN, readInputTicket } from './store.ts';
 import type { Message, ToolUse } from './types.ts';
 
 export type Candidate = {
@@ -194,6 +194,92 @@ export function ruleOrder(candidates: readonly Candidate[], goal: string): Candi
       (shared.get(a.id) ?? 0) - (shared.get(b.id) ?? 0) ||
       a.position - b.position,
   );
+}
+
+/**
+ * The tools whose long input values may leave: those that write a file, and Bash, whose command can hold one.
+ * Named, not told by shape: Claude Code reads back what some tools were handed (a plan, a list of tasks), and
+ * a tool this plugin has never heard of keeps its input.
+ */
+export const INPUT_TOOLS: ReadonlySet<string> = new Set([...WRITES, 'Bash']);
+
+/** One long value of a tool call's input that may leave the conversation. */
+export type InputCandidate = {
+  /** The tool_use_id of the call. */
+  id: string;
+  tool: string;
+  /** Where the value stands in the input: the keys and indexes down to it. */
+  path: readonly (string | number)[];
+  /** The key the value stands under, as its ticket names it. */
+  field: string;
+  text: string;
+};
+
+/** How deep an input is walked for long values; none of the tools named goes deeper than a list of edits. */
+const INPUT_DEPTH = 8;
+
+function longValues(value: unknown, minChars: number, path: (string | number)[], into: { path: (string | number)[]; text: string }[]): void {
+  if (typeof value === 'string') {
+    // A value that left at an earlier compaction is a ticket, and stays one.
+    if (value.length >= minChars && readInputTicket(value) === null) into.push({ path: [...path], text: value });
+    return;
+  }
+  if (typeof value !== 'object' || value === null || path.length >= INPUT_DEPTH) return;
+  const steps: [string | number, unknown][] = Array.isArray(value) ? value.map((inner, index) => [index, inner]) : Object.entries(value);
+  for (const [step, inner] of steps) {
+    path.push(step);
+    longValues(inner, minChars, path, into);
+    path.pop();
+  }
+}
+
+/**
+ * The long values of inputs that may be moved out, in the order they leave: those of the tools that write a
+ * file, oldest first, then Bash commands, oldest first. What a write tool was handed is on disk; a command
+ * is what `find` and the check for a repeated call read, so it goes last.
+ *
+ * The first message stays, as its results do, and so does the input of a call that failed. The newest long
+ * value stays whatever its size, and those before it stay while they and it add up to `keepChars`: an
+ * allowance of the inputs' own, apart from the results', so that what results stay is as it was (ADR 0002).
+ * From the first that goes over, every older one is a candidate.
+ */
+export function selectInputs(messages: readonly Message[], options: SelectOptions): InputCandidate[] {
+  const failed = new Set<string>();
+  for (const message of messages) {
+    for (const result of message.toolResults ?? []) if (result.isError) failed.add(result.tool_use_id);
+  }
+
+  // Every long value that could leave, oldest first.
+  const could: InputCandidate[] = [];
+  messages.forEach((message, index) => {
+    if (index === 0) return;
+    for (const use of message.toolUses) {
+      if (!INPUT_TOOLS.has(use.tool) || use.isError === true || failed.has(use.tool_use_id)) continue;
+      const found: { path: (string | number)[]; text: string }[] = [];
+      longValues(use.input, options.minChars, [], found);
+      for (const { path, text } of found) {
+        const field = [...path].reverse().find((step): step is string => typeof step === 'string') ?? 'value';
+        could.push({ id: use.tool_use_id, tool: use.tool, path, field, text });
+      }
+    }
+  });
+
+  const candidates: InputCandidate[] = [];
+  let kept = 0;
+  let total = 0;
+  let closed = false;
+  for (let index = could.length - 1; index >= 0; index -= 1) {
+    const candidate = could[index] as InputCandidate;
+    if (!closed && (kept === 0 || total + candidate.text.length <= options.keepChars)) {
+      kept += 1;
+      total += candidate.text.length;
+      continue;
+    }
+    closed = true;
+    candidates.push(candidate);
+  }
+  candidates.reverse();
+  return [...candidates.filter((candidate) => candidate.tool !== 'Bash'), ...candidates.filter((candidate) => candidate.tool === 'Bash')];
 }
 
 /** Text the host writes into a person's turn. It is not what they said or are working on. */

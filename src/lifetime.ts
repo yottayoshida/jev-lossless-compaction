@@ -11,6 +11,7 @@
 // back what they need from the trash first, so a result moved there while a
 // session still used it is not lost.
 
+import { ticketIdsIn } from './guard.ts';
 import { DATE, DAY, blobIdOf, blobName, blobPath, blobsDir, dayOf, entryName, entryPath, gcFile, indexDir, isRootName, rootPath, rootsDir, trashDayDir, trashDir, trashedIdOf, trashedPaths } from './layout.ts';
 import { exitOf } from './commands.ts';
 import { idOf, isPart, readPartTicket, readTicket, recall } from './store.ts';
@@ -170,6 +171,9 @@ export function ticketIds(messages: readonly Message[]): Set<string> {
     for (const use of message.toolUses) {
       const ticket = use.text === undefined ? null : readTicket(use.text);
       if (ticket) ids.add(ticket.id);
+      // A long value of an input that left stands as a ticket in the input, however deep. Read as widely as
+      // the guard reads it: an id too many keeps a result a while longer, one too few leaves it in the trash.
+      ticketIdsIn(use.input, ids);
     }
     // The tickets of kept parts stand in the text of the message put after a summary, a line each.
     for (const line of message.text.split('\n')) {

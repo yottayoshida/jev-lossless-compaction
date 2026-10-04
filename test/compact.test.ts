@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { CHARS_PER_TOKEN, charsOf, compact, countFrom, leftUndone, reportLine, thinkingOf, undoneLine, weigh, weightOf, windowFrom, type Config, type Host, type Input } from '../src/compact.ts';
-import { moveOut, readTicket, recall, ticketText } from '../src/store.ts';
+import { moveOut, readInputTicket, readTicket, recall, ticketText } from '../src/store.ts';
 import type { Message } from '../src/types.ts';
 import { MemoryFiles, conversation, output, sized, type Call } from './helpers.ts';
 
@@ -938,4 +938,111 @@ test('a call waits only for a result further on: an id answered before it, or an
     const { messages } = await compact(inputFor(before), { ...CONFIG, minChars: 1_000_000 }, hostWith(new MemoryFiles()).host);
     assert.deepEqual(shape(messages), shape(before));
   }
+});
+
+const write = (file: string, chars: number): Call => ({
+  tool: 'Write',
+  input: { file_path: file, content: `${file}\n${'w'.repeat(chars - file.length - 1)}` },
+  text: 'File created successfully.',
+});
+
+/** Sized from every character a compaction counts, the inputs included: what was in use when nothing is known of what is not the conversation. */
+const inUse = (messages: readonly Message[], window = 1_000_000): Input => ({ messages, tokens: Math.ceil(charsOf(messages) / CHARS_PER_TOKEN), window, goal: messages[0]?.text ?? '' });
+
+/** The long values handed to calls, by the id of the call, as they stand in a conversation. */
+const inputValues = (messages: readonly Message[]) => new Map(messages.flatMap((m) => m.toolUses).map((use) => [use.tool_use_id, use.input]));
+
+test('when results are not enough, the long values handed to a write tool leave as well, each stored whole, and the call still names its file (ADR 0020)', async () => {
+  const files = new MemoryFiles();
+  const before = conversation([write('a.ts', 3000), write('b.ts', 3000), write('c.ts', 3000)]);
+
+  const { messages, report, enough } = await compact(inUse(before), CONFIG, hostWith(files).host);
+
+  const was = inputValues(before);
+  const now = inputValues(messages);
+  // The two older files' content left; the newest stays, whatever its size.
+  for (const id of ['toolu_1', 'toolu_2']) {
+    const line = String(now.get(id)?.['content']);
+    const ticket = readInputTicket(line);
+    assert.ok(ticket, `${id}: ${line.slice(0, 80)}`);
+    assert.equal(ticket.tool, 'Write');
+    assert.equal(ticket.field, 'content');
+    assert.deepEqual(await recall(files, DIR, ticket.id), { text: was.get(id)?.['content'] });
+    assert.equal(now.get(id)?.['file_path'], was.get(id)?.['file_path']);
+  }
+  assert.equal(now.get('toolu_3')?.['content'], was.get('toolu_3')?.['content']);
+  assert.equal(report.moved, 0);
+  assert.equal(report.inputs, 2);
+  assert.equal(enough, true);
+  assert.match(reportLine(report), /^moved 0 of 3 tool results out and 2 tool inputs \(/);
+  // What was handed in is not changed: the rebuilt conversation is a copy.
+  assert.equal(inputValues(before).get('toolu_1')?.['content'], was.get('toolu_1')?.['content']);
+  assert.ok(String(before[1]?.toolUses[0]?.input['content']).startsWith('a.ts\n'));
+});
+
+test('inputs leave only once results are not enough: where results reach the target, every input stays as it was', async () => {
+  const files = new MemoryFiles();
+  const before = conversation([write('a.ts', 2500), call('x', 400), call('y', 400), call('z', 400), write('b.ts', 2500)]);
+
+  const { messages, report } = await compact(inUse(before), CONFIG, hostWith(files).host);
+
+  assert.ok(report.moved > 0);
+  assert.equal(report.inputs, 0);
+  assert.deepEqual(inputValues(messages), inputValues(before));
+});
+
+test('a long value inside a list of edits leaves, and the other edits of the call stand as they were', async () => {
+  const files = new MemoryFiles();
+  const value = `NEW\n${'n'.repeat(4000)}`;
+  const before = conversation([
+    { tool: 'MultiEdit', input: { file_path: 'a.ts', edits: [{ old_string: 'x', new_string: 'y' }, { old_string: 'p', new_string: value }] }, text: 'Applied 2 edits.' },
+    write('b.ts', 4000),
+  ]);
+
+  const { messages, report } = await compact(inUse(before), CONFIG, hostWith(files).host);
+
+  assert.equal(report.inputs, 1);
+  const edits = inputValues(messages).get('toolu_1')?.['edits'] as { old_string: string; new_string: string }[];
+  assert.deepEqual(edits[0], { old_string: 'x', new_string: 'y' });
+  assert.equal(edits[1]?.old_string, 'p');
+  const ticket = readInputTicket(String(edits[1]?.new_string));
+  assert.ok(ticket);
+  assert.equal(ticket.field, 'new_string');
+  assert.deepEqual(await recall(files, DIR, ticket.id), { text: value });
+});
+
+test('a value that left at an earlier compaction stays its ticket, and a second compaction writes nothing new for it', async () => {
+  const files = new MemoryFiles();
+  const before = conversation([write('a.ts', 3000), write('b.ts', 3000), write('c.ts', 3000)]);
+
+  const once = await compact(inUse(before), CONFIG, hostWith(files).host);
+  const written = files.writes.length;
+  const twice = await compact(inUse(once.messages), CONFIG, hostWith(files).host);
+
+  assert.deepEqual(inputValues(twice.messages), inputValues(once.messages));
+  assert.equal(twice.report.inputs, 0);
+  assert.equal(files.writes.length, written);
+});
+
+test('a value that cannot be stored stays in its call, as it was, and is counted', async () => {
+  const files = new MemoryFiles();
+  files.corrupt = (text) => `${text}!`;
+  const before = conversation([write('a.ts', 3000), write('b.ts', 3000)]);
+
+  const { messages, report } = await compact(inUse(before), CONFIG, hostWith(files).host);
+
+  assert.equal(report.inputs, 0);
+  assert.deepEqual(inputValues(messages), inputValues(before));
+  assert.equal(report.notMoved.differs, 1);
+});
+
+test('inputs leave until what is in use is at the target and no further: the oldest first, and those after stay', async () => {
+  const files = new MemoryFiles();
+  const before = conversation([write('a.ts', 6000), write('b.ts', 6000), write('c.ts', 6000), write('d.ts', 6000), write('e.ts', 6000)]);
+  // About 10,000 tokens in use and half of it to lose: each value saves about 5,900 characters, so three cover it and a fourth is not needed.
+  const { messages, report } = await compact(inUse(before), CONFIG, hostWith(files).host);
+
+  const left = [...inputValues(messages).entries()].filter(([, input]) => readInputTicket(String(input['content'])) !== null).map(([id]) => id);
+  assert.deepEqual(left, ['toolu_1', 'toolu_2', 'toolu_3']);
+  assert.equal(report.inputs, 3);
 });

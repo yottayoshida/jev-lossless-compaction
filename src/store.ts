@@ -119,6 +119,32 @@ export function readTicket(text: string): Ticket | null {
   return { tool, bytes: Number(bytes), id };
 }
 
+// The name of an input's field as a ticket spells it. A tool of anyone's names its fields as it likes; a name of
+// any other shape is written `value`, so that nothing of another's wording stands in the line.
+const FIELD = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
+// An input has a wording of its own: it is not a result, and a line that says so is not taken for one.
+const INPUT_TICKET = new RegExp(
+  `^\\[moved out\\] the "([A-Za-z_][A-Za-z0-9_]{0,63})" ([A-Za-z0-9_.-]{1,128}) ran with, (\\d{1,9}) bytes; recall with ${RECALL_TOOL} id ([0-9a-f]{64})$`,
+);
+
+/** Which value of a tool call's input a line stands for: the tool, the field, a size and an id. */
+export type InputTicket = Ticket & { field: string };
+
+/** The line left where a long value of a tool call's input was. The call's other fields stay as they are. */
+export function inputTicketText({ tool, field, bytes, id }: InputTicket): string {
+  // Said as what the call ran with: worded as a value of the input, Sonnet 5.5 read such lines as calls that had
+  // written the line itself, and said the files might hold it (ADR 0020).
+  return `[moved out] the "${FIELD.test(field) ? field : 'value'}" ${tool} ran with, ${bytes} bytes; recall with ${RECALL_TOOL} id ${id}`;
+}
+
+/** Reads a line that has the shape of an input's ticket. The shape alone proves nothing: see `isStored`. */
+export function readInputTicket(text: string): InputTicket | null {
+  const match = INPUT_TICKET.exec(text);
+  if (!match) return null;
+  const [, field, tool, bytes, id] = match.map(String);
+  return { tool: tool as string, field: field as string, bytes: Number(bytes), id: id as string };
+}
+
 const ABSOLUTE = /^(?:\/|[A-Za-z]:[\\/])/;
 const withoutLastSlash = (path: string | undefined) => (path ?? '').trim().replace(/[\\/]+$/, '');
 
@@ -319,7 +345,31 @@ export async function moveOut(files: Files, dir: string, tool: string, text: str
   return { tool, bytes, id, text: ticketText({ tool, bytes, id }) };
 }
 
+/** A value of a tool call's input, stored: what its ticket says, and the line that replaces it. */
+export type MovedInput = InputTicket & { text: string };
+
+/**
+ * Stores one long value of a tool call's input and returns the line that replaces it, or why the value has to
+ * stay where it is. The entry names it `<tool>.<field>`, as a kept part names an input it holds (ADR 0007).
+ */
+export async function moveInputOut(files: Files, dir: string, tool: string, field: string, value: string): Promise<MovedInput | NotMoved> {
+  const name = FIELD.test(field) ? field : 'value';
+  const moved = await moveOut(files, dir, `${tool}.${name}`, value);
+  if ('reason' in moved) return moved;
+  const ticket = { tool, field: name, bytes: moved.bytes, id: moved.id };
+  return { ...ticket, text: inputTicketText(ticket) };
+}
+
 const dirsOf = (dirs: string | readonly string[]): readonly string[] => (typeof dirs === 'string' ? [dirs] : dirs);
+
+/** Whether anything is stored under `id` in any of `dirs`: its entry is there. Says nothing of the text. */
+export async function holds(files: Files, dirs: string | readonly string[], id: string): Promise<boolean> {
+  if (!ID.test(id)) return false;
+  for (const dir of dirsOf(dirs)) {
+    if ((await look(files, entryPath(dir, id))) === 'file') return true;
+  }
+  return false;
+}
 
 /**
  * True when `text` is a ticket this store wrote, of a result or of a part of a
@@ -343,7 +393,7 @@ export async function isPart(files: Files, dirs: readonly string[], id: string):
 }
 
 export async function isStored(files: Files, dirs: string | readonly string[], text: string): Promise<boolean> {
-  const ticket = readTicket(text) ?? readPartTicket(text);
+  const ticket = readTicket(text) ?? readPartTicket(text) ?? readInputTicket(text);
   if (!ticket) return false;
   for (const dir of dirsOf(dirs)) {
     if ((await look(files, entryPath(dir, ticket.id))) !== 'file') continue;
@@ -382,8 +432,18 @@ export async function recall(files: Files, dirs: string | readonly string[], id:
   return { error: 'Nothing is stored under that id on this machine.' };
 }
 
+/** The strings of an input, however deep, that are a whole input ticket. */
+export function inputTicketsOf(value: unknown, into: string[] = [], depth = 0): string[] {
+  if (typeof value === 'string') {
+    if (readInputTicket(value) !== null) into.push(value);
+  } else if (typeof value === 'object' && value !== null && depth < 8) {
+    for (const inner of Array.isArray(value) ? value : Object.values(value)) inputTicketsOf(inner, into, depth + 1);
+  }
+  return into;
+}
+
 // An id as it is written in a text: 64 hexadecimal characters, with none right before or after.
-const WRITTEN_ID = /(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])/g;
+const WRITTEN_ID =/(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])/g;
 /** How many characters of an id, from its first, tell which one an agent meant. */
 export const ID_HEAD = 16;
 
@@ -399,8 +459,9 @@ function mayBeMeant(given: unknown): given is string {
  * them wrong now and then: it gives the first half, drops a character further
  * on, or writes one that is no digit (#54).
  *
- * Read from the user messages and what tools returned, not from what the
- * agent said or put in its calls: an id it gave wrong before would stand
+ * Read from the user messages, what tools returned and the tickets this plugin
+ * put in calls, not from what the agent said or wrote in its calls: an id it
+ * gave wrong before would stand
  * beside the one it was copied from. What the agent wrote can still reach
  * those, as Claude Code's summary or as a kept part `recall` returned; an id
  * copied wrong there in full makes two that begin alike, and it is refused.
@@ -410,7 +471,13 @@ export function idMeant(given: unknown, messages: readonly Message[]): string | 
   const head = given.slice(0, ID_HEAD);
   let meant: string | null = null;
   for (const message of messages) {
-    const texts = [message.role === 'user' ? message.text : '', ...(message.toolResults ?? []).map((result) => result.text), ...message.toolUses.map((use) => use.text ?? '')];
+    const texts = [
+      message.role === 'user' ? message.text : '',
+      ...(message.toolResults ?? []).map((result) => result.text),
+      ...message.toolUses.map((use) => use.text ?? ''),
+      // A value of a call's input that is a whole ticket was put there by this plugin, not written by the agent (ADR 0020).
+      ...message.toolUses.flatMap((use) => inputTicketsOf(use.input)),
+    ];
     for (const text of texts) {
       for (const [id] of text.matchAll(WRITTEN_ID)) {
         if (!id.startsWith(head) || id === meant) continue;

@@ -2,8 +2,8 @@
 
 import { messagesFromApi } from './keep.ts';
 import { IMAGE_TOKENS, encodeMedia, type MediaPart } from './media.ts';
-import { ruleOrder, select, type Candidate } from './select.ts';
-import { isStored, moveOut, readTicket, ticketText, type Moved, type NotMoved, type StoreDirs, type Ticket } from './store.ts';
+import { ruleOrder, select, selectInputs, type Candidate, type InputCandidate } from './select.ts';
+import { isStored, moveInputOut, moveOut, readTicket, ticketText, type Moved, type MovedInput, type NotMoved, type StoreDirs, type Ticket } from './store.ts';
 import type { Files, Message, ToolResult, ToolUse } from './types.ts';
 
 export type Config = {
@@ -54,6 +54,8 @@ export type Report = {
   results: number;
   candidates: number;
   moved: number;
+  /** Long values of the inputs of the tools that write a file and of Bash that left, each a ticket now in its call. */
+  inputs: number;
   /** The images that left with their results; those results are among `moved`. */
   images: number;
   charsBefore: number;
@@ -190,6 +192,21 @@ async function storedTickets(files: Files, dirs: readonly string[], messages: re
   return new Map(shaped.filter((_, index) => kept[index]).map((result) => [result.tool_use_id, readTicket(result.text) as Ticket]));
 }
 
+/** One value of a call's input that left: where it stood in the input, and the line that stands there now. */
+type MovedValue = { path: readonly (string | number)[]; line: string };
+
+/** A copy of `input` with each value named by a path replaced by its line. What is not on a path is the same value. */
+function withValues(input: Record<string, unknown>, values: readonly MovedValue[]): Record<string, unknown> {
+  const copy = (value: unknown, path: (string | number)[]): unknown => {
+    const here = values.find((one) => one.path.length === path.length && one.path.every((step, at) => step === path[at]));
+    if (here !== undefined) return here.line;
+    if (Array.isArray(value)) return value.map((inner, index) => copy(inner, [...path, index]));
+    if (typeof value === 'object' && value !== null) return Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, copy(inner, [...path, key])]));
+    return value;
+  };
+  return copy(input, []) as Record<string, unknown>;
+}
+
 /**
  * Every message without its handle, moved-out results replaced by their tickets
  * on both sides of the call. A ticket an earlier compaction left is written in
@@ -197,7 +214,12 @@ async function storedTickets(files: Files, dirs: readonly string[], messages: re
  * names the tool that exists now (ADR 0004). A message handed back with its
  * handle makes Claude Code restore the whole history when the session is resumed.
  */
-function rebuild(messages: readonly Message[], moved: ReadonlyMap<string, Moved>, stored: ReadonlyMap<string, Ticket>): Message[] {
+function rebuild(
+  messages: readonly Message[],
+  moved: ReadonlyMap<string, Moved>,
+  stored: ReadonlyMap<string, Ticket>,
+  inputs: ReadonlyMap<string, readonly MovedValue[]> = new Map(),
+): Message[] {
   const lineFor = (id: string): string | undefined => {
     const ticket = moved.get(id) ?? stored.get(id);
     return ticket && ticketText(ticket);
@@ -205,10 +227,12 @@ function rebuild(messages: readonly Message[], moved: ReadonlyMap<string, Moved>
   const out: Message[] = [];
   for (const message of messages) {
     const toolUses = message.toolUses.map((use): ToolUse => {
+      const values = inputs.get(use.tool_use_id);
+      const input = values === undefined ? use.input : withValues(use.input, values);
       const line = lineFor(use.tool_use_id);
-      if (line === undefined) return { ...use };
+      if (line === undefined) return { ...use, input };
       const { result: _result, ...rest } = use;
-      return { ...rest, text: line };
+      return { ...rest, input, text: line };
     });
     const toolResults = (message.toolResults ?? []).map((result): ToolResult => {
       const line = lineFor(result.tool_use_id);
@@ -425,6 +449,7 @@ export async function compact(input: Input, config: Config, host: Host): Promise
         results: resultCount,
         candidates: 0,
         moved: 0,
+        inputs: 0,
         images: 0,
         charsBefore: charsOf(input.messages),
         charsAfter: charsOf(input.messages),
@@ -524,7 +549,36 @@ export async function compact(input: Input, config: Config, host: Host): Promise
     });
   }
 
-  const messages = rebuild(input.messages, moved, stored);
+  // Then, while still short of the target, the long values handed to the tools that write a file and to Bash,
+  // with an allowance of their own for the newest (ADR 0020). What a write tool was handed is on disk as well.
+  const inputs = new Map<string, MovedValue[]>();
+  let inputsMoved = 0;
+  const waiting = selectInputs(input.messages, { keepChars: config.keepTokens * CHARS_PER_TOKEN, minChars: config.minChars });
+  while (saved * perUnit < need && waiting.length > 0) {
+    const wave: InputCandidate[] = [];
+    let expected = saved;
+    do {
+      const candidate = waiting.shift() as InputCandidate;
+      wave.push(candidate);
+      expected += measure(candidate.text);
+    } while (waiting.length > 0 && expected * perUnit < need);
+    const written = await inParallel(wave, WRITES_IN_FLIGHT, (candidate) =>
+      moveInputOut(files, config.store.write, candidate.tool, candidate.field, candidate.text),
+    );
+    wave.forEach((candidate, at) => {
+      const result = written[at] as MovedInput | NotMoved;
+      if ('reason' in result) {
+        notMoved[result.reason] = (notMoved[result.reason] ?? 0) + 1;
+        if (result.code !== undefined && !writeErrors.includes(result.code) && writeErrors.length < 3) writeErrors.push(result.code);
+        return;
+      }
+      inputs.set(candidate.id, [...(inputs.get(candidate.id) ?? []), { path: candidate.path, line: result.text }]);
+      inputsMoved += 1;
+      saved += Math.max(0, measure(candidate.text) - measure(result.text));
+    });
+  }
+
+  const messages = rebuild(input.messages, moved, stored, inputs);
   // What is measured against the window is everything in it: the system prompt and the
   // tools' definitions too, which no compaction makes smaller.
   const charsAfter = charsOf(messages);
@@ -535,12 +589,13 @@ export async function compact(input: Input, config: Config, host: Host): Promise
   const over = tokensAfter - mayStay(input.window, config.maxAfterPercent);
   return {
     messages,
-    enough: moved.size > 0 && (over <= 0 || conversationAfter < over),
+    enough: moved.size + inputsMoved > 0 && (over <= 0 || conversationAfter < over),
     target,
     report: {
       results: resultCount,
       candidates: candidates.length,
       moved: moved.size,
+      inputs: inputsMoved,
       images,
       charsBefore,
       charsAfter,
@@ -562,7 +617,8 @@ export function reportLine(report: Report): string {
     .join(', ');
   return (
     `moved ${report.moved} of ${report.results} tool results out` +
-    (report.images === 0 ? ' ' : `, ${report.images} ${report.images === 1 ? 'image' : 'images'} with them ` ) +
+    (report.images === 0 ? '' : `, ${report.images} ${report.images === 1 ? 'image' : 'images'} with them`) +
+    (report.inputs === 0 ? ' ' : ` and ${report.inputs} tool ${report.inputs === 1 ? 'input' : 'inputs'} `) +
     `(${report.charsBefore} -> ${report.charsAfter} chars` +
     (report.counted ? `, about ${report.tokensAfter} of ${report.window} tokens in use) ` : ') ') +
     `in ${took}${stayed === '' ? '' : `; left in place: ${stayed}`}` +

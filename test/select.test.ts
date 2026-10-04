@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { HOST_SHOWS, goalOf, ruleOrder, select, termsOf, whyNotRebuilt } from '../src/select.ts';
+import { HOST_SHOWS, goalOf, ruleOrder, select, selectInputs, termsOf, whyNotRebuilt } from '../src/select.ts';
+import { inputTicketText } from '../src/store.ts';
 import { conversation, output, sized, type Call } from './helpers.ts';
 
 // The newest result that could leave stays, and nothing else for being new.
@@ -247,4 +248,92 @@ test('the goal is the latest three turns, oldest of them first', () => {
   const messages = ['one', 'two', 'three', 'four'].map((text) => ({ role: 'user' as const, text, toolUses: [] }));
 
   assert.equal(goalOf(messages, undefined), 'two\n\nthree\n\nfour');
+});
+
+const write = (file: string, chars: number): Call => ({
+  tool: 'Write',
+  input: { file_path: file, content: `${file}\n${'w'.repeat(chars - file.length - 1)}` },
+  text: 'File created.',
+});
+const inputsOf = (calls: readonly Call[], options = OPTIONS) => selectInputs(conversation(calls), options).map((one) => `${one.id} ${one.tool}.${one.field}`);
+
+test('a long value handed to a tool that writes a file may leave; the newest stays, and so does what names the file', () => {
+  const calls = [write('a.ts', 3000), write('b.ts', 3000), write('c.ts', 3000)];
+
+  assert.deepEqual(
+    selectInputs(conversation(calls), OPTIONS).map((one) => [one.id, one.tool, one.field, one.path, one.text.length]),
+    [
+      ['toolu_1', 'Write', 'content', ['content'], 3000],
+      ['toolu_2', 'Write', 'content', ['content'], 3000],
+    ],
+  );
+  // With room for all of them, none is a candidate.
+  assert.deepEqual(selectInputs(conversation(calls), { keepChars: 1_000_000, minChars: 200 }), []);
+});
+
+test('inputs have an allowance of their own: the newest stays whatever its size, older ones while they and it fit, and results use none of it', () => {
+  const allowance = { keepChars: 60_000, minChars: 200 };
+  // Three of 25,000: the newest two fit in 60,000, the third does not.
+  assert.deepEqual(inputsOf([write('a', 25_000), write('b', 25_000), write('c', 25_000)], allowance), ['toolu_1 Write.content']);
+  // The allowance is "at most": two that bring the total exactly to it stay, one character more and the older leaves.
+  assert.deepEqual(inputsOf([write('a', 30_000), write('b', 30_000)], allowance), []);
+  assert.deepEqual(inputsOf([write('a', 30_001), write('b', 30_000)], allowance), ['toolu_1 Write.content']);
+  // A newest value over the allowance stays all the same.
+  assert.deepEqual(inputsOf([write('a', 5_000), write('b', 200_000)], allowance), ['toolu_1 Write.content']);
+  // From the first that goes over, every older one is a candidate, a small one that would fit included.
+  assert.deepEqual(inputsOf([write('small', 1_000), write('big', 50_000), write('newest', 50_000)], allowance), ['toolu_1 Write.content', 'toolu_2 Write.content']);
+  // 200,000 characters of reading between two writes, and both writes stay: what results stay is counted apart.
+  assert.deepEqual(inputsOf([write('a', 25_000), sized('x.zig', 100_000), sized('y.zig', 100_000), write('b', 25_000)], allowance), []);
+});
+
+test('a long value inside a list of edits is found, and named by the key it stands under', () => {
+  const calls: Call[] = [
+    {
+      tool: 'MultiEdit',
+      input: { file_path: 'a.ts', edits: [{ old_string: 'x', new_string: 'n'.repeat(3000) }, { old_string: 'o'.repeat(2500), new_string: 'y' }] },
+      text: 'Applied 2 edits.',
+    },
+    write('last.ts', 3000),
+  ];
+
+  assert.deepEqual(
+    selectInputs(conversation(calls), OPTIONS).map((one) => [one.field, one.path]),
+    [
+      ['new_string', ['edits', 0, 'new_string']],
+      ['old_string', ['edits', 1, 'old_string']],
+    ],
+  );
+  // Nothing is looked for nine levels down: no tool named hands a value that deep.
+  const deep = { file_path: 'a.ts', a: { b: { c: { d: { e: { f: { g: { h: { content: 'z'.repeat(3000) } } } } } } } } };
+  assert.deepEqual(inputsOf([{ tool: 'Write', input: deep, text: 'ok' }, write('last.ts', 3000)]), []);
+});
+
+test('what stays whatever its length: the input of another tool, of a call that failed, of the first message, and a value that is a ticket already', () => {
+  const ticket = inputTicketText({ tool: 'Write', field: 'content', bytes: 9000, id: 'a'.repeat(64) });
+  const calls: Call[] = [
+    { tool: 'Agent', input: { prompt: 'p'.repeat(5000) }, text: 'done' },
+    { tool: 'ExitPlanMode', input: { plan: 'p'.repeat(5000) }, text: 'ok' },
+    { tool: 'mcp__notion__update', input: { content: 'p'.repeat(5000) }, text: 'ok' },
+    { ...write('failed.ts', 5000), isError: true },
+    { tool: 'Write', input: { file_path: 'out.ts', content: ticket }, text: 'File created.' },
+    write('old.ts', 5000),
+    write('newest.ts', 5000),
+  ];
+  // With minChars under a ticket's length, the ticket would count were it not read as one.
+  assert.ok(ticket.length > 100);
+  assert.deepEqual(inputsOf(calls, { keepChars: 0, minChars: 100 }), ['toolu_6 Write.content']);
+
+  const messages = conversation([write('a.ts', 3000), write('b.ts', 3000)]);
+  messages[0] = { role: 'assistant', text: '', toolUses: [{ tool_use_id: 'toolu_0', tool: 'Write', input: { file_path: 'first.ts', content: 'f'.repeat(3000) } }], handle: 'h0' };
+  assert.deepEqual(
+    selectInputs(messages, OPTIONS).map((one) => one.id),
+    ['toolu_1'],
+  );
+});
+
+test('inputs leave in this order: those of the tools that write a file, oldest first, then commands, oldest first', () => {
+  const heredoc = (name: string): Call => ({ tool: 'Bash', input: { command: `cat > ${name} <<'EOF'\n${'c'.repeat(3000)}\nEOF`, description: 'Write a file' }, text: '' });
+  const calls = [heredoc('1.txt'), write('a.ts', 3000), heredoc('2.txt'), write('b.ts', 3000), write('newest.ts', 3000)];
+
+  assert.deepEqual(inputsOf(calls), ['toolu_2 Write.content', 'toolu_4 Write.content', 'toolu_1 Bash.command', 'toolu_3 Bash.command']);
 });

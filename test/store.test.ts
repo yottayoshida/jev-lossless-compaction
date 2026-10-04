@@ -6,14 +6,18 @@ import {
   ID_HEAD,
   MAX_BYTES,
   RECALL_TOOL,
+  holds,
   idMeant,
   configDirFrom,
   idOf,
+  inputTicketText,
   isStored,
+  moveInputOut,
   moveOut,
   oldStoreDirFrom,
   partTicketText,
   placesOf,
+  readInputTicket,
   readTicket,
   recall,
   recallMeant,
@@ -40,6 +44,46 @@ test('a moved-out result is on disk byte for byte, under the hash of its text', 
   assert.equal(ticket.id, await idOf(text));
   assert.equal(files.files.get(`${DIR}/blobs/${ticket.id}.txt`), text);
   assert.deepEqual(readTicket(ticket.text), { tool: 'Read', bytes: ticket.bytes, id: ticket.id });
+});
+
+test('the ticket of an input names the tool and the field, and is not taken for a result\'s', () => {
+  const id = 'c'.repeat(64);
+  const line = inputTicketText({ tool: 'Write', field: 'content', bytes: 9120, id });
+
+  assert.equal(line, `[moved out] the "content" Write ran with, 9120 bytes; recall with ${RECALL_TOOL} id ${id}`);
+  assert.deepEqual(readInputTicket(line), { tool: 'Write', field: 'content', bytes: 9120, id });
+  assert.equal(readTicket(line), null);
+  assert.equal(readInputTicket(ticketText({ tool: 'Write', bytes: 9120, id })), null);
+});
+
+test('a field named in another shape is written `value`, and the ticket stays one line', () => {
+  const id = 'c'.repeat(64);
+  for (const field of ['new\nline', 'a"b', `x", 1 bytes; recall with ${RECALL_TOOL} id ${'d'.repeat(64)}`, '', 'edits[2].new_string', 'é']) {
+    const line = inputTicketText({ tool: 'Edit', field, bytes: 5, id });
+    assert.equal(line.includes('\n'), false, field);
+    assert.deepEqual(readInputTicket(line), { tool: 'Edit', field: 'value', bytes: 5, id }, field);
+  }
+});
+
+test('a long value of an input is stored whole, and comes back under the id on its ticket', async () => {
+  const files = new MemoryFiles();
+  const value = output('lib/m1.ts', 120);
+  const moved = await moveInputOut(files, DIR, 'Write', 'content', value);
+  assert.ok(!('reason' in moved), `expected the value to be moved out, got ${JSON.stringify(moved)}`);
+
+  assert.equal(moved.id, await idOf(value));
+  assert.deepEqual(await recall(files, DIR, moved.id), { text: value });
+  assert.deepEqual(readInputTicket(moved.text), { tool: 'Write', field: 'content', bytes: moved.bytes, id: moved.id });
+  assert.deepEqual(JSON.parse(files.files.get(`${DIR}/index/${moved.id}.json`) as string), { bytes: moved.bytes, tool: 'Write.content' });
+  // Its ticket is one of this store's, and one of the same shape with another id is not.
+  assert.equal(await isStored(files, DIR, moved.text), true);
+  assert.equal(await isStored(files, DIR, inputTicketText({ tool: 'Write', field: 'content', bytes: moved.bytes, id: 'f'.repeat(64) })), false);
+  assert.equal(await holds(files, DIR, moved.id), true);
+  assert.equal(await holds(files, DIR, 'f'.repeat(64)), false);
+  // What is not an id is not looked for at all: no path is made of it.
+  const looked = files.looked.length;
+  assert.equal(await holds(files, DIR, `../blobs/${moved.id}`), false);
+  assert.equal(files.looked.length, looked);
 });
 
 test('text outside ASCII is stored and returned unchanged, and sized in bytes', async () => {
@@ -259,6 +303,11 @@ test('an id copied wrong is taken for the one id written in the conversation tha
   assert.equal(idMeant(id.slice(0, 20), read), id);
   const inside: Message[] = [{ role: 'user', text: '', toolUses: [], toolResults: [{ tool_use_id: 'toolu_3', text: `the part, as it was:\n${ticketText({ tool: 'Bash', bytes: 9, id })}\nand more`, isError: false }] }];
   assert.equal(idMeant(id.slice(0, 40), inside), id);
+  // A ticket that stands where a long value of a call's input was: the plugin put it there (ADR 0020).
+  const handed: Message[] = [{ role: 'assistant', text: '', toolUses: [{ tool_use_id: 'toolu_5', tool: 'MultiEdit', input: { file_path: 'a.ts', edits: [{ old_string: 'x', new_string: inputTicketText({ tool: 'MultiEdit', field: 'new_string', bytes: 9, id }) }] } }] }];
+  assert.equal(idMeant(id.slice(0, 24), handed), id);
+  // The control: the same id in an input value that is not a whole ticket is the agent's own words.
+  assert.equal(idMeant(id.slice(0, 24), [{ role: 'assistant', text: '', toolUses: [{ tool_use_id: 'toolu_6', tool: 'Bash', input: { command: `echo ${id}` } }] }]), null);
 
   // Not what the agent wrote: an id it gave wrong before stands in the conversation too, in what it said and in its call.
   const once = `${id.slice(0, 58)}0${id.slice(59)}`;
