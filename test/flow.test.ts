@@ -69,6 +69,8 @@ test('a /compact by hand with nothing to move out and room left is left undone, 
 test('results moved out and enough: handed back as rebuilt, saying what was moved', () => {
   const step = nextStep(tried(WIDE, { report: { moved: 3 }, enough: true, trigger: 'manual', instructions: 'keep the plan' }));
   assert.deepEqual(step, { step: 'back', line: reportLine(report({ moved: 3 })) });
+  // The common case: counted, and under the line once results left. src/cut.ts would hand it back too, said as a cut of nothing.
+  assert.deepEqual(nextStep(tried(WIDE, { report: { moved: 3 }, enough: true })), { step: 'back', line: reportLine(report({ moved: 3 })) });
   // Nothing moved is never handed back as a compaction that moved results out: src/cut.ts decides it, as one too full would be.
   assert.deepEqual(nextStep(tried(WIDE, { enough: true })), { step: 'back', line: cutLine(report(), null) });
 });
@@ -119,6 +121,18 @@ test('a /compact left undone is decided before src/cut.ts is asked: where it wou
   const three = WIDE.slice(0, 6);
   assert.equal(nextStep(tried(three, { ...asked, trigger: 'auto' })).step, 'cut', 'on its own, the same conversation is cut');
   assert.deepEqual(nextStep(tried(three, asked)), skip);
+});
+
+test('a cut goes down to the size moving results out aimed at, not to the line of what may stay', () => {
+  // `target` is what `targetPercent` makes of the window; set low, as it can be, a cut goes deeper than to the line.
+  const at = (target: number) => {
+    const step = nextStep(tried(WIDE, { report: { tokensAfter: WIDE_TOKENS }, target }));
+    const decided = decide({ messages: WIDE, tokens: WIDE_TOKENS, count: COUNT, window: 100_000, maxAfterPercent: 75, cutTo: target, keepTokens: 2_000, instructions: undefined });
+    assert.ok(step.step === 'cut' && decided.hand === 'back', `${target}`);
+    assert.equal(step.at, decided.at, `${target}`);
+    return step.at;
+  };
+  assert.ok(at(40_000) > at(75_000), `${at(40_000)} against ${at(75_000)}`);
 });
 
 test('a cut is made where src/cut.ts says, as it says: the first message with the rest, and past what may stay', () => {
