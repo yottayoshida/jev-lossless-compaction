@@ -6,7 +6,7 @@ import type { Provider } from '../src/ask.ts';
 import { changedLine, shownAgainLine } from '../src/changed.ts';
 import { KEPT } from '../src/keep.ts';
 import { FIND_IN_RECALL, recallDescription } from '../src/tools.ts';
-import { FIND_TOOL, RECALL_TOOL, STORE_COMMAND } from '../src/store.ts';
+import { FIND_TOOL, PLUGIN as PLUGIN_NAME, RECALL_TOOL, STORE_COMMAND } from '../src/store.ts';
 import { KEY_VARIABLES, PLACE_VARIABLES, ROUTE_VARIABLES } from '../src/trust.ts';
 
 const hooks = readFileSync(new URL('../hooks/move-out.ts', import.meta.url), 'utf8');
@@ -99,7 +99,8 @@ test('a file shown again that the plugin named as changed is answered with the l
 test('every tool and the compaction read where results are through placesOf, so the old place is read too', () => {
   assert.ok(hooks.includes("placesOf(filesOf($), options['storeDir']"), 'placesOf');
   assert.ok(!hooks.includes('storeDirFrom('), 'the plain default is never used on its own');
-  assert.ok(hooks.includes('const config: Config = {\n      store,'), 'the compaction is handed both places');
+  assert.ok(hooks.includes('const config: Config = { store, ...configFrom(options) };'), 'the compaction is handed both places, and the settings as src/flow.ts reads them');
+  assert.ok(!hooks.includes("options['keepTokens']") && !hooks.includes("options['targetPercent']"), 'no setting of the compaction is read here');
   assert.ok(hooks.includes('recall(filesOf($), store.read,'), 'recall reads both');
   assert.ok(hooks.includes('{ dir: keep.store.write, read: keep.store.read, messages: keep.messages }'), 'what is kept before a summary is handed both places: a reading moved out earlier may be in the older one');
   assert.ok(hooks.includes('dirs: store.read,'), 'find reads both');
@@ -131,7 +132,7 @@ test("where results are kept and where find sends both go through the repository
   const givingUp = hooks.split("if (typeof store === 'string')").length - 1;
   // The compaction calls it `place` until the place is known to be private (it keeps the conversation after that).
   assert.equal(givingUp + (hooks.split("if (typeof place === 'string')").length - 1), 5, 'five callers');
-  const collecting = hooks.slice(hooks.indexOf('async function collectOnce('), hooks.indexOf('function numberIn('));
+  const collecting = hooks.slice(hooks.indexOf('async function collectOnce('), hooks.indexOf('type HandedOver'));
   assert.ok(collecting.includes("const store = await storeOf($, options);\n    if (typeof store === 'string') return;"), 'the clean-up too');
 });
 
@@ -185,14 +186,44 @@ test('a compaction imports nothing that sends: compact.ts does not reach ask.ts'
   assert.ok(!compaction.includes('http'));
 });
 
+test('a compaction computed ahead is skipped and a subagent goes straight on, run through the hook itself, before anything of the host is touched', async () => {
+  const found = await registered<undefined>('session.compact');
+  assert.equal(found.length, 1);
+  // Registered with no matcher: the handler stands where a matcher would.
+  const compacting = found[0]?.matcher as (...args: unknown[]) => Promise<unknown>;
+  // Every noun of the host the handler reads is recorded. A throw would not do: what the hook tries catches what
+  // goes wrong and still ends in `next`, so a subagent's compaction that was tried would come back the same.
+  const touched: string[] = [];
+  const $ = new Proxy({}, { get: (_, noun) => void touched.push(String(noun)) });
+  const handed: unknown[] = [];
+  const passed = { passed: true };
+  const next = async (e: unknown) => (handed.push(e), passed);
+  assert.deepEqual(await compacting($, { trigger: 'precompute', messages: [] }, next), { skip: `${PLUGIN_NAME} computes nothing ahead of a compaction` });
+  const subagent = { trigger: 'auto', agentId: 'a1', messages: [] };
+  assert.equal(await compacting($, subagent, next), passed);
+  assert.equal(handed.length, 1);
+  assert.equal(handed[0], subagent, 'handed on as it came');
+  assert.deepEqual(touched, [], 'nothing of the host was read');
+});
+
 test('every way the main conversation reaches the built-in summary keeps it first; only a subagent goes straight on', () => {
   const handler = hooks.slice(hooks.indexOf("on('session.compact'"));
-  assert.deepEqual(handler.match(/return next\(e\)/g), ['return next(e)'], 'the subagent branch alone');
-  assert.ok(handler.includes('if (e.agentId !== undefined) return next(e);'), 'and it is the subagent branch');
-  assert.equal(handler.match(/return summarizeKeeping\(\$, /g)?.length, 3, 'the three branches that hand over');
+  const carrying = hooks.slice(hooks.indexOf('async function carryOut('), hooks.indexOf('type WithTools'));
+  assert.deepEqual([...handler.matchAll(/next\(e\)/g)].length, 1, 'the subagent branch alone');
+  assert.ok(handler.includes("if (before.step === 'pass') return next(e);"), 'and it is the subagent branch');
+  assert.ok(!/\bnext\(/.test(carrying), 'no step is handed on but through summarizeKeeping, which keeps first');
   assert.ok(handler.includes('return summarizeKeeping($, e, next, tried.keep);'), 'why the compaction did not run');
-  assert.ok(handler.includes("summarizeKeeping($, e, next, { store, messages: e.messages as readonly Message[] })"), 'nothing moved out');
-  assert.ok(handler.includes('summarizeKeeping($, { ...e, messages: outcome.messages }, next, { store, messages: outcome.messages })'), 'too much left');
+  assert.ok(
+    carrying.includes("return step.of === 'given'\n        ? summarizeKeeping($, e, next, { store, messages: e.messages as readonly Message[] })"),
+    'nothing moved out: kept as handed in, where the step says so',
+  );
+  assert.ok(carrying.includes(': summarizeKeeping($, { ...e, messages: outcome.messages }, next, { store, messages: outcome.messages });'), 'too much left: what is left');
+  // The line is said before the summary runs, as it was said before a hand-over.
+  const summarizing = carrying.slice(carrying.indexOf("case 'summarize':"));
+  assert.ok(summarizing.startsWith("case 'summarize':\n      say($, step.line);\n"), 'said first');
+  // The hook chooses no step: every branch on what the compaction came to is src/flow.ts's.
+  assert.ok(!/\boutcome\.(enough|report)\b/.test(handler) && !handler.includes('decide(') && !handler.includes('leftUndone('), 'nothing decided in the handler');
+  assert.ok(!/\bif \(/.test(carrying), 'and nothing chosen in carrying a step out but by the step');
   assert.ok(hooks.includes('asSent = messagesFromApi(api) ?? messages;'), 'a conversation that is not rebuilt is kept from its blocks, or as handed');
   assert.ok(hooks.includes('return { why, keep: { store, messages: asSent } };'), 'when it cannot be rebuilt');
   assert.ok(hooks.includes('if (outcome.abandoned !== undefined) return { why: outcome.abandoned, keep: { store, messages: asSent } };'), 'when a result that holds an image could not be moved out');
@@ -200,7 +231,7 @@ test('every way the main conversation reaches the built-in summary keeps it firs
 });
 
 test('a clean-up keeps what kept parts name: it collects against the ids followed through them, and stops when they cannot be read', () => {
-  const collecting = hooks.slice(hooks.indexOf('async function collectOnce('), hooks.indexOf('function numberIn('));
+  const collecting = hooks.slice(hooks.indexOf('async function collectOnce('), hooks.indexOf('type HandedOver'));
   assert.ok(collecting.includes('const named = await namedThroughParts(files, dirs, live.ids);'), 'followed');
   assert.ok(collecting.includes("if ('stop' in named) {"), 'stops');
   assert.ok(collecting.includes('collect(list, execOf($), dir, named, now)'), 'collected against them');
@@ -212,45 +243,41 @@ test('stored results are written through mv where it starts, the reason a write 
   assert.ok(hooks.includes('return keepThenSummarize(storingFilesOf($), where,'), 'keeping the conversation too');
   assert.ok(hooks.includes("(why) => ({ skip: why })"), 'a skip is what the hook returns');
   assert.ok(compaction.includes("`; could not write: ${report.writeErrors.join(', ')}`"), 'the reason is said');
+  // How mv is run and what a rename checks is src/commands.ts's, run in test/commands.test.ts; the hook hands it the host's calls.
   const storing = hooks.slice(hooks.indexOf('function storingFilesOf('), hooks.indexOf('function runOf('));
-  assert.ok(storing.includes("started('mv', ['-f', '--', from, to])"), 'mv -f --');
-  assert.ok(storing.includes('$.process.run([`${place}/${program}`, ...args], { timeoutMs: 10_000 })'), 'from /bin, else /usr/bin, never through PATH');
-  assert.ok(storing.includes("there.kind === 'file'"), 'what stands at the name after the move is a file');
-  assert.ok(storing.includes("available: async () => (canMove ||= (await started('mv', [])) !== null),"), 'only that mv starts is remembered, never that it did not');
-  assert.ok(hooks.includes('let canMove = false;'), 'and it starts out not known');
-  assert.ok(storing.includes("started('mkdir', ['-p', '--', path])"), 'mkdir -p --');
-  assert.ok(storing.includes("started('rm', ['-f', '--', path])"), 'rm -f --');
+  assert.ok(storing.includes('return { ...filesOf($), move: moverOf(runOf($), (path) => $.fs.stat(path)) };'));
+  const running = hooks.slice(hooks.indexOf('function runOf('), hooks.indexOf('function listOf('));
+  assert.ok(running.includes('$.process.run(argv, { timeoutMs: 10_000 })'), 'each command within ten seconds, by the vector src/commands.ts builds');
 });
 
 test("a compaction is told what is not the conversation from Claude Code's breakdown, and the line comes from src/", () => {
   assert.ok(hooks.includes('const count = countFrom(context?.breakdown, tokens, api, messages);'), 'count: the thinking from the blocks, the density over the messages the hook was handed');
   assert.ok(hooks.includes('        tokens: inUse,\n        count,\n        window: windowFrom(context, FALLBACK_WINDOW),'), 'and the compaction is handed it');
   assert.ok(!hooks.includes('function summary('), 'no line of its own');
-  assert.equal(hooks.split('reportLine(outcome.report)').length - 1, 3, 'every line a compaction shows that moved results out or handed over');
-  // Where the oldest messages are kept in place of a summary, the line is src/cut.ts's, around the same report.
-  assert.equal(hooks.split('cutLine(').length - 1, 2, 'cut, or handed back as rebuilt');
+  // Every line a compaction shows is src/'s: src/flow.ts writes those of each step (test/flow.test.ts), and the line of
+  // a cut is src/cut.ts's, written here only because it names how many parts were kept, which the hook learns.
+  assert.ok(!hooks.includes('reportLine('), 'no line of a step is written here');
+  assert.equal(hooks.split('cutLine(').length - 1, 1, 'the line of a cut that was made');
+  assert.equal(hooks.split('say($, step.line);').length - 1, 2, 'the line of a step is said as src/flow.ts wrote it: handed back, or handed over');
 });
 
 test('a conversation too full, or with nothing to move out, is cut in place of a summary where src/ says so, and handed over as before where it does not (ADR 0019)', () => {
+  // Whether, and where, is src/flow.ts's and src/cut.ts's (test/flow.test.ts). The hook hands over what it measured, as it measured it:
+  // the trigger and the instructions as Claude Code gives them, what the compaction rebuilt and estimated, and how it counted.
   const handler = hooks.slice(hooks.indexOf("on('session.compact'"));
-  // The call, argument by argument: what the compaction rebuilt and what it estimated, how it counted, and what `/compact` was given.
-  const call =
-    'const decision = decide({ messages: outcome.messages, tokens: outcome.report.tokensAfter, count: tried.count, window: outcome.report.window, ' +
-    'maxAfterPercent: tried.maxAfterPercent, cutTo: outcome.target, keepTokens: tried.keepTokens, instructions: e.instructions });';
-  assert.ok(handler.includes(call), 'the call');
-  assert.equal(handler.split('decide(').length - 1, 1, 'nowhere else');
-  // After a compaction that did enough is handed back, and before either branch that hands over for the size.
-  const decided = handler.indexOf(call);
-  assert.ok(handler.indexOf('if (!nothing && outcome.enough) {') < decided, 'a compaction that did enough is not asked');
-  assert.ok(decided < handler.indexOf('say($, `built-in compaction: nothing could be moved out'), 'before nothing to move out is handed over');
-  assert.ok(decided < handler.indexOf('say($, `built-in compaction on what is left, too much is still in use'), 'before too much left is handed over');
-  // Handed back only where the decision says so: as rebuilt, or cut. A part that could not be written falls through to the hand-over.
-  const back = handler.slice(handler.indexOf("if (decision.hand === 'back') {"), handler.indexOf('if (nothing) {'));
-  assert.ok(back.includes('if (decision.at === 0) {\n        say($, cutLine(outcome.report, null));\n        return { messages: outcome.messages };'), 'room once rebuilt: the rebuilt messages, no handle');
-  assert.ok(back.includes('const cut = await cutKeeping($, tried, decision.after, decision.at, decision.over);\n      if (cut !== null) return cut;'), 'cut, or not');
-  assert.ok(!back.includes('next(') && !back.includes('summarizeKeeping('), 'no summary in that branch');
+  assert.ok(
+    handler.includes(
+      'const step = nextStep({\n      trigger: e.trigger,\n      instructions: e.instructions,\n      outcome: tried.outcome,\n      inUse: tried.inUse,\n' +
+        '      given: tried.given,\n      maxAfterPercent: tried.maxAfterPercent,\n      count: tried.count,\n      keepTokens: tried.keepTokens,\n    });',
+    ),
+  );
+  // Handed back only where the step says so: as rebuilt, or cut. A part that could not be written goes on to the hand-over the step names.
+  const carrying = hooks.slice(hooks.indexOf('async function carryOut('), hooks.indexOf('type WithTools'));
+  assert.ok(carrying.includes("case 'back':\n      say($, step.line);\n      return { messages: outcome.messages };"), 'the rebuilt messages, no handle');
+  assert.ok(carrying.includes('const cut = await cutKeeping($, tried, step.after, step.at, step.over);'), 'cut where the step says');
+  assert.ok(carrying.includes('return cut ?? carryOut($, e, next, tried, step.otherwise);'), 'or, when nothing could be cut, what the step says instead');
   // What is cut is what the compaction rebuilt, never the messages the hook was handed, which carry Claude Code's handles.
-  const keeping = hooks.slice(hooks.indexOf('async function cutKeeping('), hooks.indexOf('type WithTools'));
+  const keeping = hooks.slice(hooks.indexOf('async function cutKeeping('), hooks.indexOf('async function carryOut('));
   assert.ok(
     keeping.includes('await keepOldest(storingFilesOf($), tried.store, { messages: outcome.messages, tokens: outcome.report.tokensAfter, count: tried.count }, after, at);'),
     'kept through the files a stored result is written through, in the place results are written to and read from',
@@ -269,31 +296,21 @@ test('a conversation too full, or with nothing to move out, is cut in place of a
 });
 
 test('a /compact left undone is decided in src/: by who asked, with what, what Claude Code says is in use, and what could have left (ADR 0015)', () => {
-  const handler = hooks.slice(hooks.indexOf("on('session.compact'"));
-  // The call, argument by argument: the trigger and the instructions as Claude Code hands them, the figure of what
-  // was in use and not the size a report estimates, the window the compaction measured against, and the candidates.
-  assert.ok(
-    handler.includes(
-      'if (nothing && leftUndone({ trigger: e.trigger, instructions: e.instructions, inUse: tried.inUse, window: outcome.report.window, maxAfterPercent: tried.maxAfterPercent, candidates: outcome.report.candidates })) {',
-    ),
-  );
+  // Whether it is left undone, and the line, are src/flow.ts's (test/flow.test.ts), from the figure of what was in use
+  // and not the size a report estimates: the hook hands it `tried.inUse`.
+  assert.ok(hooks.includes('      inUse: tried.inUse,\n      given: tried.given,'));
   // What was in use is Claude Code's own figure, thinking included, made up from characters only when it gives none; the compaction is handed the same.
   assert.ok(hooks.includes("const given = typeof tokens === 'number' && tokens > 0;"));
   assert.ok(hooks.includes('const inUse = given ? tokens : Math.ceil(charsOf(messages) / CHARS_PER_TOKEN) + media.images * IMAGE_TOKENS;'));
   assert.ok(hooks.includes('tokens: inUse,'));
   assert.ok(hooks.includes('      inUse,\n      given,\n      maxAfterPercent: config.maxAfterPercent,'), 'and they are what the hook decides from');
-  // Only where nothing was moved out, and before anything else is decided: nothing of the conversation is kept, cut or summarized.
-  assert.ok(handler.includes('const nothing = outcome.report.moved === 0;'));
-  const branch = handler.slice(handler.indexOf('const nothing = outcome.report.moved === 0;'), handler.indexOf('if (!nothing && outcome.enough) {'));
-  assert.ok(branch.includes('leftUndone('));
-  assert.ok(branch.indexOf('return { skip: ') > 0 && !branch.includes('decide(') && !branch.includes('summarizeKeeping('));
-  assert.ok(handler.indexOf('return { skip: `${PLUGIN}: ${undoneLine(') < handler.indexOf('decide('), 'before a cut is decided');
-  assert.equal(handler.split('leftUndone(').length - 1, 1, 'nowhere else');
-  // The line names the figure only when Claude Code gave it, and is said once: as the reason of the skip, with no line of the plugin's before it.
-  assert.ok(branch.includes('return { skip: `${PLUGIN}: ${undoneLine(tried.given ? tried.inUse : null, outcome.report.window)}` };'));
-  assert.ok(!branch.slice(0, branch.indexOf('return { skip: ')).includes('say($,'));
-  // Two skips in all: a compaction computed ahead, and this.
-  assert.equal(handler.match(/return \{ skip: /g)?.length, 2);
+  // A skip is said once: as the reason Claude Code shows, with no line of the plugin's beside it, and nothing kept, cut or summarized.
+  const carrying = hooks.slice(hooks.indexOf('async function carryOut('), hooks.indexOf('type WithTools'));
+  assert.ok(carrying.includes("case 'skip':\n      return { skip: step.why };"));
+  // Two skips in all: a compaction computed ahead, and a /compact left undone.
+  const handler = hooks.slice(hooks.indexOf("on('session.compact'"));
+  assert.equal(handler.match(/return \{ skip: /g)?.length, 1);
+  assert.equal(carrying.match(/return \{ skip: /g)?.length, 1);
 });
 
 test('a result that holds an image is told from the blocks, handed to the compaction, and comes back from recall as an image', () => {
@@ -368,7 +385,7 @@ test('/lossless-store is a command, not a tool: registered at the start, answere
   // A place is counted as the clean-up takes it: a plain directory, not a link.
   assert.ok(handler.includes('const there = await plainDirsOf($, store);'), 'the places the clean-up reads');
   assert.ok(handler.includes('for (const dir of store.read) counted.push(there.includes(dir) ? await countStore(files, list, dir, now) : skipped(dir));'));
-  const collecting = hooks.slice(hooks.indexOf('async function collectOnce('), hooks.indexOf('function numberIn('));
+  const collecting = hooks.slice(hooks.indexOf('async function collectOnce('), hooks.indexOf('type HandedOver'));
   assert.ok(collecting.includes('const dirs = await plainDirsOf($, store);'), 'the same places as the clean-up');
   const plain = hooks.slice(hooks.indexOf('async function plainDirsOf('), hooks.indexOf('async function collectOnce('));
   assert.ok(plain.includes("if (found && found.kind === 'dir' && found.isLink !== true) dirs.push(dir);"));
@@ -381,7 +398,7 @@ test('/lossless-store is a command, not a tool: registered at the start, answere
 });
 
 test('a clean-up that stops records the kind, never its words: from where it stopped, or as unexpected; one that ends clears it', () => {
-  const collecting = hooks.slice(hooks.indexOf('async function collectOnce('), hooks.indexOf('function numberIn('));
+  const collecting = hooks.slice(hooks.indexOf('async function collectOnce('), hooks.indexOf('type HandedOver'));
   assert.ok(collecting.includes('const record = await noteTried(files, store.write, state, now);'));
   assert.ok(collecting.includes('await stoppedAs(files, store.write, record, live.kind);'));
   assert.ok(collecting.includes('await stoppedAs(files, store.write, record, named.kind);'));
@@ -394,7 +411,7 @@ test('a clean-up that stops records the kind, never its words: from where it sto
 });
 
 test('a session says the clean-up is late right after its record is read, whether it then tries or not, once a process (ADR 0016)', () => {
-  const collecting = hooks.slice(hooks.indexOf('async function collectOnce('), hooks.indexOf('function numberIn('));
+  const collecting = hooks.slice(hooks.indexOf('async function collectOnce('), hooks.indexOf('type HandedOver'));
   const read = collecting.indexOf('const state = await stateIn(files, list, dirs);');
   const late = collecting.indexOf('const since = lateSince(state, oldest, now);');
   const decided = collecting.indexOf('if (whyNotNow(state, now) !== null) return;');

@@ -8,24 +8,12 @@
 import type { PluginOptions, Register, SessionCompactInput, SessionCompactResult } from 'claude-code';
 
 import { providerFrom, type Provider } from '../src/ask.ts';
-import {
-  CHARS_PER_TOKEN,
-  charsOf,
-  compact,
-  countFrom,
-  leftUndone,
-  reportLine,
-  undoneLine,
-  windowFrom,
-  type Config,
-  type Context,
-  type Count,
-  type Host,
-  type Outcome,
-} from '../src/compact.ts';
+import { CHARS_PER_TOKEN, charsOf, compact, countFrom, windowFrom, type Config, type Context, type Count, type Host, type Outcome } from '../src/compact.ts';
 import { shownAgainNote } from '../src/changed.ts';
-import { cutLine, decide, keepOldest } from '../src/cut.ts';
+import { cutLine, keepOldest } from '../src/cut.ts';
 import { find } from '../src/find.ts';
+import { beforeTrying, configFrom, nextStep, type Step } from '../src/flow.ts';
+import { PLACES, moverOf } from '../src/commands.ts';
 import { keepThenSummarize, messagesFromApi, namedThroughParts } from '../src/keep.ts';
 import { IMAGE_TOKENS, blocksOf, mediaIn } from '../src/media.ts';
 import { ownProcessId } from '../src/mark.ts';
@@ -114,46 +102,13 @@ function filesOf($: WithFiles): Files {
   };
 }
 
-const PLACES = ['/bin', '/usr/bin'] as const;
-// That `mv` can be started on this host, once it has been (ADR 0008). That it could not is not kept:
-// a start refused once, by load or by another hook, is asked again at the next write.
-let canMove = false;
-
 /**
  * The files a stored result is written through: as `filesOf`, and moved into
  * place with `mv` where the host can start it, so that a write the disk
- * refuses never cuts short what is already there (ADR 0008).
+ * refuses never cuts short what is already there (ADR 0008, src/commands.ts).
  */
 function storingFilesOf($: WithFiles & WithProcess): Files {
-  // The exit code of `program` from the first place it can be started in; null when it can be started in neither.
-  const started = async (program: string, args: readonly string[]): Promise<number | null> => {
-    for (const place of PLACES) {
-      try {
-        return (await $.process.run([`${place}/${program}`, ...args], { timeoutMs: 10_000 })).exitCode;
-      } catch {
-        // The next place.
-      }
-    }
-    return null;
-  };
-  return {
-    ...filesOf($),
-    move: {
-      // Started at all is enough: without operands `mv` only prints its usage.
-      available: async () => (canMove ||= (await started('mv', [])) !== null),
-      rename: async (from, to) => {
-        if ((await started('mv', ['-f', '--', from, to])) !== 0) return false;
-        const there = await $.fs.stat(to).catch(() => null);
-        if (there !== null && there.kind === 'file' && there.isLink !== true) return true;
-        // A directory at `to` takes `from` inside it and still exits 0: take it out again.
-        await started('rm', ['-f', '--', `${to}/${from.slice(from.lastIndexOf('/') + 1)}`]);
-        return false;
-      },
-      makeDir: async (path) => void (await started('mkdir', ['-p', '--', path])),
-      // What cannot be removed stays in tmp/.
-      remove: async (path) => void (await started('rm', ['-f', '--', path])),
-    },
-  };
+  return { ...filesOf($), move: moverOf(runOf($), (path) => $.fs.stat(path)) };
 }
 
 function runOf($: WithProcess): Run {
@@ -404,10 +359,6 @@ async function stoppedAs(files: Files, dir: string, record: GcRecord, kind: Stop
   }
 }
 
-function numberIn(value: unknown, fallback: number, min: number, max: number): number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max ? value : fallback;
-}
-
 /**
  * Why the built-in compaction runs on the conversation as it is, and what of
  * it can be kept first, or why nothing of it can be.
@@ -474,13 +425,7 @@ async function attempt(
     // A summary is estimated by Claude Code itself: nothing is sent for it.
     const { context } = await $.session.usage({ breakdown: 'summary' });
     const tokens = context?.tokens;
-    const config: Config = {
-      store,
-      keepTokens: Math.floor(numberIn(options['keepTokens'], 20_000, 0, 1_000_000)),
-      minChars: Math.floor(numberIn(options['minChars'], 2000, 0, 10_000_000)),
-      targetPercent: numberIn(options['targetPercent'], 40, 1, 99),
-      maxAfterPercent: numberIn(options['maxAfterPercent'], 75, 1, 100),
-    };
+    const config: Config = { store, ...configFrom(options) };
     const given = typeof tokens === 'number' && tokens > 0;
     // Made up from characters when Claude Code gives none: images, which are no characters, at their rough figure.
     const inUse = given ? tokens : Math.ceil(charsOf(messages) / CHARS_PER_TOKEN) + media.images * IMAGE_TOKENS;
@@ -548,6 +493,35 @@ async function cutKeeping(
     return { messages: cut.messages };
   } catch {
     return null;
+  }
+}
+
+/** Does what `step` says (src/flow.ts decides it): nothing here chooses between steps. */
+async function carryOut(
+  $: WithUi & WithFiles & WithProcess,
+  e: SessionCompactInput,
+  next: (e: SessionCompactInput) => Promise<SessionCompactResult>,
+  tried: Tried,
+  step: Step,
+): Promise<SessionCompactResult> {
+  const { outcome, store } = tried;
+  switch (step.step) {
+    case 'skip':
+      return { skip: step.why };
+    case 'back':
+      say($, step.line);
+      return { messages: outcome.messages };
+    case 'cut': {
+      const cut = await cutKeeping($, tried, step.after, step.at, step.over);
+      // A part could not be written: handed over as `otherwise` says, where what could not be kept is said, or skipped (ADR 0008).
+      return cut ?? carryOut($, e, next, tried, step.otherwise);
+    }
+    case 'summarize':
+      say($, step.line);
+      // Handed over as it was, the conversation is kept as it was handed in; else what is left, and that is what is kept.
+      return step.of === 'given'
+        ? summarizeKeeping($, e, next, { store, messages: e.messages as readonly Message[] })
+        : summarizeKeeping($, { ...e, messages: outcome.messages }, next, { store, messages: outcome.messages });
   }
 }
 
@@ -717,46 +691,27 @@ export const register: Register = (on, options) => {
     }
   });
 
+  // What is done, and in what order, is src/flow.ts's: each step is carried out here as it is returned.
   on('session.compact', async ($, e, next) => {
-    // A result computed ahead would be the built-in summary, paid for and then not used.
-    if (e.trigger === 'precompute') return { skip: `${PLUGIN} computes nothing ahead of a compaction` };
-    // A subagent may have no tool to read a result back with.
-    if (e.agentId !== undefined) return next(e);
+    const before = beforeTrying({ trigger: e.trigger, agentId: e.agentId });
+    if (before.step === 'skip') return { skip: before.why };
+    if (before.step === 'pass') return next(e);
 
     const tried = await attempt($, e, options);
     if ('why' in tried) {
       say($, `built-in compaction: ${tried.why}`);
       return summarizeKeeping($, e, next, tried.keep);
     }
-    const { outcome, store } = tried;
-    const nothing = outcome.report.moved === 0;
-    // By hand, with room and nothing that could leave: no summary was asked for and none is needed (ADR 0015, src/compact.ts decides).
-    if (nothing && leftUndone({ trigger: e.trigger, instructions: e.instructions, inUse: tried.inUse, window: outcome.report.window, maxAfterPercent: tried.maxAfterPercent, candidates: outcome.report.candidates })) {
-      // Said once, as the reason Claude Code shows for not compacting: a line of the plugin's beside it says the same twice.
-      return { skip: `${PLUGIN}: ${undoneLine(tried.given ? tried.inUse : null, outcome.report.window)}` };
-    }
-    if (!nothing && outcome.enough) {
-      say($, reportLine(outcome.report));
-      return { messages: outcome.messages };
-    }
-    // Nothing could be moved out, or too much is still in use. Without instructions the oldest messages are kept
-    // in place of a summary, down to the size moving results out aimed at; whether, and where the cut falls, is
-    // decided before anything is written (ADR 0019, src/cut.ts decides).
-    const decision = decide({ messages: outcome.messages, tokens: outcome.report.tokensAfter, count: tried.count, window: outcome.report.window, maxAfterPercent: tried.maxAfterPercent, cutTo: outcome.target, keepTokens: tried.keepTokens, instructions: e.instructions });
-    if (decision.hand === 'back') {
-      if (decision.at === 0) {
-        say($, cutLine(outcome.report, null));
-        return { messages: outcome.messages };
-      }
-      const cut = await cutKeeping($, tried, decision.after, decision.at, decision.over);
-      if (cut !== null) return cut;
-      // A part could not be written. Handed over below, where what could not be kept is said, or the compaction is skipped (ADR 0008).
-    }
-    if (nothing) {
-      say($, `built-in compaction: nothing could be moved out (${reportLine(outcome.report)})`);
-      return summarizeKeeping($, e, next, { store, messages: e.messages as readonly Message[] });
-    }
-    say($, `built-in compaction on what is left, too much is still in use: ${reportLine(outcome.report)}`);
-    return summarizeKeeping($, { ...e, messages: outcome.messages }, next, { store, messages: outcome.messages });
+    const step = nextStep({
+      trigger: e.trigger,
+      instructions: e.instructions,
+      outcome: tried.outcome,
+      inUse: tried.inUse,
+      given: tried.given,
+      maxAfterPercent: tried.maxAfterPercent,
+      count: tried.count,
+      keepTokens: tried.keepTokens,
+    });
+    return carryOut($, e, next, tried, step);
   });
 };
