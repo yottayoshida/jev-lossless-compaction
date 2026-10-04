@@ -16,7 +16,7 @@ Claude Code's events to `src/`.
 ## Checks that need Claude Code
 
 ```sh
-export CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1   # for typecheck:hooks and claude --plugin-dir; validate needs it not
+# Claude Code 2.1.287 or later: function hooks are on without a setting
 npm run validate          # Claude Code's own check of the manifest and the hook file
 npm run typecheck:hooks   # hooks/ against Claude Code's own type declarations
 ```
@@ -57,9 +57,11 @@ checks, without a person watching, that `recall` is registered, that a
 `/compact` of a made-up conversation moves results out and `recall` returns
 one of them as it was, that the same conversation with next to nothing
 allowed to stay is cut with no summary and what was cut is in the store as it
-was said (ADR 0019), and that with the plugin enabled and not running the
-first message is told and a `/compact` is held; it prints the version it ran
-on. Run it with every new Claude Code and before a release. It signs in as you
+was said (ADR 0019), that with the plugin enabled and not running the
+first message is told and a `/compact` is held, and that nothing is set for
+the plugin to run: every session is started without
+`CLAUDE_CODE_ENABLE_FUNCTION_HOOKS`, and one more, with it at `0`, runs the
+plugin too. It prints the version it ran on. Run it with every new Claude Code and before a release. It signs in as you
 do and spends a few cents of Haiku. `node bench/host.ts --plugin-dir <copy>`
 runs the checks of the running plugin on another copy (the copy that is not
 running is always made from the working tree); given the copy
@@ -79,7 +81,8 @@ for a breakdown, not Claude Code's own.
 whose hook file Claude Code does not load (`pass-to-import.patch` applied),
 which still lists the plugin as installed. On Claude Code 2.1.288,
 `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS` set to `0`, in the shell or in the settings
-a session is started with, no longer turned function hooks off.
+a session is started with, no longer turned function hooks off: from 2.1.287
+they are on by default and the variable is ignored.
 
 What `hooks/notice.sh` leans on that Claude Code's type declarations do not
 promise: a classic hook sees a variable the module set with `$.env.set`, and is
@@ -114,8 +117,9 @@ nothing in it is left out of the count.
 The same test checks what a machine can: that the README's links reach a
 file, and a heading where they name one; that links to its headings from
 other documents do; and that the names it gives are the ones the code has
-(the plugin and marketplace to install, the setting that turns function hooks
-on, the tools, the mark of the plugin's lines). The figures it gives are held
+(the line that installs the plugin and the two commands for the shell in
+`docs/limits.md`, the version the plugin needs, the tools, the mark of the
+plugin's lines), and that it asks for no setting. The figures it gives are held
 to the published units in `test/bench.test.ts`.
 
 What a machine cannot check is read at each release. The line below names
@@ -132,8 +136,8 @@ To read it, for the release being made:
 1. Go through that release's entries in the CHANGELOG. Does one make a
    sentence of the README false, or call for one that is not there?
 2. Do the quick start as written, in a new session. `npm run check:host`
-   shows the plugin working in the Claude Code you have; it does not run the
-   two commands that install it.
+   shows the plugin working in the Claude Code you have; it does not type the
+   line that installs it.
 3. For each figure, find the measurement it is from and the model it was
    taken with. The README gives figures of the models people work with, which
    were Sonnet 5.5 and Opus 5.5 when this was written, and says so where a
