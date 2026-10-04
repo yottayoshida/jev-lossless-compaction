@@ -7,13 +7,11 @@
 // left as the host writes them: a command per file would cost more than a
 // compaction does. What cannot be made private is not written to.
 
+import { firstOf, type Start } from './commands.ts';
 import type { FileStat, Files } from './types.ts';
 
 /** Runs a command by its argument vector and resolves with its exit code; rejects when it cannot be started. */
-export type Run = (argv: readonly string[]) => Promise<{ exitCode: number }>;
-
-/** Absolute, so that no `PATH` a repository sets picks the program. `/bin` first; NixOS has only `/usr/bin` or neither. */
-const PLACES = ['/bin', '/usr/bin'] as const;
+export type Run = Start<{ exitCode: number }>;
 
 const WINDOWS = /^[A-Za-z]:[\\/]/;
 
@@ -27,14 +25,7 @@ async function statOf(files: Files, path: string): Promise<FileStat | null> {
 
 /** The exit code of the first of `/bin/<name>`, `/usr/bin/<name>` that starts, or null when neither does. */
 async function runFirst(run: Run, name: string, args: readonly string[]): Promise<number | null> {
-  for (const place of PLACES) {
-    try {
-      return (await run([`${place}/${name}`, ...args])).exitCode;
-    } catch {
-      // Not there, or no commands at all on this host: the next place, then none.
-    }
-  }
-  return null;
+  return (await firstOf(run, name, args))?.exitCode ?? null;
 }
 
 const parentOf = (dir: string): string => dir.slice(0, Math.max(dir.lastIndexOf('/'), 1));
