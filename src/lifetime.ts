@@ -12,7 +12,7 @@
 // session still used it is not lost.
 
 import { DATE, DAY, blobIdOf, blobName, blobPath, blobsDir, dayOf, entryName, entryPath, gcFile, indexDir, isRootName, rootPath, rootsDir, trashDayDir, trashDir, trashedIdOf, trashedPaths } from './layout.ts';
-import { firstOf } from './commands.ts';
+import { exitOf } from './commands.ts';
 import { idOf, isPart, readPartTicket, readTicket, recall } from './store.ts';
 import type { DirEntry, Exec, Files, Message } from './types.ts';
 
@@ -340,9 +340,9 @@ const PER_COMMAND = 2000;
 
 async function runIn(exec: Exec, program: string, flags: readonly string[], paths: readonly string[], last: readonly string[] = []): Promise<boolean> {
   for (let at = 0; at < paths.length; at += PER_COMMAND) {
-    const ran = await firstOf((argv) => exec(argv, 60_000), program, [...flags, '--', ...paths.slice(at, at + PER_COMMAND), ...last]);
-    // 1 is a path another session, or a recall, moved first: nothing to do for it.
-    if (ran === null || (ran.exitCode !== 0 && ran.exitCode !== 1)) return false;
+    const code = await exitOf((argv) => exec(argv, 60_000), program, [...flags, '--', ...paths.slice(at, at + PER_COMMAND), ...last]);
+    // 1 is a path another session, or a recall, moved first: nothing to do for it. Null is a program that did not start.
+    if (code !== 0 && code !== 1) return false;
   }
   return true;
 }

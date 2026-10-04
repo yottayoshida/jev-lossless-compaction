@@ -191,12 +191,19 @@ test('a compaction computed ahead is skipped and a subagent goes straight on, ru
   assert.equal(found.length, 1);
   // Registered with no matcher: the handler stands where a matcher would.
   const compacting = found[0]?.matcher as (...args: unknown[]) => Promise<unknown>;
-  // A host with nothing in it: either branch that touched it would throw.
-  const $ = {};
+  // Every noun of the host the handler reads is recorded. A throw would not do: what the hook tries catches what
+  // goes wrong and still ends in `next`, so a subagent's compaction that was tried would come back the same.
+  const touched: string[] = [];
+  const $ = new Proxy({}, { get: (_, noun) => void touched.push(String(noun)) });
+  const handed: unknown[] = [];
   const passed = { passed: true };
-  const next = async () => passed;
+  const next = async (e: unknown) => (handed.push(e), passed);
   assert.deepEqual(await compacting($, { trigger: 'precompute', messages: [] }, next), { skip: `${PLUGIN_NAME} computes nothing ahead of a compaction` });
-  assert.equal(await compacting($, { trigger: 'auto', agentId: 'a1', messages: [] }, next), passed);
+  const subagent = { trigger: 'auto', agentId: 'a1', messages: [] };
+  assert.equal(await compacting($, subagent, next), passed);
+  assert.equal(handed.length, 1);
+  assert.equal(handed[0], subagent, 'handed on as it came');
+  assert.deepEqual(touched, [], 'nothing of the host was read');
 });
 
 test('every way the main conversation reaches the built-in summary keeps it first; only a subagent goes straight on', () => {
@@ -206,8 +213,14 @@ test('every way the main conversation reaches the built-in summary keeps it firs
   assert.ok(handler.includes("if (before.step === 'pass') return next(e);"), 'and it is the subagent branch');
   assert.ok(!/\bnext\(/.test(carrying), 'no step is handed on but through summarizeKeeping, which keeps first');
   assert.ok(handler.includes('return summarizeKeeping($, e, next, tried.keep);'), 'why the compaction did not run');
-  assert.ok(carrying.includes("? summarizeKeeping($, e, next, { store, messages: e.messages as readonly Message[] })"), 'nothing moved out: kept as handed in');
+  assert.ok(
+    carrying.includes("return step.of === 'given'\n        ? summarizeKeeping($, e, next, { store, messages: e.messages as readonly Message[] })"),
+    'nothing moved out: kept as handed in, where the step says so',
+  );
   assert.ok(carrying.includes(': summarizeKeeping($, { ...e, messages: outcome.messages }, next, { store, messages: outcome.messages });'), 'too much left: what is left');
+  // The line is said before the summary runs, as it was said before a hand-over.
+  const summarizing = carrying.slice(carrying.indexOf("case 'summarize':"));
+  assert.ok(summarizing.startsWith("case 'summarize':\n      say($, step.line);\n"), 'said first');
   // The hook chooses no step: every branch on what the compaction came to is src/flow.ts's.
   assert.ok(!/\boutcome\.(enough|report)\b/.test(handler) && !handler.includes('decide(') && !handler.includes('leftUndone('), 'nothing decided in the handler');
   assert.ok(!/\bif \(/.test(carrying), 'and nothing chosen in carrying a step out but by the step');

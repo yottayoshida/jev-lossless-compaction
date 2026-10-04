@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import { reportLine, tokensOf, undoneLine, type Count, type Report } from '../src/compact.ts';
-import { cutLine } from '../src/cut.ts';
+import { cutLine, decide } from '../src/cut.ts';
 import { beforeTrying, configFrom, nextStep, type Step, type Tried } from '../src/flow.ts';
 import { PLUGIN } from '../src/store.ts';
 import type { Message } from '../src/types.ts';
@@ -18,17 +18,28 @@ const WIDE: Message[] = Array.from({ length: 9 }, (_, at): Message[] => [
 const WIDE_TOKENS = Math.round(COUNT.fixedTokens + tokensOf(WIDE, COUNT));
 const SMALL = WIDE.slice(0, 2);
 
+/** One turn as in test/cut.test.ts: the person says `said` characters, a file is read, the model answers. */
+function turn(n: number, said: number): Message[] {
+  return [
+    { role: 'user', text: `turn ${n} ${prose(said)}`, toolUses: [] },
+    { role: 'assistant', text: `reading ${n}`, toolUses: [{ tool_use_id: `t${n}`, tool: 'Read', input: { file_path: `/p/f${n}.txt` } }] },
+    { role: 'user', text: '', toolUses: [], toolResults: [{ tool_use_id: `t${n}`, text: `r${n} ${prose(90)}`, isError: false }] },
+    { role: 'assistant', text: `done ${n}`, toolUses: [] },
+  ];
+}
+const talk = (turns: number, said: number): Message[] => Array.from({ length: turns }, (_, at) => turn(at + 1, said)).flat();
+
 function report(over: Partial<Report> = {}): Report {
   return { results: 5, candidates: 5, moved: 0, images: 0, charsBefore: 1000, charsAfter: 1000, tokensAfter: 20_000, counted: true, window: 100_000, notMoved: {}, writeErrors: [], ms: 12, ...over };
 }
 
 /** A compaction in a window of 100,000 with 75 % allowed to stay, of `messages`, as `over` changes it. */
-function tried(messages: readonly Message[], over: { report?: Partial<Report>; enough?: boolean } & Partial<Omit<Tried, 'outcome'>> = {}): Tried {
-  const { report: changed, enough, ...rest } = over;
+function tried(messages: readonly Message[], over: { report?: Partial<Report>; enough?: boolean; target?: number } & Partial<Omit<Tried, 'outcome'>> = {}): Tried {
+  const { report: changed, enough, target, ...rest } = over;
   return {
     trigger: 'auto',
     instructions: undefined,
-    outcome: { messages: [...messages], enough: enough ?? false, target: 75_000, report: report(changed) },
+    outcome: { messages: [...messages], enough: enough ?? false, target: target ?? 75_000, report: report(changed) },
     inUse: 90_000,
     given: true,
     maxAfterPercent: 75,
@@ -87,6 +98,44 @@ test('without instructions the oldest messages are cut where src/cut.ts says, an
 test('under the line once rebuilt, counted from what stays: handed back with nothing cut, said as a cut of nothing', () => {
   const step = nextStep(tried(SMALL, { report: { moved: 3, tokensAfter: 20_000 } }));
   assert.deepEqual(step, { step: 'back', line: cutLine(report({ moved: 3, tokensAfter: 20_000 }), null) });
+});
+
+// Without a count, src/cut.ts cuts down to the size it is given whatever is in use (test/cut.test.ts): the steps
+// decided before it is asked are told from the steps it would give only there.
+
+test('a compaction that moved results out and did enough is handed back without asking src/cut.ts, which would have cut it', () => {
+  const enough = tried(WIDE, { report: { moved: 3, tokensAfter: WIDE_TOKENS }, enough: true, count: undefined });
+  assert.equal(nextStep({ ...enough, outcome: { ...enough.outcome, enough: false } }).step, 'cut', 'not enough, the same conversation is cut');
+  assert.deepEqual(nextStep(enough), { step: 'back', line: reportLine(report({ moved: 3, tokensAfter: WIDE_TOKENS })) });
+});
+
+test('a /compact left undone is decided before src/cut.ts is asked: where it would hand over, and where it would cut (ADR 0015)', () => {
+  const asked: Parameters<typeof tried>[1] = { trigger: 'manual', inUse: 30_000, count: undefined, target: 15_000, report: { moved: 0, candidates: 0, tokensAfter: 30_000 } };
+  const skip = { step: 'skip', why: `${PLUGIN}: ${undoneLine(30_000, 100_000)}` };
+  // One long message: there is no place to cut, and src/cut.ts hands it over.
+  assert.equal(nextStep(tried(SMALL, { ...asked, trigger: 'auto' })).step, 'summarize', 'on its own, the same conversation is summarized');
+  assert.deepEqual(nextStep(tried(SMALL, asked)), skip);
+  // Three turns, cut down to half of what was in use: src/cut.ts cuts it.
+  const three = WIDE.slice(0, 6);
+  assert.equal(nextStep(tried(three, { ...asked, trigger: 'auto' })).step, 'cut', 'on its own, the same conversation is cut');
+  assert.deepEqual(nextStep(tried(three, asked)), skip);
+});
+
+test('a cut is made where src/cut.ts says, as it says: the first message with the rest, and past what may stay', () => {
+  const heavy: Count = { fixedTokens: 80_000, density: 1 / 3 };
+  const pasted: Message[] = [{ role: 'user', text: prose(240_000), toolUses: [] }, { role: 'assistant', text: 'noted', toolUses: [] }, ...talk(5, 9_000)];
+  const cases: [string, Message[], Count, (cut: Extract<Step, { step: 'cut' }>) => boolean][] = [
+    ['what was pasted first goes too', pasted, COUNT, (cut) => cut.after === 0],
+    ['what is not the conversation is over the line by itself', talk(5, 9_000), heavy, (cut) => cut.over],
+  ];
+  for (const [name, messages, count, holds] of cases) {
+    const tokens = Math.round(count.fixedTokens + tokensOf(messages, count));
+    const step = nextStep(tried(messages, { count, report: { moved: 3, tokensAfter: tokens } }));
+    const decided = decide({ messages, tokens, count, window: 100_000, maxAfterPercent: 75, cutTo: 75_000, keepTokens: 2_000, instructions: undefined });
+    assert.ok(step.step === 'cut' && decided.hand === 'back', name);
+    assert.deepEqual([step.after, step.at, step.over], [decided.after, decided.at, decided.over], name);
+    assert.ok(holds(step), name);
+  }
 });
 
 test("the settings' defaults are those plugin.json gives them, and a value out of range is the default", () => {

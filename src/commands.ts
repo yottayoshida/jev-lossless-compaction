@@ -11,11 +11,15 @@ export const PLACES = ['/bin', '/usr/bin'] as const;
 /** Starts a command by its argument vector; rejects when it cannot be started. */
 export type Start<R> = (argv: readonly string[]) => Promise<R>;
 
-/** What `program` came to, run from the first of `PLACES` it starts in; null when it starts in neither. */
-export async function firstOf<R>(start: Start<R>, program: string, args: readonly string[]): Promise<R | null> {
+/**
+ * The exit code of `program`, run from the first of `PLACES` it starts in;
+ * null when it starts in neither. Any exit code ends it: one that is not 0 is
+ * the program's answer, not a reason to try the next place.
+ */
+export async function exitOf(start: Start<{ exitCode: number }>, program: string, args: readonly string[]): Promise<number | null> {
   for (const place of PLACES) {
     try {
-      return await start([`${place}/${program}`, ...args]);
+      return (await start([`${place}/${program}`, ...args])).exitCode;
     } catch {
       // Not there, or no commands at all on this host: the next place, then none.
     }
@@ -33,21 +37,21 @@ let canMove = false;
  * command, `stat` looks at a path without following a link.
  */
 export function moverOf(start: Start<{ exitCode: number }>, stat: (path: string) => Promise<FileStat>): Mover {
-  const exitOf = async (program: string, args: readonly string[]) => (await firstOf(start, program, args))?.exitCode ?? null;
+  const run = (program: string, args: readonly string[]) => exitOf(start, program, args);
   return {
-    // Started at all is enough: without operands `mv` only prints its usage.
-    available: async () => (canMove ||= (await exitOf('mv', [])) !== null),
+    // Started at all is enough: without operands `mv` only prints its usage, and exits 64 here, 1 with GNU.
+    available: async () => (canMove ||= (await run('mv', [])) !== null),
     rename: async (from, to) => {
-      if ((await exitOf('mv', ['-f', '--', from, to])) !== 0) return false;
+      if ((await run('mv', ['-f', '--', from, to])) !== 0) return false;
       const there = await stat(to).catch(() => null);
       if (there !== null && there.kind === 'file' && there.isLink !== true) return true;
       // A directory at `to` takes `from` inside it and still exits 0: take it out again.
-      await exitOf('rm', ['-f', '--', `${to}/${from.slice(from.lastIndexOf('/') + 1)}`]);
+      await run('rm', ['-f', '--', `${to}/${from.slice(from.lastIndexOf('/') + 1)}`]);
       return false;
     },
-    makeDir: async (path) => void (await exitOf('mkdir', ['-p', '--', path])),
+    makeDir: async (path) => void (await run('mkdir', ['-p', '--', path])),
     // What cannot be removed stays in tmp/.
-    remove: async (path) => void (await exitOf('rm', ['-f', '--', path])),
+    remove: async (path) => void (await run('rm', ['-f', '--', path])),
   };
 }
 
