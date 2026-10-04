@@ -14,12 +14,13 @@ import { cutLine, keepOldest } from '../src/cut.ts';
 import { find } from '../src/find.ts';
 import { beforeTrying, configFrom, nextStep, type Step } from '../src/flow.ts';
 import { PLACES, moverOf } from '../src/commands.ts';
+import { guarded, placedTicketIds, refused } from '../src/guard.ts';
 import { keepThenSummarize, messagesFromApi, namedThroughParts } from '../src/keep.ts';
 import { IMAGE_TOKENS, blocksOf, mediaIn } from '../src/media.ts';
 import { ownProcessId } from '../src/mark.ts';
 import { closeStore, type Run } from '../src/private.ts';
 import { goalOf, whyNotRebuilt } from '../src/select.ts';
-import { FIND, PLUGIN, RECALL, STORE_COMMAND, configDirFrom, placesOf, recall, recallMeant, type Recalled, type StoreDirs } from '../src/store.ts';
+import { FIND, PLUGIN, RECALL, STORE_COMMAND, configDirFrom, holds, placesOf, recall, recallMeant, type Recalled, type StoreDirs } from '../src/store.ts';
 import { recallDescription } from '../src/tools.ts';
 import { describeTaints, placeTaints, sendTaints, taintsFrom, type RepoSettings, type Seen, type Taint } from '../src/trust.ts';
 import type { DirEntry, Exec, FileStat, Files, HttpResponse, Message } from '../src/types.ts';
@@ -621,6 +622,25 @@ export const register: Register = (on, options) => {
       // What an error says may name a path: it is not shown.
       return { text: 'the store could not be counted' };
     }
+  });
+
+  // Every call, whatever the tool, in a subagent too: one whose input holds a ticket this store or this conversation
+  // knows is refused (ADR 0020, src/guard.ts decides). Registered before the plugin's own tools, so that it stands
+  // outside them; they, and the tools known only to read, go straight on.
+  on('tool.call', async ($, e, next) => {
+    const tool = String((e as { tool?: unknown }).tool);
+    if (!guarded(tool)) return next(e);
+    const { tool: _tool, tool_use_id: _id, agentId: _agent, ...input } = e as Record<string, unknown>;
+    // Nearly every call holds no ticket: `refused` asks about an id only once one is found, so nothing is read for it.
+    const known = async (id: string): Promise<boolean> => {
+      const store = await storeOf($, options);
+      if (typeof store !== 'string' && (await holds(filesOf($), store.read, id))) return true;
+      // Moved to the trash by a clean-up, or named by the conversation alone: still the ticket of something kept.
+      const messages = (await $.session.messages()) as readonly Message[];
+      return placedTicketIds(messages, String((e as { tool_use_id?: unknown }).tool_use_id)).has(id);
+    };
+    const why = await refused(input, known);
+    return why === null ? next(e) : { deny: why };
   });
 
   // Spelled out, not imported: Claude Code reads the matcher from this file. A test holds it to RECALL_TOOL.

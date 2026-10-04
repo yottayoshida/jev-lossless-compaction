@@ -4,7 +4,7 @@
 import { choose, digest, head, inputLine, stateFor, type Provider } from './ask.ts';
 import { unnumbered } from './changed.ts';
 import { callsOfLines } from './keep.ts';
-import { PART, PLUGIN, RECALL_TOOL, isOwnTool, isStored, readPartTicket, readTicket, recall, type Ticket } from './store.ts';
+import { PART, PLUGIN, RECALL_TOOL, inputTicketsOf, isOwnTool, isStored, readInputTicket, readPartTicket, readTicket, recall, type Ticket } from './store.ts';
 import type { Files, Http, Message } from './types.ts';
 
 /** The text of a result is returned when the likeliest option has at least this probability ... */
@@ -141,6 +141,16 @@ export function ticketsIn(messages: readonly Message[]): Stored[] {
       const input = uses.get(result.tool_use_id)?.input ?? {};
       tickets.push({ ...ticket, line: result.text, about: `${ticket.tool} called with ${inputLine(input)}` });
     }
+    // A long value of a call's input that left (ADR 0020). It is told by the call it was handed to, as it stands now:
+    // its other values, and the ticket where the value was, so that nothing of the value is in what Jev is shown.
+    for (const use of message.toolUses) {
+      for (const line of inputTicketsOf(use.input)) {
+        const ticket = readInputTicket(line);
+        if (!ticket || seen.has(ticket.id)) continue;
+        seen.add(ticket.id);
+        tickets.push({ ...ticket, line, about: `the ${ticket.field} handed to ${ticket.tool}, called with ${inputLine(use.input)}` });
+      }
+    }
     if (message.role === 'user' && (message.toolResults?.length ?? 0) === 0) tickets.push(...partsIn(message.text, seen));
   }
   return tickets;
@@ -165,6 +175,14 @@ function partsIn(text: string, seen: Set<string>): Stored[] {
 function ticketsInPart(text: string, seen: Set<string>): Stored[] {
   const out: Stored[] = [];
   for (const { line, call } of callsOfLines(text)) {
+    const input = readInputTicket(line);
+    if (input !== null) {
+      // A value that left a call's input stands on a line of its own in a part, after its field's name (src/keep.ts).
+      if (seen.has(input.id)) continue;
+      seen.add(input.id);
+      out.push({ ...input, line, about: `the ${input.field} handed to ${input.tool}` });
+      continue;
+    }
     const ticket = readTicket(line);
     if (!ticket || isOwnTool(ticket.tool) || seen.has(ticket.id)) continue;
     seen.add(ticket.id);

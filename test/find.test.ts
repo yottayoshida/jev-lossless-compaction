@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 import { digest } from '../src/ask.ts';
 import { HEAD_CHARS, MIN_DIGITS, VALUED_LISTED, VALUE_DIGITS, WHOLE_UP_TO, find, lineHolds, phrasesOf, shown, ticketsIn, valuesOf, type FindInput } from '../src/find.ts';
-import { FIND_TOOL, RECALL_TOOL, moveOut, ticketText } from '../src/store.ts';
+import { FIND_TOOL, RECALL_TOOL, moveInputOut, moveOut, partTicketText, ticketText } from '../src/store.ts';
 import type { Http, Message } from '../src/types.ts';
 import { MemoryFiles, TOLD, conversation, ok, output, questionsOf, recordingHttp, trusting, type Call, type Sent } from './helpers.ts';
 
@@ -600,4 +600,44 @@ test('the head of a large text with no line break to cut at is never cut inside 
     const head = shown(`${'w'.repeat(n)}${'🎉'.repeat(WHOLE_UP_TO)}`);
     assert.ok(!/\p{Surrogate}/u.test(head) && head.length <= HEAD_CHARS, `at ${n}`);
   }
+});
+
+test('a long value of a call\'s input that left is one of the results find chooses among, told by the call as it stands now (ADR 0020)', async () => {
+  const files = new MemoryFiles();
+  const messages = await compacted(files, [call('build')]);
+  const content = `export const LIMIT = 4096;\n${output('lib/limits.ts', 60)}`;
+  const moved = await moveInputOut(files, DIR, 'Write', 'content', content);
+  assert.ok(!('reason' in moved));
+  messages.push({ role: 'assistant', text: '', toolUses: [{ tool_use_id: 'toolu_w', tool: 'Write', input: { file_path: 'lib/limits.ts', content: moved.text } }] });
+  messages.push({ role: 'user', text: '', toolUses: [], toolResults: [{ tool_use_id: 'toolu_w', text: 'File created successfully.', isError: false }] });
+
+  const stored = ticketsIn(messages);
+  assert.equal(stored.length, 2);
+  const written = stored[1]!;
+  assert.equal(written.id, moved.id);
+  assert.equal(written.line, moved.text);
+  assert.match(written.about, /^the content handed to Write, called with /);
+  assert.ok(written.about.includes('lib/limits.ts'));
+  // What Jev would be told of the call holds the ticket where the value was, and nothing of the value.
+  assert.ok(!written.about.includes('LIMIT = 4096'));
+
+  // Asked for a phrase the written file alone holds, find gives it back whole, without asking Jev.
+  const found = await find(input(files, messages, 'Which file set "export const LIMIT = 4096"?'));
+  assert.ok(found.includes(content), found.slice(0, 200));
+  assert.ok(found.includes(moved.id));
+});
+
+test('a long input value kept inside a part is one find chooses among, as it is before the part is kept', async () => {
+  const files = new MemoryFiles();
+  const content = `export const LIMIT = 8192;\n${output('lib/part.ts', 60)}`;
+  const moved = await moveInputOut(files, DIR, 'Write', 'content', content);
+  assert.ok(!('reason' in moved));
+  // A kept part holds an input's value on its own line, after the field's name (src/keep.ts).
+  const part = `--- assistant\n[call Write toolu_w] {"file_path":"lib/part.ts"}\nfile_path:\nlib/part.ts\ncontent:\n${moved.text}\n`;
+  const stored = await moveOut(files, DIR, 'conversation', part);
+  assert.ok(!('reason' in stored));
+  const messages: Message[] = [{ role: 'user', text: `[lossless-compaction] kept\n${partTicketText({ part: 1, parts: 1, first: 1, last: 1, bytes: stored.bytes, id: stored.id })}`, toolUses: [] }];
+
+  const found = await find(input(files, messages, 'Which file set "export const LIMIT = 8192"?'));
+  assert.ok(found.includes(content), found.slice(0, 200));
 });

@@ -29,7 +29,7 @@ import {
   whyNotNow,
   writeSentinel,
 } from '../src/lifetime.ts';
-import { PART, idOf, partTicketText, ticketText } from '../src/store.ts';
+import { PART, idOf, inputTicketText, partTicketText, ticketText } from '../src/store.ts';
 import type { DirEntry, Exec } from '../src/types.ts';
 import { MemoryFiles, output } from './helpers.ts';
 
@@ -475,6 +475,24 @@ test('nothing is read to put back while the trash is empty', async () => {
   };
   assert.equal(await restoreThroughParts(files, list(files), commands(files).exec, [DIR], new Set([part])), 0);
   assert.equal(reads, 0);
+});
+
+test('the ticket of an input is one of a conversation\'s, at the top of the input and inside a list of edits', async () => {
+  const written = await idOf('the file as it was written');
+  const edited = await idOf('the lines put in');
+  const ids = ticketIds([
+    {
+      role: 'assistant',
+      text: '',
+      toolUses: [
+        { tool_use_id: 'w', tool: 'Write', input: { file_path: '/work/out.ts', content: inputTicketText({ tool: 'Write', field: 'content', bytes: 26, id: written }) } },
+        { tool_use_id: 'e', tool: 'MultiEdit', input: { file_path: '/work/out.ts', edits: [{ old_string: 'a', new_string: inputTicketText({ tool: 'MultiEdit', field: 'new_string', bytes: 16, id: edited }) }] } },
+        // An id that is not on a ticket is the agent's own words, and names nothing kept.
+        { tool_use_id: 'b', tool: 'Bash', input: { command: `echo ${hex('f')}` } },
+      ],
+    },
+  ]);
+  assert.deepEqual([...ids].sort(), [written, edited].sort());
 });
 
 test('what grep prints is read a line at a time, and only 64-hex lines count', () => {

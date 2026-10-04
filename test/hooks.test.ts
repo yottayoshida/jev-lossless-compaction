@@ -6,7 +6,8 @@ import type { Provider } from '../src/ask.ts';
 import { changedLine, shownAgainLine } from '../src/changed.ts';
 import { KEPT } from '../src/keep.ts';
 import { FIND_IN_RECALL, recallDescription } from '../src/tools.ts';
-import { FIND_TOOL, PLUGIN as PLUGIN_NAME, RECALL_TOOL, STORE_COMMAND } from '../src/store.ts';
+import { FIND_TOOL, PLUGIN as PLUGIN_NAME, RECALL_TOOL, STORE_COMMAND, ticketText } from '../src/store.ts';
+import { refusal } from '../src/guard.ts';
 import { KEY_VARIABLES, PLACE_VARIABLES, ROUTE_VARIABLES } from '../src/trust.ts';
 
 const hooks = readFileSync(new URL('../hooks/move-out.ts', import.meta.url), 'utf8');
@@ -429,4 +430,92 @@ test('a session says the clean-up is late right after its record is read, whethe
   assert.ok(collecting.includes('say($, lateLine(since, now, state.roots.length === 0));\n        said = true;'));
   assert.ok(collecting.includes('} finally {\n    if (tell && !said) toldLate = false;\n  }'));
   assert.equal(hooks.split('lateLine(').length - 1, 1, 'said in one place');
+});
+
+test('every tool call is looked at for a ticket the conversation knows, and refused for one; the plugin\'s own tools, those that only read, and an input with no ticket go straight on (ADR 0020)', async () => {
+  // One hook with no matcher: every tool, in a subagent too. Registered before recall's and find's, so that it stands outside them.
+  const { register } = (await import(new URL('../hooks/move-out.ts', import.meta.url).href)) as {
+    register: (on: (name: string, ...rest: unknown[]) => void, options: Record<string, unknown>) => void;
+  };
+  type Answer = { deny?: string; result?: unknown };
+  type Call = ($: unknown, e: Record<string, unknown>, next: (e: unknown) => Promise<Answer>) => Promise<Answer>;
+  const calls: unknown[][] = [];
+  register((name, ...rest) => {
+    if (name === 'tool.call') calls.push(rest);
+  }, {});
+  assert.equal(typeof calls[0]?.[0], 'function', 'the first tool.call hook has no matcher');
+  assert.ok(calls.slice(1).every((rest) => typeof rest[0] === 'object'), 'every other one names its tool');
+  const guard = calls[0]![0] as Call;
+
+  const id = 'c'.repeat(64);
+  const ticket = ticketText({ tool: 'Bash', bytes: 4000, id });
+  const conversation = [{ role: 'user', text: '', toolUses: [], toolResults: [{ tool_use_id: 't1', text: ticket, isError: false }] }];
+  let read = 0;
+  // A host whose store cannot be told, as where HOME is unset: what is known is what the conversation holds.
+  const host = {
+    env: { get: async () => undefined },
+    settings: { read: async () => ({}) },
+    session: {
+      messages: async () => {
+        read += 1;
+        return conversation;
+      },
+    },
+  };
+  const ran = async (e: Record<string, unknown>) => {
+    let went = false;
+    const answer = await guard(host, e, async () => {
+      went = true;
+      return { result: 'ran' };
+    });
+    return { went, answer };
+  };
+
+  // Refused, whatever the tool: what the model is told is the fixed refusal, and the call does not run.
+  for (const e of [
+    { tool: 'Write', tool_use_id: 'x', file_path: '/w/a.ts', content: ticket },
+    { tool: 'Bash', tool_use_id: 'x', command: `cat > a.ts <<'EOF'\n${ticket}\nEOF` },
+    { tool: 'mcp__notion__update', tool_use_id: 'x', content: `  // ${ticket}` },
+    { tool: 'Edit', tool_use_id: 'x', agentId: 'agent-1', file_path: '/w/a.ts', old_string: 'a', new_string: ticket },
+  ]) {
+    const { went, answer } = await ran(e);
+    assert.equal(went, false, String(e['tool']));
+    assert.equal(answer.deny, refusal(id), String(e['tool']));
+  }
+  // Let through: an id nothing knows, the plugin's own tools, the tools known only to read; and with no ticket, nothing is read.
+  for (const e of [
+    { tool: 'Write', tool_use_id: 'x', file_path: '/w/a.ts', content: ticket.replace(id, 'd'.repeat(64)) },
+    { tool: RECALL_TOOL, tool_use_id: 'x', id },
+    { tool: 'Grep', tool_use_id: 'x', pattern: ticket },
+  ]) {
+    assert.deepEqual(await ran(e), { went: true, answer: { result: 'ran' } }, String(e['tool']));
+  }
+  read = 0;
+  assert.deepEqual(await ran({ tool: 'Bash', tool_use_id: 'x', command: 'npm test' }), { went: true, answer: { result: 'ran' } });
+  assert.equal(read, 0, 'an input with no ticket reads nothing');
+});
+
+test('what the guard counts as the conversation\'s is what the plugin put there: not the call being looked at, nor a ticket\'s shape in a file the agent wrote (ADR 0020)', async () => {
+  const { register } = (await import(new URL('../hooks/move-out.ts', import.meta.url).href)) as {
+    register: (on: (name: string, ...rest: unknown[]) => void, options: Record<string, unknown>) => void;
+  };
+  type Answer = { deny?: string; result?: unknown };
+  type Call = ($: unknown, e: Record<string, unknown>, next: (e: unknown) => Promise<Answer>) => Promise<Answer>;
+  let guard: Call | undefined;
+  register((name, ...rest) => {
+    if (name === 'tool.call' && guard === undefined) guard = rest[0] as Call;
+  }, {});
+
+  const example = ticketText({ tool: 'Read', bytes: 10, id: 'e'.repeat(64) });
+  const doc = `# Tickets\n\nA ticket reads:\n\n    ${example}\n`;
+  // The call being looked at stands in the conversation already, as Claude Code may hand it, and a file the agent wrote
+  // before holds the same example: the id is held nowhere, so the call goes through, and so does the next one.
+  const conversation = [
+    { role: 'assistant', text: '', toolUses: [{ tool_use_id: 'w1', tool: 'Write', input: { file_path: '/w/README.md', content: doc } }] },
+    { role: 'user', text: '', toolUses: [], toolResults: [{ tool_use_id: 'w1', text: 'File created successfully.', isError: false }] },
+    { role: 'assistant', text: '', toolUses: [{ tool_use_id: 'e1', tool: 'Edit', input: { file_path: '/w/README.md', old_string: 'reads', new_string: `reads ${example}` } }] },
+  ];
+  const host = { env: { get: async () => undefined }, settings: { read: async () => ({}) }, session: { messages: async () => conversation } };
+  const answered = await guard!(host, { tool: 'Edit', tool_use_id: 'e1', file_path: '/w/README.md', old_string: 'reads', new_string: `reads ${example}` }, async () => ({ result: 'ran' }));
+  assert.deepEqual(answered, { result: 'ran' });
 });

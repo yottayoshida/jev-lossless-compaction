@@ -64,6 +64,9 @@ With a key set, each call to `find` sends the provider:
 - the agent's question;
 - for every result moved out of the conversation, the call that made it and
   a 400-character digest of it;
+- for every long value moved out of a call's input (what `Write` was handed
+  to write, say), the call as it stands with the ticket in the value's place,
+  and a 400-character digest of the value;
 - for every part of the conversation that was kept, before a summary or in
   place of one, a 400-character digest of what was said in it, made as a
   result's is: its first lines, up to five lines between that look like
