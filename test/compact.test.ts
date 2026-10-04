@@ -803,3 +803,139 @@ test('the line a /compact left undone shows names what is in use only when Claud
   // Made up from characters, a figure holds no system prompt and no tools: none is shown.
   assert.equal(undoneLine(null, 167_000), "nothing to move out: the conversation is left as it is. /compact with instructions runs Claude Code's summary");
 });
+
+/**
+ * Every call has its result in the message right after it, and every result answers a call in the message right
+ * before it: what Claude Code needs of messages without a handle (it answers a call otherwise as lost to an internal
+ * error, and drops a result that answers none).
+ */
+function eachCallAnsweredNext(messages: readonly Message[]): void {
+  messages.forEach((message, at) => {
+    const next = new Set((messages[at + 1]?.toolResults ?? []).map((result) => result.tool_use_id));
+    for (const use of message.toolUses) assert.ok(next.has(use.tool_use_id), `the call ${use.tool_use_id} at ${at} is answered in the message right after it`);
+    const before = new Set((messages[at - 1]?.toolUses ?? []).map((use) => use.tool_use_id));
+    for (const result of message.toolResults ?? []) assert.ok(before.has(result.tool_use_id), `the result ${result.tool_use_id} at ${at} answers a call right before it`);
+  });
+}
+
+/** A call message of one block, as Claude Code keeps a block of a response, and the message of one result. */
+const use = (id: string, said = ''): Message => ({ role: 'assistant', text: said, toolUses: [{ tool_use_id: id, tool: 'Bash', input: { command: `show ${id}` }, text: output(id, 100) }], handle: `h-${id}` });
+const answer = (id: string): Message => ({ role: 'user', text: '', toolUses: [], toolResults: [{ tool_use_id: id, text: output(id, 100), isError: false }], handle: `h-r-${id}` });
+const words = (role: 'user' | 'assistant', text: string): Message => ({ role, text, toolUses: [], handle: `h-${text}` });
+const shape = (messages: readonly Message[]) => messages.map((m) => [m.role, m.text, m.toolUses.map((one) => one.tool_use_id), (m.toolResults ?? []).map((one) => one.tool_use_id)]);
+
+test('calls made side by side, kept one message each with their results after them in the order they ended, come back as one call message and one of results', async () => {
+  const files = new MemoryFiles();
+  // As Claude Code handed them over in a real session: three calls, then their results, the slowest last.
+  const before: Message[] = [words('user', 'Look at the three files.'), words('assistant', 'Reading all three.'), use('a'), use('b', 'And b, which is slower.'), use('c'), answer('c'), answer('b'), answer('a'), words('assistant', 'All three read.')];
+
+  const { messages, report } = await compact(inputFor(before), CONFIG, hostWith(files).host);
+
+  assert.ok(report.moved > 0);
+  eachCallAnsweredNext(messages);
+  assert.deepEqual(shape(messages), [
+    ['user', 'Look at the three files.', [], []],
+    // What was said before the calls stays a message of its own: nothing waited then.
+    ['assistant', 'Reading all three.', [], []],
+    ['assistant', 'And b, which is slower.', ['a', 'b', 'c'], []],
+    ['user', '', [], ['c', 'b', 'a']],
+    ['assistant', 'All three read.', [], []],
+  ]);
+  // What was moved out is a ticket, and what was not is the result as it was.
+  for (const result of messages[3]!.toolResults ?? []) {
+    const ticket = readTicket(result.text);
+    if (ticket) assert.deepEqual(await recall(files, DIR, ticket.id), { text: output(result.tool_use_id, 100) });
+    else assert.equal(result.text, output(result.tool_use_id, 100));
+  }
+});
+
+test('a result written while the response was still making calls joins the others, after all of its calls', async () => {
+  // As a record holds it (Claude Code 2.1.288): a call, another, the first's result, a third, the others' results.
+  const before: Message[] = [words('user', 'Check.'), use('p'), use('q'), answer('p'), use('r'), answer('q'), answer('r'), words('assistant', 'Checked.')];
+
+  const { messages } = await compact(inputFor(before), CONFIG, hostWith(new MemoryFiles()).host);
+
+  eachCallAnsweredNext(messages);
+  assert.deepEqual(shape(messages), [
+    ['user', 'Check.', [], []],
+    ['assistant', '', ['p', 'q', 'r'], []],
+    ['user', '', [], ['p', 'q', 'r']],
+    ['assistant', 'Checked.', [], []],
+  ]);
+});
+
+test('what a person said while calls ran comes after their results, as Claude Code hands it to the model', async () => {
+  const before: Message[] = [words('user', 'Go.'), use('a'), use('b'), answer('a'), words('user', 'Also look at d.'), answer('b'), words('assistant', 'Done.')];
+
+  const { messages } = await compact(inputFor(before), CONFIG, hostWith(new MemoryFiles()).host);
+
+  eachCallAnsweredNext(messages);
+  assert.deepEqual(shape(messages), [
+    ['user', 'Go.', [], []],
+    ['assistant', '', ['a', 'b'], []],
+    ['user', '', [], ['a', 'b']],
+    ['user', 'Also look at d.', [], []],
+    ['assistant', 'Done.', [], []],
+  ]);
+});
+
+test('where every call is answered right after it, every message comes back as it stood: nothing is put together', async () => {
+  // What was said before a call is a message of its own, and two responses meet with nothing between them.
+  const before: Message[] = [words('user', 'Go.'), words('assistant', 'Let me look.'), use('a'), answer('a'), use('b'), answer('b'), words('assistant', 'Done.'), words('assistant', 'And one more thing.')];
+
+  const { messages } = await compact(inputFor(before), { ...CONFIG, minChars: 1_000_000 }, hostWith(new MemoryFiles()).host);
+
+  assert.deepEqual(
+    messages,
+    before.map(({ handle: _handle, ...rest }) => rest),
+  );
+});
+
+test('a call whose result is nowhere is not waited for, and an assistant message that holds results is not joined to another', async () => {
+  // A call cut off before it was answered, then one that was; and a message of a kind Claude Code does not make.
+  const odd: Message = { role: 'assistant', text: '', toolUses: [], toolResults: [{ tool_use_id: 'z', text: 'z', isError: false }], handle: 'h-odd' };
+  const before: Message[] = [words('user', 'Go.'), use('cut'), use('b'), answer('b'), use('c'), words('user', 'Meanwhile.'), odd, words('user', 'Later.'), answer('c')];
+
+  const { messages } = await compact(inputFor(before), { ...CONFIG, minChars: 1_000_000 }, hostWith(new MemoryFiles()).host);
+
+  // The odd message ends the response that waited: what was said meanwhile stands before it, and nothing waits after it.
+  assert.deepEqual(shape(messages), [
+    ['user', 'Go.', [], []],
+    ['assistant', '', ['cut'], []],
+    ['assistant', '', ['b'], []],
+    ['user', '', [], ['b']],
+    ['assistant', '', ['c'], []],
+    ['user', 'Meanwhile.', [], []],
+    ['assistant', '', [], ['z']],
+    ['user', 'Later.', [], []],
+    ['user', '', [], ['c']],
+  ]);
+});
+
+test('what a person said before the first result comes after the results too, not between the calls and them', async () => {
+  const before: Message[] = [words('user', 'Go.'), use('a'), use('b'), words('user', 'Also look at d.'), answer('a'), answer('b'), words('assistant', 'Done.')];
+
+  const { messages } = await compact(inputFor(before), CONFIG, hostWith(new MemoryFiles()).host);
+
+  eachCallAnsweredNext(messages);
+  assert.deepEqual(shape(messages), [
+    ['user', 'Go.', [], []],
+    ['assistant', '', ['a', 'b'], []],
+    ['user', '', [], ['a', 'b']],
+    ['user', 'Also look at d.', [], []],
+    ['assistant', 'Done.', [], []],
+  ]);
+});
+
+test('a call waits only for a result further on: an id answered before it, or answered already, waits for nothing and ends nothing', async () => {
+  // Shapes Claude Code is not known to make: the same id twice, and a result before its call. Each stays where it stood.
+  const twice: Message[] = [words('user', 'Go.'), use('x'), answer('x'), use('x'), words('user', 'hi'), words('assistant', 'Reply to hi.'), words('user', 'next'), use('y'), answer('y'), words('assistant', 'Done.')];
+  const early: Message[] = [words('user', 'Go.'), answer('z'), use('z'), words('user', 'hi'), words('assistant', 'Reply to hi.')];
+  // A message that holds a call and its own result: what answers the call is in it, not further on.
+  const own: Message = { ...use('w'), toolResults: [{ tool_use_id: 'w', text: 'w', isError: false }], handle: 'h-own' };
+  const inOne: Message[] = [words('user', 'Go.'), own, words('user', 'hi'), words('assistant', 'Reply to hi.')];
+  for (const before of [twice, early, inOne]) {
+    const { messages } = await compact(inputFor(before), { ...CONFIG, minChars: 1_000_000 }, hostWith(new MemoryFiles()).host);
+    assert.deepEqual(shape(messages), shape(before));
+  }
+});
