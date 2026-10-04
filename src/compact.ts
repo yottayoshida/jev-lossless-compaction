@@ -219,6 +219,72 @@ function rebuild(messages: readonly Message[], moved: ReadonlyMap<string, Moved>
     if (toolResults.length > 0) rebuilt.toolResults = toolResults;
     out.push(rebuilt);
   }
+  return answeredNext(out);
+}
+
+/**
+ * The messages with every call answered in the message right after it. Claude Code keeps each block of a response
+ * as a message of its own, and writes a result as soon as its call ends, while the response may still be making
+ * calls: a call, another, the first's result, a third, the others' results. With its handle a message is the
+ * engine's and is put back together; rebuilt without one, a call whose result is not in the message right after it
+ * is answered as lost to an internal error, and a result that answers no call right before it is dropped (measured
+ * on Claude Code 2.1.289).
+ *
+ * So while calls of a response wait for results the conversation holds further on, the assistant messages that
+ * come are of that response and join it, the results join the one message right after it, and what a person said
+ * meanwhile comes after the results, as Claude Code hands it to the model. A call with no result further on is not
+ * waited for. Where every call is answered right after it, nothing waits, and every message stays as it was.
+ * `messages` are rebuilt ones, of the caller's own making: they are put together in place.
+ */
+function answeredNext(messages: Message[]): Message[] {
+  // Where each call's last result stands: a call waits only for a result further on, so that a wait always ends.
+  const lastResult = new Map<string, number>();
+  messages.forEach((message, at) => {
+    for (const result of message.toolResults ?? []) lastResult.set(result.tool_use_id, at);
+  });
+  const answeredAfter = (id: string, at: number): boolean => (lastResult.get(id) ?? -1) > at;
+  const out: Message[] = [];
+  const waiting = new Set<string>();
+  // The response whose calls wait, the message of its results, and what was said while they ran.
+  let open: Message | null = null;
+  let results: Message | null = null;
+  let held: Message[] = [];
+  const close = () => {
+    out.push(...held);
+    open = null;
+    results = null;
+    held = [];
+    waiting.clear();
+  };
+  for (const [at, message] of messages.entries()) {
+    if (open !== null && message.role === 'assistant' && message.toolResults === undefined) {
+      open.text = [open.text, message.text].filter((text) => text !== '').join('\n');
+      open.toolUses.push(...message.toolUses);
+      for (const use of message.toolUses) if (answeredAfter(use.tool_use_id, at)) waiting.add(use.tool_use_id);
+      continue;
+    }
+    if (open !== null && message.role === 'user') {
+      const answers = message.toolResults ?? [];
+      if (answers.length > 0 && results === null) {
+        // The first of the results stands as it came, what was said in it as well.
+        results = message;
+        out.push(message);
+      } else {
+        if (answers.length > 0) (results as Message).toolResults?.push(...answers);
+        if (message.text !== '') held.push({ role: 'user', text: message.text, toolUses: [] });
+      }
+      for (const answer of answers) waiting.delete(answer.tool_use_id);
+      if (waiting.size === 0) close();
+      continue;
+    }
+    // An assistant message that holds results is not one Claude Code makes: it stands, and ends what waited.
+    if (open !== null) close();
+    out.push(message);
+    if (message.role !== 'assistant') continue;
+    for (const use of message.toolUses) if (answeredAfter(use.tool_use_id, at)) waiting.add(use.tool_use_id);
+    if (waiting.size > 0) open = message;
+  }
+  if (open !== null) close();
   return out;
 }
 
