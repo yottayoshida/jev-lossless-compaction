@@ -21,21 +21,17 @@ The 61 ms is the plugin's own count for one recorded compaction
 
 ## Quick start
 
-```sh
-claude plugin marketplace add yottayoshida/lossless-compaction
-claude plugin install lossless-compaction@lossless-compaction
+In Claude Code 2.1.287 or later, type this at the prompt:
+
+```text
+/plugin install lossless-compaction --marketplace yottayoshida/lossless-compaction
 ```
 
-Then turn on function hooks, once, in the `env` of `~/.claude/settings.json`:
-
-```json
-{ "env": { "CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1" } }
-```
-
-Start a new session. `/compact` and automatic compaction now go through the
-plugin, and each says what it did in a line marked `lossless-compaction:`.
-Function hooks are early access: with them off the plugin moves nothing out,
-and says so at your first message
+Press `y` if asked, choose **Install for you**, and close the options with
+Esc. The plugin runs in that session (after `/reload-plugins --force` if
+Claude Code asks for it), with nothing to set, unless mods are turned off for
+you ([how to tell](docs/limits.md#function-hooks)). `/compact` and automatic
+compaction then go through it, each with a line marked `lossless-compaction:`
 ([other ways to set it up](docs/limits.md#setting-it-up)).
 
 ## What it does

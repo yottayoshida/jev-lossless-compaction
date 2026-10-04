@@ -16,6 +16,21 @@ const SETTING = 'CLAUDE_CODE_ENABLE_FUNCTION_HOOKS';
 const SESSION = '0f8fad5b-d9cb-469f-a165-70867728950e';
 const OTHER = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
 
+/**
+ * Every notice says what the plugin needs to run, and nothing to set: Claude Code's mods overview gives 2.1.287 as the version
+ * from which a plugin's hooks module runs by default and the variable is ignored. Its page on troubleshooting a mod gives
+ * `claude plugin test`, run from a directory that holds no mod, as what says when Anthropic or a setting turned modules off,
+ * and nothing more: run where a mod is, it runs that mod's tests instead. A notice that named the variable would send a reader
+ * to a setting that changes nothing.
+ */
+const WHERE = 'claude plugin test, run in an empty directory';
+function assertNamesWhatItNeeds(text: string): void {
+  assert.match(text, /Claude Code 2\.1\.287 or later \(claude --version\)/);
+  assert.ok(text.includes(`(${WHERE}, says when Anthropic or a setting turned them off)`), text);
+  assert.ok(!text.includes(SETTING), text);
+  assert.ok(!text.includes('settings.json'), text);
+}
+
 type Given = { mark?: string; pid?: string; data?: string | null; input?: string; setting?: string };
 
 // What Claude Code 2.1.286 handed the hooks, written out as it was: the hook reads these
@@ -71,7 +86,7 @@ for (const shell of SHELLS) {
       assert.equal(first.status, 2);
       // PreCompact's stdout is added to the summary's instructions: it stays empty.
       assert.equal(first.stdout, '');
-      assert.match(first.stderr, new RegExp(`"${SETTING}": "1"`));
+      assertNamesWhatItNeeds(first.stderr);
       assert.match(first.stderr, new RegExp(`claude --resume ${SESSION},`));
       assert.match(first.stderr, /if it is held again, the plugin is still not running/);
       assert.ok(!first.stderr.includes('not held again'), first.stderr);
@@ -89,11 +104,12 @@ for (const shell of SHELLS) {
   test(`${shell}: the conversation reopened is held once more, as the notice says, and goes through in a third process`, () => {
     withData((data, held) => {
       assert.equal(run(shell, 'before', { pid: '4242', data }).status, 2);
-      // Reopened after the setting was added: were this let through, a plugin that still
-      // does not run would leave the built-in summary to run on the path the notice gave.
+      // Reopened after what the notice names was put right: were this let through, a plugin that
+      // still does not run would leave the built-in summary to run on the path the notice gave.
       const reopened = run(shell, 'before', { pid: '5555', data });
       assert.equal(reopened.status, 2);
       assert.match(reopened.stderr, /still not running/);
+      assertNamesWhatItNeeds(reopened.stderr);
       // The next process goes through, so this notice must not promise to hold again.
       assert.match(reopened.stderr, /This conversation is not held again/);
       assert.ok(!reopened.stderr.includes('if it is held again'), reopened.stderr);
@@ -185,7 +201,7 @@ for (const shell of SHELLS) {
         assert.equal(said.stderr, '');
         const message = (JSON.parse(said.stdout) as { systemMessage: string }).systemMessage;
         assert.match(message, /was Claude Code's own summary/);
-        assert.match(message, new RegExp(`"${SETTING}": "1"`));
+        assertNamesWhatItNeeds(message);
       }
       // At startup the classic hook runs before the module: a missing mark means nothing there.
       for (const source of ['startup', 'resume', 'clear']) {
@@ -195,7 +211,7 @@ for (const shell of SHELLS) {
     });
   });
 
-  test(`${shell}: at a prompt without the mark, one line names the setting, once in a process`, () => {
+  test(`${shell}: at a prompt without the mark, one line names what the plugin needs, once in a process`, () => {
     withData((data) => {
       const told = join(data, 'told');
       const said = run(shell, 'prompt', { pid: '4242', data, input: prompted });
@@ -204,7 +220,7 @@ for (const shell of SHELLS) {
       // Plain stdout of UserPromptSubmit is added to the conversation; a systemMessage is shown and is not.
       const message = (JSON.parse(said.stdout) as { systemMessage: string }).systemMessage;
       assert.match(message, /is not running in this session/);
-      assert.match(message, new RegExp(`"${SETTING}": "1"`));
+      assertNamesWhatItNeeds(message);
       assert.match(message, /start a new session/);
       assert.equal(readFileSync(told, 'utf8'), '4242\n');
       assert.equal(statSync(told).mode & 0o077, 0, "the file is its owner's alone");

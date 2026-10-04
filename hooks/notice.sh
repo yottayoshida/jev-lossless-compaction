@@ -23,7 +23,14 @@ elif [ -n "$mark" ]; then
   exit 0
 fi
 
-setting='"CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1"'
+# What the plugin needs to run, said in every notice. Nothing is to be set: from
+# this version on Claude Code runs a plugin's hooks module by default and ignores
+# CLAUDE_CODE_ENABLE_FUNCTION_HOOKS. Run where there is no mod, claude plugin test
+# says when modules were turned off by Anthropic or by a setting; what it does not
+# say, an organization's allowManagedModsOnly among it, claude --debug does.
+# No quote or backslash: it goes into JSON as it is.
+version=2.1.287
+needs="The plugin needs Claude Code $version or later (claude --version) and mods that are not turned off for you (claude plugin test, run in an empty directory, says when Anthropic or a setting turned them off)"
 
 # Adds a line to one of the lists under the plugin's data directory, started
 # again past fifty lines, for its owner alone. Fails when it cannot be written.
@@ -43,7 +50,7 @@ remember() {
 if [ "${1:-}" = after ]; then
   # At startup this hook runs before the module has set the mark, so only after a compaction.
   case "$input" in *'"source":"compact"'*) ;; *) exit 0 ;; esac
-  printf '%s\n' '{"systemMessage":"lossless-compaction is enabled but was not running: this compaction was Claude Code'"'"'s own summary. To have the plugin compact from now on, put \"CLAUDE_CODE_ENABLE_FUNCTION_HOOKS\": \"1\" under \"env\" in your user settings.json and start a new session; if it is there already, run claude --debug and look for lossless-compaction."}'
+  printf '{"systemMessage":"%s"}\n' "lossless-compaction is enabled but was not running: this compaction was Claude Code's own summary. $needs; with both, start a new session to have it compact. If both hold already, run claude --debug and look for lossless-compaction."
   exit 0
 fi
 
@@ -66,7 +73,7 @@ if [ "${1:-}" = prompt ]; then
   fi
   remember "$told" "$lines" "$ended" "$pid" || exit 0
   # A systemMessage is shown, and is not added to the conversation as plain stdout would be.
-  printf '%s\n' '{"systemMessage":"lossless-compaction is enabled but is not running in this session: a compaction here would be Claude Code'"'"'s own summary, which cannot be undone. To have the plugin compact, put \"CLAUDE_CODE_ENABLE_FUNCTION_HOOKS\": \"1\" under \"env\" in your user settings.json and start a new session; if it is there already, run claude --debug and look for lossless-compaction."}'
+  printf '{"systemMessage":"%s"}\n' "lossless-compaction is enabled but is not running in this session: a compaction here would be Claude Code's own summary, which cannot be undone. $needs; with both, start a new session. If both hold already, run claude --debug and look for lossless-compaction."
   exit 0
 fi
 
@@ -86,8 +93,8 @@ case "$input" in *'"session_id":"'*) session=${input#*'"session_id":"'}; session
 case "$session" in '' | - | *[!0-9a-fA-F-]*) session= ;; esac
 
 # Through: this process was held before, or this conversation was held in two others.
-# One other is not enough: reopened after the setting was added, a conversation
-# whose plugin still does not run must be held again, as the notice says it is.
+# One other is not enough: reopened after what the notice names was put right, a
+# conversation whose plugin still does not run must be held again, as the notice says it is.
 lines=0
 before=0
 ended=yes
@@ -105,8 +112,8 @@ remember "$held" "$lines" "$ended" "$pid ${session:--}" || exit 0
 
 if [ "$before" -ge 1 ]; then
   # The second time for this conversation, and the last: the next process goes through.
-  printf '%s\n' "lossless-compaction is still not running, now in a second session of this conversation, so this /compact would be Claude Code's own summary, which cannot be undone. This conversation is not held again: before the next /compact, run claude --debug and look for lossless-compaction to see why it does not run, and check that $setting is under \"env\" in your user settings.json. To go ahead with the built-in summary, run /compact again in this session." >&2
+  printf '%s\n' "lossless-compaction is still not running, now in a second session of this conversation, so this /compact would be Claude Code's own summary, which cannot be undone. This conversation is not held again. $needs: check both before the next /compact, then run claude --debug and look for lossless-compaction to see why it does not run. To go ahead with the built-in summary, run /compact again in this session." >&2
 else
-  printf '%s\n' "lossless-compaction is enabled but is not running in this session, so this /compact would be Claude Code's own summary, which cannot be undone. To have the plugin compact instead, put $setting under \"env\" in your user settings.json, reopen this conversation with claude --resume${session:+ $session}, and run /compact there; if it is held again, the plugin is still not running. To go ahead with the built-in summary, run /compact again in this session." >&2
+  printf '%s\n' "lossless-compaction is enabled but is not running in this session, so this /compact would be Claude Code's own summary, which cannot be undone. $needs. With both, reopen this conversation with claude --resume${session:+ $session}, and run /compact there; if it is held again, the plugin is still not running. To go ahead with the built-in summary, run /compact again in this session." >&2
 fi
 exit 2
